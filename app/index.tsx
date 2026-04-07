@@ -26,6 +26,12 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
 initExecutorch({ resourceFetcher: ExpoResourceFetcher });
 
+const SYSTEM_PROMPT: Message = {
+  role: "system",
+  content:
+    "You are a helpful assistant that provides concise, accurate, and user-friendly answers. and always use the provided retrieved information to answer the question. If you don't know the answer, say you don't know. Never try to make up an answer. responses is on portuguese BR.",
+};
+
 export default function App() {
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [modalVisible, setModalVisible] = useState(false);
@@ -46,6 +52,9 @@ export default function App() {
     return new ExecuTorchLLM({
       ...QWEN3_0_6B_QUANTIZED,
       onDownloadProgress: setDownloadProgress,
+      chatConfig: {
+        systemPrompt: SYSTEM_PROMPT.content,
+      },
     });
   }, []);
 
@@ -94,7 +103,7 @@ export default function App() {
 
     try {
       const result = await rag.generate({
-        input: [...messages, newMessage],
+        input: [SYSTEM_PROMPT, ...messages, newMessage],
         augmentedGeneration,
       });
       setMessages((prevMessages) => [
