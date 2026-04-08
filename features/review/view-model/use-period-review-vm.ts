@@ -1,9 +1,3 @@
-/**
- * T040: Period review ViewModel
- *
- * Manages review generation state and user actions for period review screen
- */
-
 import { useCallback, useState } from "react";
 import type { AppError } from "../../../shared/utils/app-error";
 import { getReflectionRepository } from "../../reflection/repository/reflection-repository";
