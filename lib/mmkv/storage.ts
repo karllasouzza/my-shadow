@@ -1,5 +1,10 @@
-import { ObservablePersistPlugin, PersistMetadata, PersistOptions } from '@legendapp/state/sync';
-import { MMKV } from 'react-native-mmkv';
+import {
+    ObservablePersistPlugin,
+    PersistMetadata,
+    PersistOptions,
+} from "@legendapp/state/sync";
+import type { Configuration } from "react-native-mmkv";
+import { createMMKV } from "react-native-mmkv";
 
 // Types
 interface Change {
@@ -16,13 +21,17 @@ interface JsonObject {
 type JsonArray = JsonValue[];
 
 // Constants
-const MMKV_ID = process.env.EXPO_PUBLIC_MMKV_ID ?? process.env.MMKV_ID ?? 'powerlists-storage';
+const MMKV_ID =
+  process.env.EXPO_PUBLIC_MMKV_ID ??
+  process.env.MMKV_ID ??
+  "powerlists-storage";
 const MMKV_ENCRYPTION_KEY =
-  process.env.EXPO_PUBLIC_MMKV_ENCRYPTION_KEY ?? process.env.MMKV_ENCRYPTION_KEY;
-const METADATA_SUFFIX = '__metadata';
+  process.env.EXPO_PUBLIC_MMKV_ENCRYPTION_KEY ??
+  process.env.MMKV_ENCRYPTION_KEY;
+const METADATA_SUFFIX = "__metadata";
 
 // Storage instance
-const mmkvConfig: ConstructorParameters<typeof MMKV>[0] = {
+const mmkvConfig: Configuration = {
   id: MMKV_ID,
 };
 
@@ -30,7 +39,7 @@ if (MMKV_ENCRYPTION_KEY) {
   mmkvConfig.encryptionKey = MMKV_ENCRYPTION_KEY;
 }
 
-export const storage = new MMKV(mmkvConfig);
+export const storage = createMMKV(mmkvConfig);
 
 /**
  * Clears all data from MMKV storage
@@ -38,7 +47,7 @@ export const storage = new MMKV(mmkvConfig);
  */
 export const clearAllStorage = (): void => {
   storage.clearAll();
-  console.info('[Storage] All data cleared successfully');
+  console.info("[Storage] All data cleared successfully");
 };
 
 /**
@@ -53,7 +62,7 @@ export const getAllStorageKeys = (): string[] => {
  */
 export const deleteStorageKeys = (keys: string[]): void => {
   for (const key of keys) {
-    storage.delete(key);
+    storage.remove(key);
   }
   console.info(`[Storage] Deleted ${keys.length} keys`);
 };
@@ -63,7 +72,7 @@ export const deleteStorageKeys = (keys: string[]): void => {
  */
 export const debugStorage = (): void => {
   const keys = storage.getAllKeys();
-  console.info('[Storage] All stored keys:', keys);
+  console.info("[Storage] All stored keys:", keys);
 
   for (const key of keys) {
     const value = storage.getString(key);
@@ -72,7 +81,8 @@ export const debugStorage = (): void => {
 };
 
 // Helper functions
-const buildKey = (table: string, config: PersistOptions): StorageKey => config.name || table;
+const buildKey = (table: string, config: PersistOptions): StorageKey =>
+  config.name || table;
 
 const buildMetadataKey = (table: string, config: PersistOptions): StorageKey =>
   `${buildKey(table, config)}${METADATA_SUFFIX}`;
@@ -83,7 +93,7 @@ const safeJsonParse = <T>(value: string | undefined, fallback: T): T => {
   try {
     return JSON.parse(value) as T;
   } catch {
-    console.warn('[Storage] Failed to parse JSON, returning fallback');
+    console.warn("[Storage] Failed to parse JSON, returning fallback");
     return fallback;
   }
 };
@@ -92,7 +102,7 @@ const safeJsonStringify = (data: unknown): string | null => {
   try {
     return JSON.stringify(data);
   } catch (error) {
-    console.error('[Storage] Failed to stringify data:', error);
+    console.error("[Storage] Failed to stringify data:", error);
     return null;
   }
 };
@@ -116,7 +126,7 @@ const setValueAtPath = (
   // Navigate to the parent of the target, creating objects as needed
   for (let i = 0; i < path.length - 1; i++) {
     const key = path[i];
-    if (current[key] === undefined || typeof current[key] !== 'object') {
+    if (current[key] === undefined || typeof current[key] !== "object") {
       current[key] = {};
     }
     current = current[key] as Record<string, unknown>;
@@ -134,7 +144,7 @@ export const mmkvStorage = {
   },
   getItem: (key: string): string | null => storage.getString(key) ?? null,
   removeItem: (key: string): void => {
-    storage.delete(key);
+    storage.remove(key);
   },
 } as const;
 
@@ -168,7 +178,11 @@ export const MMKVPersistPluginWrapper: ObservablePersistPlugin = {
     }
   },
 
-  setMetadata(table: string, metadata: PersistMetadata, config: PersistOptions): Promise<void> {
+  setMetadata(
+    table: string,
+    metadata: PersistMetadata,
+    config: PersistOptions,
+  ): Promise<void> {
     const key = buildMetadataKey(table, config);
     const serialized = safeJsonStringify(metadata);
 
@@ -181,11 +195,11 @@ export const MMKVPersistPluginWrapper: ObservablePersistPlugin = {
 
   deleteTable(table: string, config: PersistOptions): void {
     const key = buildKey(table, config);
-    storage.delete(key);
+    storage.remove(key);
   },
 
   deleteMetadata(table: string, config: PersistOptions): void {
     const key = buildMetadataKey(table, config);
-    storage.delete(key);
+    storage.remove(key);
   },
 };
