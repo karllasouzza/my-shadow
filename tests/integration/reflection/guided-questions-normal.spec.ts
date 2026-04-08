@@ -10,6 +10,7 @@ import {
     getReflectionStore,
     ReflectionRecord,
 } from "../../../shared/storage/encrypted-reflection-store";
+import { unwrapOrThrow } from "../../../shared/utils/app-error";
 
 describe("Guided Question Generation - Normal Mode", () => {
   let store: EncryptedReflectionStore;
@@ -59,7 +60,9 @@ describe("Guided Question Generation - Normal Mode", () => {
     // This would test RAG retrieval in a full integration
     const retrievedReflection = await store.getReflection(reflectionId);
     expect(retrievedReflection.success).toBe(true);
-    expect(retrievedReflection.data?.sourceLocale).toBe("pt-BR");
+    const actualReflection = unwrapOrThrow(retrievedReflection);
+    expect(actualReflection).not.toBeNull();
+    expect(actualReflection!.sourceLocale).toBe("pt-BR");
   });
 
   it("should save generated question set to storage", async () => {
@@ -83,8 +86,10 @@ describe("Guided Question Generation - Normal Mode", () => {
     // Verify retrieval
     const retrieved = await store.getQuestionSetsByReflection(reflectionId);
     expect(retrieved.success).toBe(true);
-    expect(retrieved.data).toHaveLength(1);
-    expect(retrieved.data[0].id).toBe("qs_001");
+    const questionSets = unwrapOrThrow(retrieved);
+    expect(questionSets).not.toBeNull();
+    expect(questionSets).toHaveLength(1);
+    expect(questionSets[0].id).toBe("qs_001");
   });
 
   it("should maintain performance budget (<8s p95)", async () => {

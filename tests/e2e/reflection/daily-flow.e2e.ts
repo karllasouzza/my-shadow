@@ -9,6 +9,7 @@ import {
     getReflectionStore,
     ReflectionRecord,
 } from "../../../shared/storage/encrypted-reflection-store";
+import { unwrapOrThrow } from "../../../shared/utils/app-error";
 
 describe("Daily Reflection Flow - E2E", () => {
   let testPin = "1234";
@@ -62,12 +63,16 @@ describe("Daily Reflection Flow - E2E", () => {
     // Step 4: Retrieve reflection
     const getResult = await reflectionStore.getReflection("daily_001");
     expect(getResult.success).toBe(true);
-    expect(getResult.data?.content).toContain("resiliência");
+    const saved = unwrapOrThrow(getResult);
+    expect(saved).not.toBeNull();
+    expect(saved!.content).toContain("resiliência");
 
     // Step 5: List all reflections
     const allResult = await reflectionStore.getAllReflections();
     expect(allResult.success).toBe(true);
-    expect(allResult.data.length).toBeGreaterThan(0);
+    const all = unwrapOrThrow(allResult);
+    expect(all).not.toBeNull();
+    expect(all.length).toBeGreaterThan(0);
 
     // Step 6: Lock app
     const lockResult = await lockGateway.lock();
@@ -125,7 +130,7 @@ describe("Daily Reflection Flow - E2E", () => {
 
     // Verify it exists
     let getResult = await reflectionStore.getReflection("to_delete_001");
-    expect(getResult.data).toBeDefined();
+    expect(unwrapOrThrow(getResult)).toBeDefined();
 
     // Delete it
     const deleteResult =
@@ -134,6 +139,6 @@ describe("Daily Reflection Flow - E2E", () => {
 
     // Verify it's gone
     getResult = await reflectionStore.getReflection("to_delete_001");
-    expect(getResult.data).toBeNull();
+    expect(unwrapOrThrow(getResult)).toBeNull();
   });
 });

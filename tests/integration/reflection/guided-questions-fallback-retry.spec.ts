@@ -6,6 +6,7 @@ import { describe, expect, it } from "bun:test";
 import { getFallbackPromptProvider } from "../../../shared/ai/fallback-prompts-ptbr";
 import { getRetryQueueWorker } from "../../../shared/ai/retry-queue-worker";
 import { getGenerationJobStore } from "../../../shared/storage/generation-job-store";
+import { unwrapOrThrow } from "../../../shared/utils/app-error";
 
 describe("Guided Question Generation - Fallback + Retry", () => {
   beforeEach(async () => {
@@ -37,7 +38,7 @@ describe("Guided Question Generation - Fallback + Retry", () => {
     );
 
     expect(result.success).toBe(true);
-    const job = result.data;
+    const job = unwrapOrThrow(result);
     expect(job.status).toBe("queued");
     expect(job.attempts).toBe(0);
     expect(job.maxAttempts).toBe(3);
@@ -57,7 +58,8 @@ describe("Guided Question Generation - Fallback + Retry", () => {
     // Get queued jobs
     const queuedResult = await jobStore.getQueuedJobs();
     expect(queuedResult.success).toBe(true);
-    expect(queuedResult.data.length).toBeGreaterThan(0);
+    const queuedJobs = unwrapOrThrow(queuedResult);
+    expect(queuedJobs.length).toBeGreaterThan(0);
 
     // Start worker
     const startResult = await worker.start();
@@ -78,7 +80,7 @@ describe("Guided Question Generation - Fallback + Retry", () => {
       3,
     );
     expect(createResult.success).toBe(true);
-    const jobId = createResult.data.id;
+    const jobId = unwrapOrThrow(createResult).id;
 
     // Simulate first attempt
     await jobStore.updateJob(jobId, { attempts: 1 });
@@ -86,7 +88,9 @@ describe("Guided Question Generation - Fallback + Retry", () => {
     // Verify attempt was incremented
     const getResult = await jobStore.getJob(jobId);
     expect(getResult.success).toBe(true);
-    expect(getResult.data?.attempts).toBe(1);
+    const current = unwrapOrThrow(getResult);
+    expect(current).not.toBeNull();
+    expect(current!.attempts).toBe(1);
   });
 
   it("should mark job failed after max attempts", async () => {
@@ -97,7 +101,7 @@ describe("Guided Question Generation - Fallback + Retry", () => {
       "test_002",
       2,
     );
-    const jobId = createResult.data.id;
+    const jobId = unwrapOrThrow(createResult).id;
 
     // Simulate max attempts reached
     await jobStore.updateJob(jobId, {
@@ -107,8 +111,10 @@ describe("Guided Question Generation - Fallback + Retry", () => {
     });
 
     const getResult = await jobStore.getJob(jobId);
-    expect(getResult.data?.status).toBe("failed");
-    expect(getResult.data?.lastError).toContain("Max retries");
+    const failed = unwrapOrThrow(getResult);
+    expect(failed).not.toBeNull();
+    expect(failed!.status).toBe("failed");
+    expect(failed!.lastError).toContain("Max retries");
   });
 
   it("should provide complete fallback prompt set", () => {
