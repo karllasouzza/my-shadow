@@ -9,15 +9,16 @@
 
 import { Button } from "@/components/ui/button";
 import { Text } from "@/components/ui/text";
-import { router } from "expo-router";
+import type { RelativePathString } from "expo-router";
+import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    KeyboardAvoidingView,
-    Platform,
-    Switch,
-    TextInput,
-    View,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Switch,
+  TextInput,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSecurityGateVm } from "../view-model/use-security-gate-vm";
@@ -25,6 +26,7 @@ import { useSecurityGateVm } from "../view-model/use-security-gate-vm";
 export const SecurityGateScreen: React.FC = () => {
   const { state, actions } = useSecurityGateVm();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [returningPasswordVisible, setReturningPasswordVisible] =
@@ -33,13 +35,12 @@ export const SecurityGateScreen: React.FC = () => {
   // Navigate when authentication succeeds
   useEffect(() => {
     if (state.success) {
-      // Brief delay for UX, then re-enter onboarding router which will re-evaluate guard
       const timer = setTimeout(() => {
-        router.replace("/onboarding" as any);
+        router.replace("/onboarding" as RelativePathString);
       }, 300);
       return () => clearTimeout(timer);
     }
-  }, [state.success]);
+  }, [state.success, router]);
 
   const handleCreatePassword = async () => {
     await actions.createPassword();

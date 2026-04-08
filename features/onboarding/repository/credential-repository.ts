@@ -5,7 +5,7 @@
  * Singleton pattern with getRepository() accessor.
  */
 
-import { getRandomBytes } from "expo-crypto";
+import * as Crypto from "expo-crypto";
 import * as SecureStore from "expo-secure-store";
 import { MMKV, createMMKV } from "react-native-mmkv";
 import { UserCredential } from "../model/user-credential";
@@ -18,8 +18,8 @@ const ENCRYPTION_KEY_STORAGE_KEY = "mmkv_encryption_key";
 async function getOrCreateEncryptionKey(): Promise<string> {
   let key = await SecureStore.getItemAsync(ENCRYPTION_KEY_STORAGE_KEY);
   if (!key) {
-    const randomBytes = getRandomBytes(16);
-    key = Array.from(randomBytes, (b: number) => b.toString(16).padStart(2, "0")).join(
+    const randomBytes = Crypto.getRandomBytes(16);
+    key = Array.from(randomBytes, (b) => b.toString(16).padStart(2, "0")).join(
       "",
     );
     await SecureStore.setItemAsync(ENCRYPTION_KEY_STORAGE_KEY, key);
@@ -140,7 +140,7 @@ export const initCredentialRepository =
 export const getCredentialRepository = (): CredentialRepository => {
   if (!instance) {
     throw new Error(
-      'CredentialRepository not initialized. Call initCredentialRepository() first.',
+      "CredentialRepository not initialized. Call initCredentialRepository() first.",
     );
   }
   return instance;

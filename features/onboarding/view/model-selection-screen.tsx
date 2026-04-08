@@ -12,19 +12,20 @@
 import { Button } from "@/components/ui/button";
 import { Text } from "@/components/ui/text";
 import { usePreventRemove } from "@react-navigation/native";
-import { router, useNavigation } from "expo-router";
+import type { RelativePathString } from "expo-router";
+import { useRouter } from "expo-router";
 import React, { useCallback, useEffect } from "react";
 import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
-    useModelSelectionVm,
-    type ModelItem,
+  useModelSelectionVm,
+  type ModelItem,
 } from "../view-model/use-model-selection-vm";
 
 export const ModelSelectionScreen: React.FC = () => {
   const { state, actions } = useModelSelectionVm();
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
+  const router = useRouter();
 
   // Block back button during active download
   usePreventRemove(
@@ -46,7 +47,7 @@ export const ModelSelectionScreen: React.FC = () => {
       const timer = setTimeout(() => {
         // Navigate to /onboarding; OnboardingRouter will detect model is ready
         // and show the loading screen based on getInitialRoute()
-        router.replace("/onboarding" as any);
+        router.replace("/onboarding" as RelativePathString);
       }, 500);
       return () => clearTimeout(timer);
     }
@@ -163,7 +164,7 @@ export const ModelSelectionScreen: React.FC = () => {
           <Button
             variant="default"
             size="lg"
-            onPress={() => router.replace("/onboarding" as any)}
+            onPress={() => router.replace("/onboarding" as RelativePathString)}
             className="bg-primary"
           >
             <Text className="text-primary-foreground font-semibold text-base">
