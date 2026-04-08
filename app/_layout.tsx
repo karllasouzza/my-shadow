@@ -8,7 +8,9 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <Stack>
-          <Stack.Screen name="index" options={{ title: "My Shadow" }} />
+          <Stack.Screen name="index" options={{ title: "Daily Reflection" }} />
+          <Stack.Screen name="review" options={{ title: "Period Review" }} />
+          <Stack.Screen name="export" options={{ title: "Export" }} />
         </Stack>
       </SafeAreaProvider>
     </GestureHandlerRootView>
