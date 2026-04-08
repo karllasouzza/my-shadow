@@ -12,7 +12,9 @@ import { Result, createError, err, ok } from "../../../shared/utils/app-error";
 import { getPerformanceMetrics } from "../../../shared/utils/performance-metrics";
 import { GuidedQuestionSet } from "../model/guided-question-set";
 import { ReflectionEntry } from "../model/reflection-entry";
-import { getReflectionRepository } from "./reflection-repository";
+import { getReflectionRepository } from "../repository/reflection-repository";
+import { getLocalAIRuntime } from "../../../shared/ai/local-ai-runtime";
+import { getReflectionRAGRepository } from "../../../shared/ai/reflection-rag-repository";
 
 export class ReflectionService {
   private repository = getReflectionRepository();
@@ -59,6 +61,22 @@ export class ReflectionService {
         return err(saveResult.error);
       }
 
+      // Best-effort embedding index update for future retrieval context.
+      const rag = getReflectionRAGRepository();
+      const ragInit = await rag.initialize();
+      if (ragInit.success) {
+        await rag.storeEmbedding({
+          id: entry.id,
+          reflectionId: entry.id,
+          text: entry.content,
+          metadata: {
+            entryDate: entry.entryDate,
+            moodTags: entry.moodTags,
+            triggerTags: entry.triggerTags,
+          },
+        });
+      }
+
       stopTiming({ reflectionId: entry.id });
       return ok(entry);
     } catch (error) {
@@ -100,25 +118,137 @@ export class ReflectionService {
           createError("NOT_FOUND", "Reflection not found", { reflectionId }),
         );
       }
-
-      // TODO: In a real implementation, this would:
       // 1. Retrieve the reflection content
-      // 2. Perform RAG retrieval using context window
+      const reflection = reflectionResult.data;
+      const content = reflection.content || "";
+
+      // 2. Perform RAG retrieval using real embedding-backed vector search
+      const rag = getReflectionRAGRepository();
+      const ragInit = await rag.initialize();
+      let retrievalContextReflectionIds: string[] = [reflectionId];
+      let retrievedTexts: string[] = [];
+
+      if (ragInit.success) {
+        const fromDate = new Date(reflection.entryDate);
+        fromDate.setDate(fromDate.getDate() - contextWindowDays);
+        const minContextDate = fromDate.toISOString().split("T")[0];
+
+        const ragResult = await rag.searchByText(content, 8, 0.45);
+        if (ragResult.success && ragResult.data.length > 0) {
+          const boundedContext = ragResult.data
+            .filter(
+              (row) =>
+                row.reflectionId !== reflectionId &&
+                row.entryDate >= minContextDate &&
+                row.entryDate <= reflection.entryDate,
+            )
+            .slice(0, 5);
+
+          retrievalContextReflectionIds = [
+            reflectionId,
+            ...boundedContext.map((row) => row.reflectionId),
+          ];
+          retrievedTexts = boundedContext.map((row) => row.text);
+        }
+      }
+
       // 3. Call local AI runtime for generation
-      // 4. Validate tone and language
+      const runtime = getLocalAIRuntime();
+      const runtimeInit = await runtime.initialize();
+      let generatedQuestions: string[] | null = null;
 
-      // For now, use fallback implementation
-      const fallbackQuestions =
-        this.fallbackProvider.getGuidedQuestionsFallback();
+      if (runtimeInit.success) {
+        await runtime.waitReady();
 
-      // Create question set with fallback mode
+        await runtime.loadModel("qwen2.5-0.5b-quantized", "");
+
+        const promptParts: string[] = [];
+        promptParts.push(
+          "Voce e um assistente de reflexao em Portugues (pt-BR) com perspectiva junguiana. Gere perguntas reflexivas nao-diretivas com tom introspectivo e compassivo.",
+        );
+        promptParts.push(`Reflexão: ${content}`);
+        if (retrievedTexts.length > 0) {
+          promptParts.push(`Contexto adicional:\n- ${retrievedTexts.join("\n- ")}`);
+        }
+
+        const prompt = promptParts.join("\n\n");
+
+        const genResult = await runtime.generateGuidedQuestions(prompt, 6);
+        if (genResult.success && genResult.data.length > 0) {
+          generatedQuestions = genResult.data.slice(0, 8);
+        }
+      }
+
+      // 4. Validate tone and language for generated outputs
+      if (generatedQuestions && generatedQuestions.length > 0) {
+        for (const q of generatedQuestions) {
+          const validation = this.toneGuard.validate(q);
+          if (!validation.success) {
+            // If any generated question fails validation, discard and fallback
+            generatedQuestions = null;
+            break;
+          }
+        }
+      }
+
+      // If generation failed or validation failed, use fallback and queue a retry
+      if (!generatedQuestions) {
+        const fallbackQuestions = this.fallbackProvider.getGuidedQuestionsFallback();
+
+        // Create question set with fallback mode
+        const qSetResult = GuidedQuestionSet.create(
+          reflectionId,
+          fallbackQuestions,
+          "fallback_template",
+          retrievalContextReflectionIds,
+          runtime.getCurrentModel()?.id ?? "qwen2.5-0.5b-quantized",
+          "executorch-0.8",
+        );
+
+        if (!qSetResult.success) {
+          return err(qSetResult.error);
+        }
+
+        const questionSet = qSetResult.data;
+
+        // Save question set
+        const saveResult = await this.repository.saveQuestionSet(questionSet);
+        if (!saveResult.success) {
+          return err(saveResult.error);
+        }
+
+        // Create retry job for proper generation
+        const jobResult = await this.jobStore.createJob(
+          "guided_questions",
+          reflectionId,
+          3,
+        );
+
+        let queuedRetryJobId: string | undefined;
+        if (jobResult.success) {
+          queuedRetryJobId = jobResult.data.id;
+        }
+
+        stopTiming({
+          reflectionId,
+          generationMode: "fallback_template",
+          retried: !!queuedRetryJobId,
+        });
+
+        return ok({
+          questionSet,
+          queuedRetryJobId,
+        });
+      }
+
+      // Persist successful generated question set
       const qSetResult = GuidedQuestionSet.create(
         reflectionId,
-        fallbackQuestions,
-        "fallback_template",
-        [reflectionId],
-        "llama2-7b",
-        "v1",
+        generatedQuestions,
+        "normal",
+        retrievalContextReflectionIds,
+        runtime.getCurrentModel()?.id ?? "qwen2.5-0.5b-quantized",
+        "executorch-0.8",
       );
 
       if (!qSetResult.success) {
@@ -127,34 +257,18 @@ export class ReflectionService {
 
       const questionSet = qSetResult.data;
 
-      // Save question set
       const saveResult = await this.repository.saveQuestionSet(questionSet);
       if (!saveResult.success) {
         return err(saveResult.error);
       }
 
-      // Create retry job for proper generation
-      const jobResult = await this.jobStore.createJob(
-        "guided_questions",
-        reflectionId,
-        3,
-      );
-
-      let queuedRetryJobId: string | undefined;
-      if (jobResult.success) {
-        queuedRetryJobId = jobResult.data.id;
-      }
-
       stopTiming({
         reflectionId,
-        generationMode: "fallback_template",
-        retried: !!queuedRetryJobId,
+        generationMode: "normal",
+        retried: false,
       });
 
-      return ok({
-        questionSet,
-        queuedRetryJobId,
-      });
+      return ok({ questionSet });
     } catch (error) {
       return err(
         createError(
@@ -214,7 +328,18 @@ export class ReflectionService {
       }
 
       // Delete the reflection itself
-      return await this.repository.delete(reflectionId);
+      const deleteResult = await this.repository.delete(reflectionId);
+      if (!deleteResult.success) {
+        return deleteResult;
+      }
+
+      const rag = getReflectionRAGRepository();
+      const ragInit = await rag.initialize();
+      if (ragInit.success) {
+        await rag.deleteEmbedding(reflectionId);
+      }
+
+      return ok(void 0);
     } catch (error) {
       return err(
         createError(

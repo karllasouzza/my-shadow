@@ -110,7 +110,7 @@ export class GuidedQuestionSet {
     questions: string[],
     generationMode: GenerationMode = "normal",
     retrievalContextReflectionIds: string[] = [],
-    modelId: string = "llama2-7b",
+    modelId: string = "qwen2.5-0.5b-quantized",
     modelVersion: string = "v1",
   ): Result<GuidedQuestionSet> {
     const validation = this.validate({

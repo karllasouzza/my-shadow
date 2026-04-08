@@ -155,7 +155,16 @@ export const useDailyReflectionViewModel = (): UseDailyReflectionViewModel => {
         editingTriggerTags: result.data!.triggerTags,
       }));
     } else {
-      setState((s) => ({ ...s, isLoading: false, error: result.error }));
+      setState((s) => ({
+        ...s,
+        isLoading: false,
+        error: result.success
+          ? {
+              code: "NOT_FOUND",
+              message: "Reflexao selecionada nao foi encontrada.",
+            }
+          : result.error,
+      }));
     }
   }, []);
 
