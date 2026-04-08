@@ -15,7 +15,8 @@ export type {
 // Repository
 export {
     CredentialRepository,
-    getCredentialRepository
+    getCredentialRepository,
+    initCredentialRepository
 } from "./repository/credential-repository";
 
 export {
@@ -40,7 +41,8 @@ export { OnboardingRouter } from "./service/onboarding-router";
 export type { OnboardingRouterProps } from "./service/onboarding-router";
 
 export {
-    initAIRuntimeWithCap, validateRamBudget
+    initAIRuntimeWithCap,
+    validateRamBudget
 } from "./service/ram-cap-validator";
 
 export { initAIRuntimeWithModelCap } from "./service/ram-cap-integration";
