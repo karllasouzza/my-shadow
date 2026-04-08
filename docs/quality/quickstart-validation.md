@@ -6,6 +6,7 @@
 ## Feature Completeness
 
 ### Phase 1: Setup ✓
+
 - [x] Routing scaffolding (daily, review, export screens)
 - [x] Bun test runner configured
 - [x] Documentation structure
@@ -15,6 +16,7 @@
 - [x] Theme tokens
 
 ### Phase 2: Foundational ✓
+
 - [x] Encrypted MMKV storage
 - [x] Biometric app lock
 - [x] Local llama.rn runtime bootstrap
@@ -26,6 +28,7 @@
 - [x] Performance metrics
 
 ### Phase 3: Daily Reflection (MVP) ✓
+
 - [x] ReflectionEntry model with validation
 - [x] GuidedQuestionSet model
 - [x] Reflection repository
@@ -42,6 +45,7 @@
 - [x] E2E test (daily-flow.e2e.ts)
 
 ### Phase 4: Period Review ✓
+
 - [x] FinalReview model with period validation
 - [x] Review repository
 - [x] Review service (generate final review from reflections)
@@ -54,6 +58,7 @@
 - [x] E2E test (period-review-flow.e2e.ts)
 
 ### Phase 5: Markdown Export ✓
+
 - [x] ExportBundle model
 - [x] Export repository
 - [x] Markdown export service
@@ -65,17 +70,19 @@
 - [ ] E2E test (export-flow.e2e.ts)
 
 ### Phase 6: Polish (In Progress)
+
 - [x] Regression tests (privacy-language-delete.spec.ts)
 - [x] Architecture documentation
 - [x] ADR for decisions
 - [x] Performance validation
 - [ ] Quickstart validation notes
-- [ ] Route entry points wiring in app/_layout.tsx
+- [ ] Route entry points wiring in app/\_layout.tsx
 - [ ] Release readiness checklist
 
 ## User Workflows Validated
 
 ### Workflow 1: Create Daily Reflection
+
 1. ✓ User opens daily reflection screen
 2. ✓ User enters reflection text in Portuguese
 3. ✓ User taps "Generate Questions"
@@ -86,6 +93,7 @@
 **Validation**: E2E test covers happy path, fallback, retry queue.
 
 ### Workflow 2: Review Period Data
+
 1. ✓ User navigates to period review screen
 2. ✓ User selects date range (start/end)
 3. ✓ User taps "Gerar Análise Periódica"
@@ -100,6 +108,7 @@
 **Validation**: E2E test covers normal and low-data scenarios (1-2 reflections).
 
 ### Workflow 3: Export to Markdown
+
 1. ✓ User navigates to export screen
 2. ✓ User selects period (start/end)
 3. ✓ User checks boxes: Reflections, Question Sets, Reviews
@@ -118,6 +127,7 @@
 All user-facing text must be Brazilian Portuguese (pt-BR):
 
 ### Required Strings (Sample)
+
 - "Reflexão Diária" ✓ (daily reflection)
 - "Gerador de Questões" ✓ (question generator)
 - "Gerando..." ✓ (generating...)
@@ -130,10 +140,11 @@ All user-facing text must be Brazilian Portuguese (pt-BR):
 - "Marcar para Exclusão" ✓ (mark for deletion)
 
 ### Generated Content
+
 ✓ All AI-generated questions in pt-BR  
 ✓ Review summaries in pt-BR  
 ✓ Patterns/triggers/prompts in pt-BR  
-✓ Markdown exports preserve pt-BR characters (àáâãèéêìíòóôõùúûüçñ)  
+✓ Markdown exports preserve pt-BR characters (àáâãèéêìíòóôõùúûüçñ)
 
 ## Privacy Checklist
 
@@ -147,14 +158,14 @@ All user-facing text must be Brazilian Portuguese (pt-BR):
 
 ## Performance Benchmarks
 
-| Operation | Time | Status |
-|-----------|------|--------|
-| App startup | ~1.2s | ✓ |
-| Generate questions | ~6.5s | ✓ |
-| Generate period review | ~8.2s | ✓ |
-| Export markdown | ~350ms | ✓ |
-| Delete with cascade | ~280ms | ✓ |
-| Run full test suite | ~730ms | ✓ |
+| Operation              | Time   | Status |
+| ---------------------- | ------ | ------ |
+| App startup            | ~1.2s  | ✓      |
+| Generate questions     | ~6.5s  | ✓      |
+| Generate period review | ~8.2s  | ✓      |
+| Export markdown        | ~350ms | ✓      |
+| Delete with cascade    | ~280ms | ✓      |
+| Run full test suite    | ~730ms | ✓      |
 
 All within performance budgets. See [performance-validation.md](../quality/performance-validation.md) for detailed benchmarks.
 
@@ -169,6 +180,7 @@ All within performance budgets. See [performance-validation.md](../quality/perfo
 ## Testing Summary
 
 ### Test Coverage
+
 - 35 unit tests (models, validation, utils)
 - 28 integration tests (service logic, cascade, synthesis)
 - 14 E2E tests (user workflows)
@@ -176,6 +188,7 @@ All within performance budgets. See [performance-validation.md](../quality/perfo
 - **Total**: 89 tests passing ✓
 
 ### Test Execution
+
 - Bun test runner: ~730ms total
 - All imports from "bun:test"
 - No Jest or other test frameworks
@@ -185,7 +198,7 @@ All within performance budgets. See [performance-validation.md](../quality/perfo
 
 - [ ] Complete integration tests for export (markdown-export.spec.ts, markdown-empty-period.spec.ts)
 - [ ] Complete E2E test for export flow (export-flow.e2e.ts)
-- [ ] Wire reflection feature routes in app/_layout.tsx
+- [ ] Wire reflection feature routes in app/\_layout.tsx
 - [ ] Generate release readiness evidence (lint, security, tests)
 - [ ] Final manual testing on real device (iOS/Android)
 

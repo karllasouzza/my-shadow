@@ -45,6 +45,7 @@ Domain models represent core business concepts with validation and serialization
 - **ExportBundle**: Markdown export with metadata (file size, section count)
 
 All models implement:
+
 - **Static `create()`**: Full validation, returns `Result<T>`
 - **`toRecord()`**: Serialize to persistence format
 - **`fromRecord()`**: Deserialize from storage
@@ -88,12 +89,14 @@ function useDailyReflectionViewModel(service?: ReflectionService) {
 ```
 
 State typically includes:
+
 - `isLoading`: Async operation in progress
 - `error`: Latest error message
 - `data`: Primary domain object
 - `metadata`: Secondary info (file size, section counts, etc.)
 
 Actions:
+
 - Always async with proper error handling
 - Update state before, during, after operation
 - Clear errors when user dismisses
@@ -155,18 +158,18 @@ React Native screens using NativeWind v5 (className only, no style prop):
 ### Result<T> Type
 
 ```typescript
-type Result<T> = 
+type Result<T> =
   | { success: true; data: T }
-  | { success: false; error: AppError }
+  | { success: false; error: AppError };
 ```
 
 ### AppError Structure
 
 ```typescript
 interface AppError {
-  code: AppErrorCode
-  message: string
-  context?: Record<string, unknown>
+  code: AppErrorCode;
+  message: string;
+  context?: Record<string, unknown>;
 }
 ```
 
