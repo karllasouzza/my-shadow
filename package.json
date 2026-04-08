@@ -8,7 +8,17 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+      "test": "jest --passWithNoTests",
+      "test:watch": "jest --watch",
+      "bun:install": "bun install",
+      "bun:ci": "bun install --frozen-lockfile",
+      "bun:start": "bun run start",
+      "bun:dev": "bun run start",
+      "bun:android": "bun run android",
+      "bun:ios": "bun run ios",
+      "bun:web": "bun run web",
+      "bun:lint": "bun run lint"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
