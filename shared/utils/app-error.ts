@@ -1,6 +1,6 @@
 /**
  * T007: Define shared error/result types
- * 
+ *
  * Provides standardized error handling across the application.
  * Used by all services and view models to return consistent errors.
  */
@@ -22,14 +22,14 @@ export interface AppError {
   cause?: Error;
 }
 
-export type Result<T> = 
+export type Result<T> =
   | { success: true; data: T }
   | { success: false; error: AppError };
 
 /**
  * Utility to create a successful result
  */
-export const ok = <T,>(data: T): Result<T> => ({
+export const ok = <T>(data: T): Result<T> => ({
   success: true,
   data,
 });
@@ -37,7 +37,7 @@ export const ok = <T,>(data: T): Result<T> => ({
 /**
  * Utility to create a failed result
  */
-export const err = <T,>(error: AppError): Result<T> => ({
+export const err = <T>(error: AppError): Result<T> => ({
   success: false,
   error,
 });
@@ -49,7 +49,7 @@ export const createError = (
   code: AppErrorCode,
   message: string,
   details?: Record<string, unknown>,
-  cause?: Error
+  cause?: Error,
 ): AppError => ({
   code,
   message,
@@ -60,21 +60,25 @@ export const createError = (
 /**
  * Type guard to check if result is successful
  */
-export const isSuccess = <T,>(result: Result<T>): result is { success: true; data: T } => {
+export const isSuccess = <T>(
+  result: Result<T>,
+): result is { success: true; data: T } => {
   return result.success;
 };
 
 /**
  * Type guard to check if result failed
  */
-export const isFailed = <T,>(result: Result<T>): result is { success: false; error: AppError } => {
+export const isFailed = <T>(
+  result: Result<T>,
+): result is { success: false; error: AppError } => {
   return !result.success;
 };
 
 /**
  * Extract data from result or throw error
  */
-export const unwrapOrThrow = <T,>(result: Result<T>): T => {
+export const unwrapOrThrow = <T>(result: Result<T>): T => {
   if (isSuccess(result)) {
     return result.data;
   }

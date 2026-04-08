@@ -6,13 +6,7 @@
  */
 
 import React from "react";
-import {
-    Pressable,
-    ScrollView,
-    Text,
-    TextInput,
-    View
-} from "react-native";
+import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { StateView } from "../../../shared/components/state-view";
 import { REFLECTION_THEME } from "../../../shared/theme/reflection-theme";
 import { useDailyReflectionViewModel } from "../view-model/use-daily-reflection-vm";

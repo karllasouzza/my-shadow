@@ -1,11 +1,11 @@
 /**
  * T012: Implement RAG vector repository wrapper
- * 
+ *
  * Wraps react-native-rag @react-native-rag/op-sqlite vector store
  * for storing embeddings and retrieving contextual reflections during generation.
  */
 
-import { Result, ok, err, createError } from "../utils/app-error";
+import { Result, createError, err, ok } from "../utils/app-error";
 
 export interface EmbeddingRecord {
   id: string;
@@ -51,7 +51,12 @@ export class ReflectionRAGRepository {
       return ok(void 0);
     } catch (error) {
       return err(
-        createError("NOT_READY", "Failed to initialize RAG repository", {}, error as Error)
+        createError(
+          "NOT_READY",
+          "Failed to initialize RAG repository",
+          {},
+          error as Error,
+        ),
       );
     }
   }
@@ -71,7 +76,12 @@ export class ReflectionRAGRepository {
       return ok(void 0);
     } catch (error) {
       return err(
-        createError("STORAGE_ERROR", "Failed to store embedding", {}, error as Error)
+        createError(
+          "STORAGE_ERROR",
+          "Failed to store embedding",
+          {},
+          error as Error,
+        ),
       );
     }
   }
@@ -82,7 +92,7 @@ export class ReflectionRAGRepository {
   async search(
     queryEmbedding: number[],
     limit: number = 5,
-    threshold: number = 0.7
+    threshold: number = 0.7,
   ): Promise<Result<RetrievalResult[]>> {
     try {
       if (!this.initialized) {
@@ -99,8 +109,8 @@ export class ReflectionRAGRepository {
           "STORAGE_ERROR",
           "Failed to search embeddings",
           {},
-          error as Error
-        )
+          error as Error,
+        ),
       );
     }
   }
@@ -119,7 +129,12 @@ export class ReflectionRAGRepository {
       return ok(void 0);
     } catch (error) {
       return err(
-        createError("STORAGE_ERROR", "Failed to delete embedding", {}, error as Error)
+        createError(
+          "STORAGE_ERROR",
+          "Failed to delete embedding",
+          {},
+          error as Error,
+        ),
       );
     }
   }
@@ -129,7 +144,7 @@ export class ReflectionRAGRepository {
    */
   async getEmbeddingsByDateRange(
     startDate: string,
-    endDate: string
+    endDate: string,
   ): Promise<Result<EmbeddingRecord[]>> {
     try {
       if (!this.initialized) {
@@ -145,8 +160,8 @@ export class ReflectionRAGRepository {
           "STORAGE_ERROR",
           "Failed to retrieve embeddings",
           {},
-          error as Error
-        )
+          error as Error,
+        ),
       );
     }
   }
@@ -161,7 +176,12 @@ export class ReflectionRAGRepository {
       return ok(void 0);
     } catch (error) {
       return err(
-        createError("STORAGE_ERROR", "Failed to clear embeddings", {}, error as Error)
+        createError(
+          "STORAGE_ERROR",
+          "Failed to clear embeddings",
+          {},
+          error as Error,
+        ),
       );
     }
   }

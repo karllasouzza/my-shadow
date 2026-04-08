@@ -1,12 +1,12 @@
 /**
  * T014: Implement retry job persistence
- * 
+ *
  * Stores pending retry jobs for generation tasks that fail temporarily.
  * Uses encrypted local storage to persist job queue across app restarts.
  */
 
 import { MMKV } from "react-native-mmkv";
-import { Result, ok, err, createError } from "../utils/app-error";
+import { Result, createError, err, ok } from "../utils/app-error";
 
 export interface GenerationJob {
   id: string;
@@ -38,7 +38,7 @@ export class GenerationJobStore {
   async createJob(
     targetType: "guided_questions" | "final_review",
     targetRefId: string,
-    maxAttempts: number = 3
+    maxAttempts: number = 3,
   ): Promise<Result<GenerationJob>> {
     try {
       const id = this.generateId();
@@ -64,7 +64,12 @@ export class GenerationJobStore {
       return ok(job);
     } catch (error) {
       return err(
-        createError("STORAGE_ERROR", "Failed to create job", {}, error as Error)
+        createError(
+          "STORAGE_ERROR",
+          "Failed to create job",
+          {},
+          error as Error,
+        ),
       );
     }
   }
@@ -72,7 +77,10 @@ export class GenerationJobStore {
   /**
    * Update job status
    */
-  async updateJob(jobId: string, updates: Partial<GenerationJob>): Promise<Result<void>> {
+  async updateJob(
+    jobId: string,
+    updates: Partial<GenerationJob>,
+  ): Promise<Result<void>> {
     try {
       const key = `${this.jobPrefix}${jobId}`;
       const data = this.storage.getString(key);
@@ -92,7 +100,12 @@ export class GenerationJobStore {
       return ok(void 0);
     } catch (error) {
       return err(
-        createError("STORAGE_ERROR", "Failed to update job", {}, error as Error)
+        createError(
+          "STORAGE_ERROR",
+          "Failed to update job",
+          {},
+          error as Error,
+        ),
       );
     }
   }
@@ -108,7 +121,12 @@ export class GenerationJobStore {
       return ok(JSON.parse(data) as GenerationJob);
     } catch (error) {
       return err(
-        createError("STORAGE_ERROR", "Failed to retrieve job", {}, error as Error)
+        createError(
+          "STORAGE_ERROR",
+          "Failed to retrieve job",
+          {},
+          error as Error,
+        ),
       );
     }
   }
@@ -127,7 +145,10 @@ export class GenerationJobStore {
       for (const id of jobIds) {
         const result = await this.getJob(id);
         if (result.success && result.data) {
-          if (result.data.status === "queued" || result.data.status === "running") {
+          if (
+            result.data.status === "queued" ||
+            result.data.status === "running"
+          ) {
             jobs.push(result.data);
           }
         }
@@ -136,7 +157,12 @@ export class GenerationJobStore {
       return ok(jobs);
     } catch (error) {
       return err(
-        createError("STORAGE_ERROR", "Failed to retrieve queued jobs", {}, error as Error)
+        createError(
+          "STORAGE_ERROR",
+          "Failed to retrieve queued jobs",
+          {},
+          error as Error,
+        ),
       );
     }
   }
@@ -155,7 +181,12 @@ export class GenerationJobStore {
       return ok(void 0);
     } catch (error) {
       return err(
-        createError("STORAGE_ERROR", "Failed to delete job", {}, error as Error)
+        createError(
+          "STORAGE_ERROR",
+          "Failed to delete job",
+          {},
+          error as Error,
+        ),
       );
     }
   }
@@ -175,7 +206,12 @@ export class GenerationJobStore {
       return ok(void 0);
     } catch (error) {
       return err(
-        createError("STORAGE_ERROR", "Failed to clear jobs", {}, error as Error)
+        createError(
+          "STORAGE_ERROR",
+          "Failed to clear jobs",
+          {},
+          error as Error,
+        ),
       );
     }
   }

@@ -54,9 +54,7 @@ export const StateView: React.FC<StateViewProps> = ({
   className,
 }) => {
   return (
-    <View
-      className={className || "flex-1 items-center justify-center p-4"}
-    >
+    <View className={className || "flex-1 items-center justify-center p-4"}>
       {state === "loading" &&
         (loadingComponent || (
           <Text className="text-gray-500">Carregando...</Text>

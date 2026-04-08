@@ -1,13 +1,13 @@
 /**
  * T010: Implement app lock gateway and hook
- * 
+ *
  * Manages mandatory app lock for security-sensitive operations.
  * Uses MMKV for secure storage and provides hook for React components.
  */
 
-import { MMKV } from "react-native-mmkv";
 import * as SecureStore from "expo-secure-store";
-import { Result, ok, err, createError } from "../utils/app-error";
+import { MMKV } from "react-native-mmkv";
+import { Result, createError, err, ok } from "../utils/app-error";
 
 interface AppLockState {
   isLocked: boolean;
@@ -51,8 +51,8 @@ export class AppLockGateway {
           "SECURITY_LOCK_REQUIRED",
           "Failed to initialize app lock",
           {},
-          error as Error
-        )
+          error as Error,
+        ),
       );
     }
   }
@@ -65,15 +65,13 @@ export class AppLockGateway {
       const storedHash = await SecureStore.getItemAsync(this.pinKey);
       if (!storedHash) {
         return err(
-          createError("SECURITY_LOCK_REQUIRED", "App lock not initialized")
+          createError("SECURITY_LOCK_REQUIRED", "App lock not initialized"),
         );
       }
 
       const inputHash = this.hashPin(pin);
       if (inputHash !== storedHash) {
-        return err(
-          createError("SECURITY_LOCK_REQUIRED", "Invalid PIN")
-        );
+        return err(createError("SECURITY_LOCK_REQUIRED", "Invalid PIN"));
       }
 
       // Generate session token
@@ -92,8 +90,8 @@ export class AppLockGateway {
           "SECURITY_LOCK_REQUIRED",
           "Failed to unlock app",
           {},
-          error as Error
-        )
+          error as Error,
+        ),
       );
     }
   }
@@ -111,7 +109,12 @@ export class AppLockGateway {
       return ok(void 0);
     } catch (error) {
       return err(
-        createError("SECURITY_LOCK_REQUIRED", "Failed to lock app", {}, error as Error)
+        createError(
+          "SECURITY_LOCK_REQUIRED",
+          "Failed to lock app",
+          {},
+          error as Error,
+        ),
       );
     }
   }
@@ -175,7 +178,12 @@ export class AppLockGateway {
       return ok(void 0);
     } catch (error) {
       return err(
-        createError("SECURITY_LOCK_REQUIRED", "Failed to reset PIN", {}, error as Error)
+        createError(
+          "SECURITY_LOCK_REQUIRED",
+          "Failed to reset PIN",
+          {},
+          error as Error,
+        ),
       );
     }
   }
@@ -198,7 +206,9 @@ export class AppLockGateway {
    * Generate session token
    */
   private generateToken(): string {
-    return Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+    return (
+      Math.random().toString(36).substring(2, 15) + Date.now().toString(36)
+    );
   }
 }
 

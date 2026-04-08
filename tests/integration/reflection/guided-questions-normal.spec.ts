@@ -2,14 +2,14 @@
  * T020: Integration test for guided question generation in normal mode
  */
 
-import { describe, it, expect } from "bun:test";
-import {
-  getReflectionStore,
-  EncryptedReflectionStore,
-  ReflectionRecord,
-} from "../../../shared/storage/encrypted-reflection-store";
+import { describe, expect, it } from "bun:test";
 import { getLocalAIRuntime } from "../../../shared/ai/local-ai-runtime";
 import { getPtBRJungianGuard } from "../../../shared/ai/ptbr-tone-guard";
+import {
+    EncryptedReflectionStore,
+    getReflectionStore,
+    ReflectionRecord,
+} from "../../../shared/storage/encrypted-reflection-store";
 
 describe("Guided Question Generation - Normal Mode", () => {
   let store: EncryptedReflectionStore;
@@ -23,7 +23,8 @@ describe("Guided Question Generation - Normal Mode", () => {
     const reflection: ReflectionRecord = {
       id: "test_reflection_001",
       entryDate: new Date().toISOString().split("T")[0],
-      content: "Hoje refleti sobre meus medos e percebo que posso enfrentá-los com coragem.",
+      content:
+        "Hoje refleti sobre meus medos e percebo que posso enfrentá-los com coragem.",
       moodTags: ["introspectivo", "corajoso"],
       triggerTags: ["pessoal", "crescimento"],
       sourceLocale: "pt-BR",

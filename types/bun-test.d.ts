@@ -16,4 +16,5 @@ declare global {
   function afterAll(fn: () => void | Promise<void>): void;
 }
 
-export {};
+export { };
+

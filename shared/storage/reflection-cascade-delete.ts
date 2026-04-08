@@ -1,13 +1,13 @@
 /**
  * T016: Implement hard-delete cascade coordinator
- * 
+ *
  * Coordinates cascading deletion of dependent artifacts when a reflection is deleted.
  * Ensures no orphaned records remain and maintains referential integrity.
  */
 
-import { Result, ok, err, createError } from "../utils/app-error";
 import { getReflectionStore } from "../storage/encrypted-reflection-store";
 import { getGenerationJobStore } from "../storage/generation-job-store";
+import { Result, createError, err, ok } from "../utils/app-error";
 
 export interface CascadeDeleteResult {
   deletedReflectionId: string;
@@ -28,19 +28,20 @@ export class ReflectionCascadeDelete {
    * Execute cascade delete for a reflection and all dependent artifacts
    */
   async deleteReflectionCascade(
-    reflectionId: string
+    reflectionId: string,
   ): Promise<Result<CascadeDeleteResult>> {
     try {
       const startTime = Date.now();
 
       // Verify reflection exists
-      const reflectionResult = await this.reflectionStore.getReflection(reflectionId);
+      const reflectionResult =
+        await this.reflectionStore.getReflection(reflectionId);
       if (!reflectionResult.success) {
         return err(reflectionResult.error);
       }
       if (!reflectionResult.data) {
         return err(
-          createError("NOT_FOUND", `Reflection ${reflectionId} not found`)
+          createError("NOT_FOUND", `Reflection ${reflectionId} not found`),
         );
       }
 
@@ -49,13 +50,12 @@ export class ReflectionCascadeDelete {
       let deletedJobCount = 0;
 
       // Delete dependent question sets
-      const questionSetsResult = await this.reflectionStore.getQuestionSetsByReflection(
-        reflectionId
-      );
+      const questionSetsResult =
+        await this.reflectionStore.getQuestionSetsByReflection(reflectionId);
       if (questionSetsResult.success) {
         for (const questionSet of questionSetsResult.data) {
           const deleteResult = await this.reflectionStore.deleteQuestionSet(
-            questionSet.id
+            questionSet.id,
           );
           if (deleteResult.success) {
             deletedQuestionSetCount++;
@@ -83,9 +83,8 @@ export class ReflectionCascadeDelete {
       // This would require querying reviews that reference this reflection
 
       // Delete the reflection itself
-      const deleteReflectionResult = await this.reflectionStore.deleteReflection(
-        reflectionId
-      );
+      const deleteReflectionResult =
+        await this.reflectionStore.deleteReflection(reflectionId);
       if (!deleteReflectionResult.success) {
         return err(deleteReflectionResult.error);
       }
@@ -103,8 +102,8 @@ export class ReflectionCascadeDelete {
           "STORAGE_ERROR",
           "Cascade delete failed",
           { reflectionId },
-          error as Error
-        )
+          error as Error,
+        ),
       );
     }
   }
@@ -113,11 +112,12 @@ export class ReflectionCascadeDelete {
    * Verify cascade delete integrity (for testing)
    */
   async verifyCascadeIntegrity(
-    reflectionId: string
+    reflectionId: string,
   ): Promise<Result<{ isClean: boolean; orphanCount: number }>> {
     try {
       // Check that reflection is gone
-      const reflectionResult = await this.reflectionStore.getReflection(reflectionId);
+      const reflectionResult =
+        await this.reflectionStore.getReflection(reflectionId);
       if (!reflectionResult.success) {
         return err(reflectionResult.error);
       }
@@ -126,9 +126,8 @@ export class ReflectionCascadeDelete {
       }
 
       // Check that question sets are gone
-      const questionSetsResult = await this.reflectionStore.getQuestionSetsByReflection(
-        reflectionId
-      );
+      const questionSetsResult =
+        await this.reflectionStore.getQuestionSetsByReflection(reflectionId);
       if (!questionSetsResult.success) {
         return err(questionSetsResult.error);
       }
@@ -145,8 +144,8 @@ export class ReflectionCascadeDelete {
           "STORAGE_ERROR",
           "Integrity check failed",
           { reflectionId },
-          error as Error
-        )
+          error as Error,
+        ),
       );
     }
   }

@@ -2,7 +2,7 @@
  * T022: End-to-end daily reflection flow test
  */
 
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { getPtBRJungianGuard } from "../../../shared/ai/ptbr-tone-guard";
 import { getAppLockGateway } from "../../../shared/security/app-lock";
 import {

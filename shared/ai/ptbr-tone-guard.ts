@@ -1,11 +1,11 @@
 /**
  * T017: Implement pt-BR language and Jungian tone guard utilities
- * 
+ *
  * Validates that generated content is in Brazilian Portuguese and maintains
  * appropriate Jungian introspective tone throughout the application.
  */
 
-import { Result, ok, err, createError } from "../utils/app-error";
+import { Result, createError, err, ok } from "../utils/app-error";
 
 export interface ToneValidationResult {
   isValid: boolean;
@@ -43,9 +43,7 @@ export class PtBRLanguageGuard {
     }
 
     // Check for English indicators (negative)
-    const englishIndicators = [
-      /\b(the|and|is|with|this|that|have|been)\b/gi,
-    ];
+    const englishIndicators = [/\b(the|and|is|with|this|that|have|been)\b/gi];
 
     let englishCount = 0;
     for (const pattern of englishIndicators) {
@@ -58,7 +56,7 @@ export class PtBRLanguageGuard {
     const totalWords = text.split(/\s+/).length;
     const confidence = Math.min(
       1,
-      matchCount / (totalWords * 0.1) - (englishCount * 0.2)
+      matchCount / (totalWords * 0.1) - englishCount * 0.2,
     );
 
     return {
@@ -79,8 +77,8 @@ export class PtBRLanguageGuard {
         createError(
           "VALIDATION_ERROR",
           "Content must be in Brazilian Portuguese",
-          { confidence: detection.confidence }
-        )
+          { confidence: detection.confidence },
+        ),
       );
     }
 
@@ -115,7 +113,9 @@ export class JungianToneGuard {
       const matches = text.match(pattern);
       if (matches) {
         redFlagCount += matches.length;
-        issues.push(`Detectada linguagem de auto-crítica severa: ${matches[0]}`);
+        issues.push(
+          `Detectada linguagem de auto-crítica severa: ${matches[0]}`,
+        );
       }
     }
 
@@ -159,7 +159,9 @@ export class PtBRJungianGuard {
   /**
    * Validate both language and tone
    */
-  validate(text: string): Result<{ language: LanguageDetectionResult; tone: ToneValidationResult }> {
+  validate(
+    text: string,
+  ): Result<{ language: LanguageDetectionResult; tone: ToneValidationResult }> {
     const languageValidation = this.languageGuard.validateLanguage(text);
     if (!languageValidation.success) {
       return err(languageValidation.error);
@@ -172,8 +174,8 @@ export class PtBRJungianGuard {
         createError(
           "VALIDATION_ERROR",
           "Content does not maintain appropriate introspective tone",
-          { issues: toneResult.issues, score: toneResult.score }
-        )
+          { issues: toneResult.issues, score: toneResult.score },
+        ),
       );
     }
 

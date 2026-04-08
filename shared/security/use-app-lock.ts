@@ -1,6 +1,6 @@
 /**
  * T010: React hook for app lock integration
- * 
+ *
  * Provides useAppLock hook for components to manage lock state and verify access.
  */
 
@@ -40,7 +40,7 @@ export const useAppLock = (): UseAppLockResult => {
       }
       return result.error;
     },
-    [gateway]
+    [gateway],
   );
 
   const lock = useCallback(async (): Promise<AppError | null> => {
@@ -61,14 +61,14 @@ export const useAppLock = (): UseAppLockResult => {
       }
       return result.error;
     },
-    [gateway]
+    [gateway],
   );
 
   const verifyToken = useCallback(
     (token: string): boolean => {
       return gateway.verifyToken(token);
     },
-    [gateway]
+    [gateway],
   );
 
   return {

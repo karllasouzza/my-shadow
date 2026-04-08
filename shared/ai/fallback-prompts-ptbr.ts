@@ -1,6 +1,6 @@
 /**
  * T013: Implement Portuguese fallback prompt provider
- * 
+ *
  * Provides fallback guided questions and review templates in Brazilian Portuguese
  * when local generation is unavailable.
  */
@@ -33,7 +33,10 @@ export class FallbackPromptProvider {
   /**
    * Get fallback final review summary template
    */
-  getFinalReviewTemplateFallback(periodStart: string, periodEnd: string): string {
+  getFinalReviewTemplateFallback(
+    periodStart: string,
+    periodEnd: string,
+  ): string {
     return `
 # Revisão do Período: ${periodStart} a ${periodEnd}
 
@@ -80,12 +83,15 @@ Considere como as percepções deste período podem informar seu crescimento con
   /**
    * Get complete fallback prompt set
    */
-  getCompleteFallbackSet(periodStart?: string, periodEnd?: string): FallbackPromptSet {
+  getCompleteFallbackSet(
+    periodStart?: string,
+    periodEnd?: string,
+  ): FallbackPromptSet {
     return {
       questions: this.getGuidedQuestionsFallback(),
       reviewTemplate: this.getFinalReviewTemplateFallback(
         periodStart || new Date().toISOString().split("T")[0],
-        periodEnd || new Date().toISOString().split("T")[0]
+        periodEnd || new Date().toISOString().split("T")[0],
       ),
       emotionalTriggerPrompts: this.getEmotionalTriggerPrompts(),
       patternIdentificationPrompts: this.getPatternIdentificationPrompts(),

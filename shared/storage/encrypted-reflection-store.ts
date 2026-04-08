@@ -1,12 +1,12 @@
 /**
  * T009: Implement encrypted reflection storage adapter
- * 
+ *
  * Provides encrypted local persistence for reflection records using MMKV.
  * All data is encrypted at rest and secured with app lock.
  */
 
 import { MMKV } from "react-native-mmkv";
-import { AppError, Result, ok, err, createError } from "../utils/app-error";
+import { Result, createError, err, ok } from "../utils/app-error";
 
 export interface ReflectionRecord {
   id: string;
@@ -76,7 +76,12 @@ export class EncryptedReflectionStore {
       return ok(void 0);
     } catch (error) {
       return err(
-        createError("STORAGE_ERROR", "Failed to save reflection", {}, error as Error)
+        createError(
+          "STORAGE_ERROR",
+          "Failed to save reflection",
+          {},
+          error as Error,
+        ),
       );
     }
   }
@@ -92,7 +97,12 @@ export class EncryptedReflectionStore {
       return ok(JSON.parse(data) as ReflectionRecord);
     } catch (error) {
       return err(
-        createError("STORAGE_ERROR", "Failed to retrieve reflection", {}, error as Error)
+        createError(
+          "STORAGE_ERROR",
+          "Failed to retrieve reflection",
+          {},
+          error as Error,
+        ),
       );
     }
   }
@@ -112,12 +122,20 @@ export class EncryptedReflectionStore {
         }
       }
 
-      return ok(reflections.sort((a, b) => 
-        new Date(b.entryDate).getTime() - new Date(a.entryDate).getTime()
-      ));
+      return ok(
+        reflections.sort(
+          (a, b) =>
+            new Date(b.entryDate).getTime() - new Date(a.entryDate).getTime(),
+        ),
+      );
     } catch (error) {
       return err(
-        createError("STORAGE_ERROR", "Failed to retrieve reflections", {}, error as Error)
+        createError(
+          "STORAGE_ERROR",
+          "Failed to retrieve reflections",
+          {},
+          error as Error,
+        ),
       );
     }
   }
@@ -141,7 +159,12 @@ export class EncryptedReflectionStore {
       return ok(void 0);
     } catch (error) {
       return err(
-        createError("STORAGE_ERROR", "Failed to delete reflection", {}, error as Error)
+        createError(
+          "STORAGE_ERROR",
+          "Failed to delete reflection",
+          {},
+          error as Error,
+        ),
       );
     }
   }
@@ -149,14 +172,21 @@ export class EncryptedReflectionStore {
   /**
    * Save a guided question set
    */
-  async saveQuestionSet(record: GuidedQuestionSetRecord): Promise<Result<void>> {
+  async saveQuestionSet(
+    record: GuidedQuestionSetRecord,
+  ): Promise<Result<void>> {
     try {
       const key = `${this.questionPrefix}${record.id}`;
       this.storage.setString(key, JSON.stringify(record));
       return ok(void 0);
     } catch (error) {
       return err(
-        createError("STORAGE_ERROR", "Failed to save question set", {}, error as Error)
+        createError(
+          "STORAGE_ERROR",
+          "Failed to save question set",
+          {},
+          error as Error,
+        ),
       );
     }
   }
@@ -164,10 +194,14 @@ export class EncryptedReflectionStore {
   /**
    * Retrieve question sets for a specific reflection
    */
-  async getQuestionSetsByReflection(reflectionId: string): Promise<Result<GuidedQuestionSetRecord[]>> {
+  async getQuestionSetsByReflection(
+    reflectionId: string,
+  ): Promise<Result<GuidedQuestionSetRecord[]>> {
     try {
       const keys = this.storage.getAllKeys();
-      const questionKeys = keys.filter(k => k.startsWith(this.questionPrefix));
+      const questionKeys = keys.filter((k) =>
+        k.startsWith(this.questionPrefix),
+      );
       const sets: GuidedQuestionSetRecord[] = [];
 
       for (const key of questionKeys) {
@@ -183,7 +217,12 @@ export class EncryptedReflectionStore {
       return ok(sets);
     } catch (error) {
       return err(
-        createError("STORAGE_ERROR", "Failed to retrieve question sets", {}, error as Error)
+        createError(
+          "STORAGE_ERROR",
+          "Failed to retrieve question sets",
+          {},
+          error as Error,
+        ),
       );
     }
   }
@@ -198,7 +237,12 @@ export class EncryptedReflectionStore {
       return ok(void 0);
     } catch (error) {
       return err(
-        createError("STORAGE_ERROR", "Failed to delete question set", {}, error as Error)
+        createError(
+          "STORAGE_ERROR",
+          "Failed to delete question set",
+          {},
+          error as Error,
+        ),
       );
     }
   }
@@ -213,7 +257,12 @@ export class EncryptedReflectionStore {
       return ok(void 0);
     } catch (error) {
       return err(
-        createError("STORAGE_ERROR", "Failed to save final review", {}, error as Error)
+        createError(
+          "STORAGE_ERROR",
+          "Failed to save final review",
+          {},
+          error as Error,
+        ),
       );
     }
   }
@@ -223,11 +272,11 @@ export class EncryptedReflectionStore {
    */
   async getFinalReviewsByPeriod(
     periodStart: string,
-    periodEnd: string
+    periodEnd: string,
   ): Promise<Result<FinalReviewRecord[]>> {
     try {
       const keys = this.storage.getAllKeys();
-      const reviewKeys = keys.filter(k => k.startsWith(this.reviewPrefix));
+      const reviewKeys = keys.filter((k) => k.startsWith(this.reviewPrefix));
       const reviews: FinalReviewRecord[] = [];
 
       for (const key of reviewKeys) {
@@ -235,7 +284,10 @@ export class EncryptedReflectionStore {
         if (data) {
           const review = JSON.parse(data) as FinalReviewRecord;
           // Check if review period overlaps with requested range
-          if (review.periodEnd >= periodStart && review.periodStart <= periodEnd) {
+          if (
+            review.periodEnd >= periodStart &&
+            review.periodStart <= periodEnd
+          ) {
             reviews.push(review);
           }
         }
@@ -244,7 +296,12 @@ export class EncryptedReflectionStore {
       return ok(reviews);
     } catch (error) {
       return err(
-        createError("STORAGE_ERROR", "Failed to retrieve reviews", {}, error as Error)
+        createError(
+          "STORAGE_ERROR",
+          "Failed to retrieve reviews",
+          {},
+          error as Error,
+        ),
       );
     }
   }
@@ -259,7 +316,12 @@ export class EncryptedReflectionStore {
       return ok(void 0);
     } catch (error) {
       return err(
-        createError("STORAGE_ERROR", "Failed to delete final review", {}, error as Error)
+        createError(
+          "STORAGE_ERROR",
+          "Failed to delete final review",
+          {},
+          error as Error,
+        ),
       );
     }
   }
@@ -285,7 +347,12 @@ export class EncryptedReflectionStore {
       return ok(void 0);
     } catch (error) {
       return err(
-        createError("STORAGE_ERROR", "Failed to clear storage", {}, error as Error)
+        createError(
+          "STORAGE_ERROR",
+          "Failed to clear storage",
+          {},
+          error as Error,
+        ),
       );
     }
   }

@@ -1,9 +1,9 @@
 /**
  * T008: Add reflection UI token mapping
- * 
+ *
  * Defines NativeWind theme tokens specific to the reflection journal feature.
  * Includes colors for mood tags, trigger tags, generation modes, and introspective states.
- * 
+ *
  * Integrates with Tailwind's color system as defined in tailwind.config.js
  */
 
@@ -70,21 +70,33 @@ export const REFLECTION_THEME = {
  * Get mood color styles by mood name
  */
 export const getMoodColor = (mood: string): string => {
-  const moodKey = mood.toLowerCase().replace(/\s+/g, "_") as keyof typeof REFLECTION_THEME.moodColors;
-  return REFLECTION_THEME.moodColors[moodKey] || REFLECTION_THEME.moodColors.introspective;
+  const moodKey = mood
+    .toLowerCase()
+    .replace(/\s+/g, "_") as keyof typeof REFLECTION_THEME.moodColors;
+  return (
+    REFLECTION_THEME.moodColors[moodKey] ||
+    REFLECTION_THEME.moodColors.introspective
+  );
 };
 
 /**
  * Get trigger color styles by trigger name
  */
 export const getTriggerColor = (trigger: string): string => {
-  const triggerKey = trigger.toLowerCase().replace(/\s+/g, "_") as keyof typeof REFLECTION_THEME.triggerColors;
-  return REFLECTION_THEME.triggerColors[triggerKey] || REFLECTION_THEME.triggerColors.other;
+  const triggerKey = trigger
+    .toLowerCase()
+    .replace(/\s+/g, "_") as keyof typeof REFLECTION_THEME.triggerColors;
+  return (
+    REFLECTION_THEME.triggerColors[triggerKey] ||
+    REFLECTION_THEME.triggerColors.other
+  );
 };
 
 /**
  * Get generation mode color styles
  */
-export const getGenerationModeColor = (mode: "normal" | "fallback_template" | "retry_result"): string => {
+export const getGenerationModeColor = (
+  mode: "normal" | "fallback_template" | "retry_result",
+): string => {
   return REFLECTION_THEME.generationMode[mode];
 };

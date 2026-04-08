@@ -1,11 +1,11 @@
 /**
  * T011: Implement local llama.rn runtime bootstrap service
- * 
+ *
  * Initializes and manages the llama.rn runtime for on-device inference.
  * Provides initialization, status checking, and model loading utilities.
  */
 
-import { Result, ok, err, createError } from "../utils/app-error";
+import { Result, createError, err, ok } from "../utils/app-error";
 
 export interface LlamaModel {
   id: string;
@@ -34,7 +34,7 @@ export class LocalAIRuntimeService {
   private resolveReady!: () => void;
 
   constructor() {
-    this.runtimeReady = new Promise(resolve => {
+    this.runtimeReady = new Promise((resolve) => {
       this.resolveReady = resolve;
     });
   }
@@ -66,8 +66,8 @@ export class LocalAIRuntimeService {
           "NOT_READY",
           "Failed to initialize local AI runtime",
           {},
-          error as Error
-        )
+          error as Error,
+        ),
       );
     }
   }
@@ -82,14 +82,17 @@ export class LocalAIRuntimeService {
   /**
    * Load a model into memory
    */
-  async loadModel(modelId: string, modelPath: string): Promise<Result<LlamaModel>> {
+  async loadModel(
+    modelId: string,
+    modelPath: string,
+  ): Promise<Result<LlamaModel>> {
     try {
       if (!this.initialized) {
         return err(
           createError(
             "NOT_READY",
-            "Runtime not initialized. Call initialize() first."
-          )
+            "Runtime not initialized. Call initialize() first.",
+          ),
         );
       }
 
@@ -113,7 +116,7 @@ export class LocalAIRuntimeService {
       return ok(model);
     } catch (error) {
       return err(
-        createError("NOT_READY", "Failed to load model", {}, error as Error)
+        createError("NOT_READY", "Failed to load model", {}, error as Error),
       );
     }
   }
@@ -160,7 +163,7 @@ export class LocalAIRuntimeService {
       return ok(void 0);
     } catch (error) {
       return err(
-        createError("NOT_READY", "Failed to unload model", {}, error as Error)
+        createError("NOT_READY", "Failed to unload model", {}, error as Error),
       );
     }
   }

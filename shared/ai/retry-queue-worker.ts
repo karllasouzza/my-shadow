@@ -1,12 +1,15 @@
 /**
  * T015: Implement queued retry worker
- * 
+ *
  * Processes pending generation jobs from the queue, retrying failed operations
  * with exponential backoff and status notification.
  */
 
-import { Result, ok, err, createError } from "../utils/app-error";
-import { getGenerationJobStore, GenerationJob } from "../storage/generation-job-store";
+import {
+    GenerationJob,
+    getGenerationJobStore,
+} from "../storage/generation-job-store";
+import { Result, createError, err, ok } from "../utils/app-error";
 
 export interface RetryWorkerConfig {
   pollIntervalMs: number; // How often to check for pending jobs
@@ -52,7 +55,7 @@ export class RetryQueueWorker {
       // Start polling for jobs
       this.pollTimer = setInterval(
         () => this.processQueue(),
-        this.config.pollIntervalMs
+        this.config.pollIntervalMs,
       );
 
       // Process immediately on start
@@ -65,8 +68,8 @@ export class RetryQueueWorker {
           "RETRY_QUEUE_ERROR",
           "Failed to start retry worker",
           {},
-          error as Error
-        )
+          error as Error,
+        ),
       );
     }
   }
@@ -88,8 +91,8 @@ export class RetryQueueWorker {
           "RETRY_QUEUE_ERROR",
           "Failed to stop retry worker",
           {},
-          error as Error
-        )
+          error as Error,
+        ),
       );
     }
   }
@@ -193,7 +196,8 @@ export class RetryQueueWorker {
    */
   private calculateBackoff(attempts: number): number {
     return (
-      this.config.baseBackoffMs * Math.pow(this.config.backoffMultiplier, attempts)
+      this.config.baseBackoffMs *
+      Math.pow(this.config.backoffMultiplier, attempts)
     );
   }
 

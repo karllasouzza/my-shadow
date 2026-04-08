@@ -1,6 +1,6 @@
 /**
  * T018: Implement generation/export timing utility
- * 
+ *
  * Provides performance metrics collection and monitoring for generation
  * and export operations against defined p95 budgets.
  */
@@ -56,7 +56,7 @@ export class PerformanceMetrics {
    */
   private stopTiming(
     metricIndex: number,
-    metadata?: Record<string, unknown>
+    metadata?: Record<string, unknown>,
   ): void {
     const metric = this.metrics[metricIndex];
     if (metric) {
@@ -85,7 +85,7 @@ export class PerformanceMetrics {
     budgetMs?: number;
   } {
     const opMetrics = this.metrics.filter(
-      (m) => m.operationType === operationType && m.durationMs !== undefined
+      (m) => m.operationType === operationType && m.durationMs !== undefined,
     );
 
     if (opMetrics.length === 0) {
@@ -167,7 +167,8 @@ export class PerformanceMetrics {
       report += `- P95: ${summary.p95Ms}ms`;
 
       if (summary.budgetMs) {
-        const status = summary.p95Ms <= summary.budgetMs ? "✓ PASS" : "✗ FAILED";
+        const status =
+          summary.p95Ms <= summary.budgetMs ? "✓ PASS" : "✗ FAILED";
         report += ` [Budget: ${summary.budgetMs}ms - ${status}]`;
       }
       report += `\n`;
