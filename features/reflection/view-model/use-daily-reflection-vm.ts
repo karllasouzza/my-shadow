@@ -1,16 +1,16 @@
 /**
  * T028: Daily reflection ViewModel using React hooks
- * 
+ *
  * Manages state and business logic for daily reflection screen using custom hooks.
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { ReflectionEntry } from "../model/reflection-entry";
-import { GuidedQuestionSet } from "../model/guided-question-set";
-import { getReflectionService } from "../service/reflection-service";
-import { getReflectionRepository } from "../repository/reflection-repository";
-import { AppError, Result } from "../../../shared/utils/app-error";
 import { getReflectionCascadeDelete } from "../../../shared/storage/reflection-cascade-delete";
+import { AppError } from "../../../shared/utils/app-error";
+import { GuidedQuestionSet } from "../model/guided-question-set";
+import { ReflectionEntry } from "../model/reflection-entry";
+import { getReflectionRepository } from "../repository/reflection-repository";
+import { getReflectionService } from "../service/reflection-service";
 
 export interface DailyReflectionViewModelState {
   // Data
@@ -38,7 +38,11 @@ export interface UseDailyReflectionViewModel {
   state: DailyReflectionViewModelState;
   actions: {
     // Reflection actions
-    createReflection: (content: string, moodTags?: string[], triggerTags?: string[]) => Promise<void>;
+    createReflection: (
+      content: string,
+      moodTags?: string[],
+      triggerTags?: string[],
+    ) => Promise<void>;
     loadReflections: () => Promise<void>;
     selectReflection: (id: string) => Promise<void>;
     updateContent: (content: string) => void;
@@ -82,17 +86,17 @@ export const useDailyReflectionViewModel = (): UseDailyReflectionViewModel => {
   }, []);
 
   const loadReflections = useCallback(async () => {
-    setState(s => ({ ...s, isLoading: true, error: null }));
+    setState((s) => ({ ...s, isLoading: true, error: null }));
     const result = await repository.getAll();
 
     if (result.success) {
-      setState(s => ({
+      setState((s) => ({
         ...s,
         reflections: result.data,
         isLoading: false,
       }));
     } else {
-      setState(s => ({
+      setState((s) => ({
         ...s,
         isLoading: false,
         error: result.error,
@@ -102,13 +106,18 @@ export const useDailyReflectionViewModel = (): UseDailyReflectionViewModel => {
 
   const createReflection = useCallback(
     async (content: string, moodTags?: string[], triggerTags?: string[]) => {
-      setState(s => ({ ...s, isSaving: true, error: null }));
+      setState((s) => ({ ...s, isSaving: true, error: null }));
 
-      const result = await service.createReflection(content, undefined, moodTags, triggerTags);
+      const result = await service.createReflection(
+        content,
+        undefined,
+        moodTags,
+        triggerTags,
+      );
 
       if (result.success) {
         const entry = result.data;
-        setState(s => ({
+        setState((s) => ({
           ...s,
           isSaving: false,
           currentReflection: entry,
@@ -118,25 +127,25 @@ export const useDailyReflectionViewModel = (): UseDailyReflectionViewModel => {
           reflections: [entry, ...s.reflections],
         }));
       } else {
-        setState(s => ({
+        setState((s) => ({
           ...s,
           isSaving: false,
           error: result.error,
         }));
       }
     },
-    [service]
+    [service],
   );
 
   const selectReflection = useCallback(async (id: string) => {
-    setState(s => ({ ...s, isLoading: true }));
+    setState((s) => ({ ...s, isLoading: true }));
 
     const result = await repository.getById(id);
     if (result.success && result.data) {
       const questions = await repository.getQuestionSetsByReflection(id);
       const latestQuestions = questions.success ? questions.data[0] : null;
 
-      setState(s => ({
+      setState((s) => ({
         ...s,
         isLoading: false,
         currentReflection: result.data!,
@@ -146,52 +155,56 @@ export const useDailyReflectionViewModel = (): UseDailyReflectionViewModel => {
         editingTriggerTags: result.data!.triggerTags,
       }));
     } else {
-      setState(s => ({ ...s, isLoading: false, error: result.error }));
+      setState((s) => ({ ...s, isLoading: false, error: result.error }));
     }
   }, []);
 
   const updateContent = useCallback((content: string) => {
-    setState(s => ({ ...s, editingContent: content }));
+    setState((s) => ({ ...s, editingContent: content }));
   }, []);
 
   const setMoodTags = useCallback((tags: string[]) => {
-    setState(s => ({ ...s, editingMoodTags: tags }));
+    setState((s) => ({ ...s, editingMoodTags: tags }));
   }, []);
 
   const setTriggerTags = useCallback((tags: string[]) => {
-    setState(s => ({ ...s, editingTriggerTags: tags }));
+    setState((s) => ({ ...s, editingTriggerTags: tags }));
   }, []);
 
   const generateQuestions = useCallback(
     async (reflectionId: string) => {
-      setState(s => ({ ...s, isGenerating: true, error: null }));
+      setState((s) => ({ ...s, isGenerating: true, error: null }));
 
-      const result = await service.generateGuidedQuestions(reflectionId, true, 30);
+      const result = await service.generateGuidedQuestions(
+        reflectionId,
+        true,
+        30,
+      );
 
       if (result.success) {
-        setState(s => ({
+        setState((s) => ({
           ...s,
           isGenerating: false,
           currentQuestions: result.data.questionSet,
         }));
       } else {
-        setState(s => ({
+        setState((s) => ({
           ...s,
           isGenerating: false,
           error: result.error,
         }));
       }
     },
-    [service]
+    [service],
   );
 
   const clearError = useCallback(() => {
-    setState(s => ({ ...s, error: null }));
+    setState((s) => ({ ...s, error: null }));
   }, []);
 
   const initiateDelete = useCallback(() => {
     const token = Math.random().toString(36).substring(2);
-    setState(s => ({
+    setState((s) => ({
       ...s,
       showDeleteConfirm: true,
       deleteConfirmationToken: token,
@@ -201,25 +214,27 @@ export const useDailyReflectionViewModel = (): UseDailyReflectionViewModel => {
   const confirmDelete = useCallback(async () => {
     if (!state.currentReflection) return;
 
-    setState(s => ({ ...s, isSaving: true }));
+    setState((s) => ({ ...s, isSaving: true }));
 
     const result = await cascadeDelete.deleteReflectionCascade(
-      state.currentReflection.id
+      state.currentReflection.id,
     );
 
     if (result.success) {
-      setState(s => ({
+      setState((s) => ({
         ...s,
         isSaving: false,
         currentReflection: null,
         currentQuestions: null,
         showDeleteConfirm: false,
         deleteConfirmationToken: null,
-        reflections: s.reflections.filter(r => r.id !== state.currentReflection!.id),
+        reflections: s.reflections.filter(
+          (r) => r.id !== state.currentReflection!.id,
+        ),
       }));
       await loadReflections();
     } else {
-      setState(s => ({
+      setState((s) => ({
         ...s,
         isSaving: false,
         showDeleteConfirm: false,
@@ -229,7 +244,7 @@ export const useDailyReflectionViewModel = (): UseDailyReflectionViewModel => {
   }, [state.currentReflection]);
 
   const cancelDelete = useCallback(() => {
-    setState(s => ({
+    setState((s) => ({
       ...s,
       showDeleteConfirm: false,
       deleteConfirmationToken: null,

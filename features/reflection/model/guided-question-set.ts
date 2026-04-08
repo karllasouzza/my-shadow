@@ -1,10 +1,10 @@
 /**
  * T024: GuidedQuestionSet domain model
- * 
+ *
  * Represents a set of guided questions generated for a reflection.
  */
 
-import { Result, ok, err, createError } from "../../../shared/utils/app-error";
+import { Result, createError, err, ok } from "../../../shared/utils/app-error";
 
 export type GenerationMode = "normal" | "fallback_template" | "retry_result";
 
@@ -47,13 +47,13 @@ export class GuidedQuestionSet {
     // Validate questions
     if (!data.questions || data.questions.length === 0) {
       return err(
-        createError("VALIDATION_ERROR", "At least one question is required")
+        createError("VALIDATION_ERROR", "At least one question is required"),
       );
     }
 
     if (data.questions.length > 8) {
       return err(
-        createError("VALIDATION_ERROR", "Maximum 8 questions allowed")
+        createError("VALIDATION_ERROR", "Maximum 8 questions allowed"),
       );
     }
 
@@ -61,7 +61,10 @@ export class GuidedQuestionSet {
     for (const q of data.questions) {
       if (typeof q !== "string" || q.trim().length === 0) {
         return err(
-          createError("VALIDATION_ERROR", "All questions must be non-empty strings")
+          createError(
+            "VALIDATION_ERROR",
+            "All questions must be non-empty strings",
+          ),
         );
       }
 
@@ -70,8 +73,8 @@ export class GuidedQuestionSet {
         return err(
           createError(
             "VALIDATION_ERROR",
-            "All questions must be in Brazilian Portuguese"
-          )
+            "All questions must be in Brazilian Portuguese",
+          ),
         );
       }
     }
@@ -79,21 +82,21 @@ export class GuidedQuestionSet {
     // Validate generation mode
     if (
       data.generationMode &&
-      !["normal", "fallback_template", "retry_result"].includes(data.generationMode)
+      !["normal", "fallback_template", "retry_result"].includes(
+        data.generationMode,
+      )
     ) {
       return err(
         createError(
           "VALIDATION_ERROR",
-          "Invalid generation mode. Must be normal, fallback_template, or retry_result"
-        )
+          "Invalid generation mode. Must be normal, fallback_template, or retry_result",
+        ),
       );
     }
 
     // Validate reflection ID exists
     if (!data.reflectionId) {
-      return err(
-        createError("VALIDATION_ERROR", "Reflection ID is required")
-      );
+      return err(createError("VALIDATION_ERROR", "Reflection ID is required"));
     }
 
     return ok(void 0);
@@ -108,7 +111,7 @@ export class GuidedQuestionSet {
     generationMode: GenerationMode = "normal",
     retrievalContextReflectionIds: string[] = [],
     modelId: string = "llama2-7b",
-    modelVersion: string = "v1"
+    modelVersion: string = "v1",
   ): Result<GuidedQuestionSet> {
     const validation = this.validate({
       reflectionId,
@@ -136,7 +139,7 @@ export class GuidedQuestionSet {
         modelId,
         modelVersion,
         generatedAt: now,
-      })
+      }),
     );
   }
 
@@ -175,7 +178,8 @@ export class GuidedQuestionSet {
    */
   private static isProbablyPortuguese(text: string): boolean {
     // Simple heuristic - check for Portuguese words or diacritics
-    const ptIndicators = /[áàâãéèêíìîóòôõöúùûü]|\b(que|é|de|para|com|um|uma)\b/i;
+    const ptIndicators =
+      /[áàâãéèêíìîóòôõöúùûü]|\b(que|é|de|para|com|um|uma)\b/i;
     return ptIndicators.test(text);
   }
 

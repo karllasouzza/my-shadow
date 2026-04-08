@@ -2,12 +2,13 @@
  * T022: End-to-end daily reflection flow test
  */
 
-import {
-  getReflectionStore,
-  ReflectionRecord,
-} from "../../../shared/storage/encrypted-reflection-store";
+import { describe, it, expect } from "bun:test";
 import { getPtBRJungianGuard } from "../../../shared/ai/ptbr-tone-guard";
 import { getAppLockGateway } from "../../../shared/security/app-lock";
+import {
+    getReflectionStore,
+    ReflectionRecord,
+} from "../../../shared/storage/encrypted-reflection-store";
 
 describe("Daily Reflection Flow - E2E", () => {
   let testPin = "1234";
@@ -97,7 +98,8 @@ describe("Daily Reflection Flow - E2E", () => {
     await lockGateway.unlock(testPin);
 
     // Try to create reflection in English
-    const englishContent = "Today was a challenging day that taught me about resilience.";
+    const englishContent =
+      "Today was a challenging day that taught me about resilience.";
     const validationResult = toneGuard.validate(englishContent);
     expect(validationResult.success).toBe(false);
   });
@@ -126,7 +128,8 @@ describe("Daily Reflection Flow - E2E", () => {
     expect(getResult.data).toBeDefined();
 
     // Delete it
-    const deleteResult = await reflectionStore.deleteReflection("to_delete_001");
+    const deleteResult =
+      await reflectionStore.deleteReflection("to_delete_001");
     expect(deleteResult.success).toBe(true);
 
     // Verify it's gone

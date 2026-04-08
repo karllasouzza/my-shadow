@@ -1,17 +1,20 @@
 /**
  * T025: Reflection repository adapter
- * 
+ *
  * Provides persistence layer for reflection operations using EncryptedReflectionStore.
  */
 
 import {
-  getReflectionStore,
-  ReflectionRecord,
-  GuidedQuestionSetRecord,
+    getReflectionStore,
+    GuidedQuestionSetRecord,
+    ReflectionRecord,
 } from "../../../shared/storage/encrypted-reflection-store";
-import { Result, ok, err, createError } from "../../../shared/utils/app-error";
+import { createError, err, ok, Result } from "../../../shared/utils/app-error";
+import {
+    GuidedQuestionSet,
+    GuidedQuestionSetData,
+} from "../model/guided-question-set";
 import { ReflectionEntry } from "../model/reflection-entry";
-import { GuidedQuestionSet, GuidedQuestionSetData } from "../model/guided-question-set";
 
 export class ReflectionRepository {
   private store = getReflectionStore();
@@ -21,10 +24,17 @@ export class ReflectionRepository {
    */
   async save(entry: ReflectionEntry): Promise<Result<void>> {
     try {
-      return await this.store.saveReflection(entry.toData() as ReflectionRecord);
+      return await this.store.saveReflection(
+        entry.toData() as ReflectionRecord,
+      );
     } catch (error) {
       return err(
-        createError("STORAGE_ERROR", "Failed to save reflection", {}, error as Error)
+        createError(
+          "STORAGE_ERROR",
+          "Failed to save reflection",
+          {},
+          error as Error,
+        ),
       );
     }
   }
@@ -42,7 +52,12 @@ export class ReflectionRepository {
       return ok(entry);
     } catch (error) {
       return err(
-        createError("STORAGE_ERROR", "Failed to retrieve reflection", {}, error as Error)
+        createError(
+          "STORAGE_ERROR",
+          "Failed to retrieve reflection",
+          {},
+          error as Error,
+        ),
       );
     }
   }
@@ -55,11 +70,16 @@ export class ReflectionRepository {
       const result = await this.store.getAllReflections();
       if (!result.success) return result;
 
-      const entries = result.data.map(data => new ReflectionEntry(data));
+      const entries = result.data.map((data) => new ReflectionEntry(data));
       return ok(entries);
     } catch (error) {
       return err(
-        createError("STORAGE_ERROR", "Failed to retrieve reflections", {}, error as Error)
+        createError(
+          "STORAGE_ERROR",
+          "Failed to retrieve reflections",
+          {},
+          error as Error,
+        ),
       );
     }
   }
@@ -69,25 +89,25 @@ export class ReflectionRepository {
    */
   async getByDateRange(
     startDate: string,
-    endDate: string
+    endDate: string,
   ): Promise<Result<ReflectionEntry[]>> {
     try {
       const result = await this.store.getAllReflections();
       if (!result.success) return result;
 
       const filtered = result.data.filter(
-        data => data.entryDate >= startDate && data.entryDate <= endDate
+        (data) => data.entryDate >= startDate && data.entryDate <= endDate,
       );
 
-      return ok(filtered.map(data => new ReflectionEntry(data)));
+      return ok(filtered.map((data) => new ReflectionEntry(data)));
     } catch (error) {
       return err(
         createError(
           "STORAGE_ERROR",
           "Failed to retrieve reflections by date range",
           {},
-          error as Error
-        )
+          error as Error,
+        ),
       );
     }
   }
@@ -100,7 +120,12 @@ export class ReflectionRepository {
       return await this.store.deleteReflection(id);
     } catch (error) {
       return err(
-        createError("STORAGE_ERROR", "Failed to delete reflection", {}, error as Error)
+        createError(
+          "STORAGE_ERROR",
+          "Failed to delete reflection",
+          {},
+          error as Error,
+        ),
       );
     }
   }
@@ -110,10 +135,17 @@ export class ReflectionRepository {
    */
   async saveQuestionSet(qSet: GuidedQuestionSet): Promise<Result<void>> {
     try {
-      return await this.store.saveQuestionSet(qSet.toData() as GuidedQuestionSetRecord);
+      return await this.store.saveQuestionSet(
+        qSet.toData() as GuidedQuestionSetRecord,
+      );
     } catch (error) {
       return err(
-        createError("STORAGE_ERROR", "Failed to save question set", {}, error as Error)
+        createError(
+          "STORAGE_ERROR",
+          "Failed to save question set",
+          {},
+          error as Error,
+        ),
       );
     }
   }
@@ -122,17 +154,24 @@ export class ReflectionRepository {
    * Get question sets for a reflection
    */
   async getQuestionSetsByReflection(
-    reflectionId: string
+    reflectionId: string,
   ): Promise<Result<GuidedQuestionSet[]>> {
     try {
       const result = await this.store.getQuestionSetsByReflection(reflectionId);
       if (!result.success) return result;
 
-      const sets = result.data.map(data => new GuidedQuestionSet(data as GuidedQuestionSetData));
+      const sets = result.data.map(
+        (data) => new GuidedQuestionSet(data as GuidedQuestionSetData),
+      );
       return ok(sets);
     } catch (error) {
       return err(
-        createError("STORAGE_ERROR", "Failed to retrieve question sets", {}, error as Error)
+        createError(
+          "STORAGE_ERROR",
+          "Failed to retrieve question sets",
+          {},
+          error as Error,
+        ),
       );
     }
   }
@@ -145,7 +184,12 @@ export class ReflectionRepository {
       return await this.store.deleteQuestionSet(id);
     } catch (error) {
       return err(
-        createError("STORAGE_ERROR", "Failed to delete question set", {}, error as Error)
+        createError(
+          "STORAGE_ERROR",
+          "Failed to delete question set",
+          {},
+          error as Error,
+        ),
       );
     }
   }

@@ -1,15 +1,21 @@
 /**
  * T029: Daily reflection screen UI component
- * 
+ *
  * Displays reflection list, allows creating new reflections, generating questions,
  * and managing reflection lifecycle.
  */
 
 import React from "react";
-import { View, Text, ScrollView, TextInput, Pressable, FlatList } from "react-native";
+import {
+    Pressable,
+    ScrollView,
+    Text,
+    TextInput,
+    View
+} from "react-native";
 import { StateView } from "../../../shared/components/state-view";
-import { useDailyReflectionViewModel } from "../view-model/use-daily-reflection-vm";
 import { REFLECTION_THEME } from "../../../shared/theme/reflection-theme";
+import { useDailyReflectionViewModel } from "../view-model/use-daily-reflection-vm";
 
 export const DailyReflectionScreen: React.FC = () => {
   const { state, actions } = useDailyReflectionViewModel();
@@ -34,8 +40,12 @@ export const DailyReflectionScreen: React.FC = () => {
         {/* Error Display */}
         {state.error && (
           <View className="bg-red-50 border-l-4 border-red-500 p-4 m-4">
-            <Text className="text-red-800 font-semibold">{state.error.code}</Text>
-            <Text className="text-red-700 text-sm mt-1">{state.error.message}</Text>
+            <Text className="text-red-800 font-semibold">
+              {state.error.code}
+            </Text>
+            <Text className="text-red-700 text-sm mt-1">
+              {state.error.message}
+            </Text>
             <Pressable
               onPress={actions.clearError}
               className="mt-2 bg-red-200 px-3 py-1 rounded"
@@ -47,7 +57,9 @@ export const DailyReflectionScreen: React.FC = () => {
 
         {/* Create New Reflection Section */}
         <View className="p-4 bg-blue-50 border-b border-blue-200">
-          <Text className="text-lg font-bold text-blue-900 mb-3">Nova Reflexão</Text>
+          <Text className="text-lg font-bold text-blue-900 mb-3">
+            Nova Reflexão
+          </Text>
           <TextInput
             value={newContent}
             onChangeText={setNewContent}
@@ -75,8 +87,14 @@ export const DailyReflectionScreen: React.FC = () => {
 
         {/* Reflections List */}
         <StateView
-          state={state.isLoading ? "loading" : state.reflections.length === 0 ? "empty" : "success"}
-          style={{ paddingHorizontal: 16, paddingVertical: 12 }}
+          state={
+            state.isLoading
+              ? "loading"
+              : state.reflections.length === 0
+                ? "empty"
+                : "success"
+          }
+          className="px-4 py-3"
         >
           <View className="w-full">
             {state.reflections.map((reflection) => (
@@ -103,7 +121,10 @@ export const DailyReflectionScreen: React.FC = () => {
                 {reflection.moodTags.length > 0 && (
                   <View className="flex-row flex-wrap gap-2 mt-2">
                     {reflection.moodTags.map((tag, idx) => (
-                      <View key={idx} className="bg-purple-100 px-2 py-1 rounded">
+                      <View
+                        key={idx}
+                        className="bg-purple-100 px-2 py-1 rounded"
+                      >
                         <Text className="text-purple-800 text-xs">{tag}</Text>
                       </View>
                     ))}
@@ -116,9 +137,15 @@ export const DailyReflectionScreen: React.FC = () => {
 
         {/* Current Reflection Detail */}
         {state.currentReflection && (
-          <View className={`m-4 p-4 rounded-lg ${REFLECTION_THEME.containers.reflection}`}>
-            <Text className="text-lg font-bold text-gray-800 mb-2">Reflexão Selecionada</Text>
-            <Text className="text-gray-600 text-sm mb-3">{state.currentReflection.content}</Text>
+          <View
+            className={`m-4 p-4 rounded-lg ${REFLECTION_THEME.containers.reflection}`}
+          >
+            <Text className="text-lg font-bold text-gray-800 mb-2">
+              Reflexão Selecionada
+            </Text>
+            <Text className="text-gray-600 text-sm mb-3">
+              {state.currentReflection.content}
+            </Text>
 
             {/* Generate Questions Button */}
             <Pressable
@@ -135,8 +162,12 @@ export const DailyReflectionScreen: React.FC = () => {
 
             {/* Guided Questions Display */}
             {state.currentQuestions && (
-              <View className={`p-3 rounded-lg mb-3 ${REFLECTION_THEME.containers.questionSet}`}>
-                <Text className="font-bold text-blue-800 mb-2">Perguntas Guiadas</Text>
+              <View
+                className={`p-3 rounded-lg mb-3 ${REFLECTION_THEME.containers.questionSet}`}
+              >
+                <Text className="font-bold text-blue-800 mb-2">
+                  Perguntas Guiadas
+                </Text>
                 {state.currentQuestions.questions.map((question, idx) => (
                   <Text key={idx} className="text-blue-700 text-sm mb-2 italic">
                     • {question}
@@ -164,17 +195,21 @@ export const DailyReflectionScreen: React.FC = () => {
         {/* Delete Confirmation Dialog */}
         {state.showDeleteConfirm && (
           <View className="m-4 p-4 bg-red-50 border-2 border-red-300 rounded-lg">
-            <Text className="text-red-800 font-bold mb-2">Confirmar Exclusão</Text>
+            <Text className="text-red-800 font-bold mb-2">
+              Confirmar Exclusão
+            </Text>
             <Text className="text-red-700 text-sm mb-4">
-              Esta reflexão e todas as suas perguntas guiadas serão deletadas permanentemente.
-              Esta ação não pode ser desfeita.
+              Esta reflexão e todas as suas perguntas guiadas serão deletadas
+              permanentemente. Esta ação não pode ser desfeita.
             </Text>
             <View className="flex-row gap-3">
               <Pressable
                 onPress={actions.cancelDelete}
                 className="flex-1 bg-gray-400 rounded-lg p-3"
               >
-                <Text className="text-white text-center font-bold">Cancelar</Text>
+                <Text className="text-white text-center font-bold">
+                  Cancelar
+                </Text>
               </Pressable>
               <Pressable
                 onPress={actions.confirmDelete}

@@ -1,10 +1,10 @@
 /**
  * T023: ReflectionEntry domain model
- * 
+ *
  * Represents a daily reflection entry with validation rules and state management.
  */
 
-import { Result, ok, err, createError } from "../../../shared/utils/app-error";
+import { Result, createError, err, ok } from "../../../shared/utils/app-error";
 
 export interface ReflectionEntryData {
   id: string;
@@ -44,48 +44,43 @@ export class ReflectionEntry {
   static validate(data: Partial<ReflectionEntryData>): Result<void> {
     // Validate content
     if (!data.content || data.content.trim().length === 0) {
-      return err(
-        createError("VALIDATION_ERROR", "Content cannot be empty")
-      );
+      return err(createError("VALIDATION_ERROR", "Content cannot be empty"));
     }
 
     if (data.content.length > 5000) {
       return err(
         createError(
           "VALIDATION_ERROR",
-          "Content must be 5000 characters or less"
-        )
+          "Content must be 5000 characters or less",
+        ),
       );
     }
 
     // Validate date
     if (data.entryDate && !this.isValidDate(data.entryDate)) {
       return err(
-        createError("VALIDATION_ERROR", "Date must be in yyyy-mm-dd format")
+        createError("VALIDATION_ERROR", "Date must be in yyyy-mm-dd format"),
       );
     }
 
     // Validate locale
     if (data.sourceLocale && data.sourceLocale !== "pt-BR") {
       return err(
-        createError(
-          "VALIDATION_ERROR",
-          "Source locale must be pt-BR in v1"
-        )
+        createError("VALIDATION_ERROR", "Source locale must be pt-BR in v1"),
       );
     }
 
     // Validate mood tags
     if (data.moodTags && data.moodTags.length > 8) {
       return err(
-        createError("VALIDATION_ERROR", "Maximum 8 mood tags allowed")
+        createError("VALIDATION_ERROR", "Maximum 8 mood tags allowed"),
       );
     }
 
     // Validate trigger tags
     if (data.triggerTags && data.triggerTags.length > 12) {
       return err(
-        createError("VALIDATION_ERROR", "Maximum 12 trigger tags allowed")
+        createError("VALIDATION_ERROR", "Maximum 12 trigger tags allowed"),
       );
     }
 
@@ -99,7 +94,7 @@ export class ReflectionEntry {
     content: string,
     entryDate: string = new Date().toISOString().split("T")[0],
     moodTags?: string[],
-    triggerTags?: string[]
+    triggerTags?: string[],
   ): Result<ReflectionEntry> {
     const validation = this.validate({
       content,
@@ -126,7 +121,7 @@ export class ReflectionEntry {
         sourceLocale: "pt-BR",
         createdAt: now,
         updatedAt: now,
-      })
+      }),
     );
   }
 

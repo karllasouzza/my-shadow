@@ -12,6 +12,8 @@
 - Q: What baseline privacy posture should v1 enforce for sensitive reflections? -> A: Mandatory encrypted local storage, mandatory app lock, and no cloud sync in v1.
 - Q: How should the app behave when local generation temporarily fails? -> A: Show offline template prompts immediately and queue local retry for full AI output.
 - Q: How should deletion behave for reflections and linked generated artifacts? -> A: Hard-delete immediately in cascade with no recovery.
+- Q: Should styling use React Native style prop or NativeWind className approach? -> A: Mandatory NativeWind className-only approach throughout. No inline style prop usage with @rn-primitives components. All styling uses Tailwind CSS classes via NativeWind v5.
+- Q: Which test runner should be used? -> A: Bun native test runner (import from "bun:test"). Not Jest. Bun provides better performance, zero additional dependencies, and native TypeScript support.
 
 ## User Scenarios & Testing _(mandatory)_
 

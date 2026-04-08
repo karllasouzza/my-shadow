@@ -16,9 +16,9 @@
 - [x] T003 [P] Configure test runner and setup in jest.config.ts and **tests**/setup.ts
 - [x] T004 [P] Create documentation scaffold in **docs**/architecture/README.md, **docs**/decisions/README.md, and **docs**/quality/README.md
 - [x] T005 [P] Create feature module barrel files in features/reflection/index.ts, features/review/index.ts, and features/export/index.ts
-- [ ] T006 [P] Create reusable async state component in shared/components/state-view.tsx
-- [ ] T007 [P] Define shared error/result types in shared/utils/app-error.ts
-- [ ] T008 [P] Add reflection UI token mapping in shared/theme/reflection-theme.ts
+- [x] T006 [P] Create reusable async state component in shared/components/state-view.tsx
+- [x] T007 [P] Define shared error/result types in shared/utils/app-error.ts
+- [x] T008 [P] Add reflection UI token mapping in shared/theme/reflection-theme.ts
 
 ---
 
@@ -28,16 +28,16 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T009 Implement encrypted reflection storage adapter in shared/storage/encrypted-reflection-store.ts
-- [ ] T010 [P] Implement app lock gateway and hook in shared/security/app-lock.ts and shared/security/use-app-lock.ts
-- [ ] T011 [P] Implement local llama.rn runtime bootstrap service in shared/ai/local-ai-runtime.ts
-- [ ] T012 [P] Implement RAG vector repository wrapper in shared/ai/reflection-rag-repository.ts
-- [ ] T013 Implement Portuguese fallback prompt provider in shared/ai/fallback-prompts-ptbr.ts
-- [ ] T014 Implement retry job persistence in shared/storage/generation-job-store.ts
-- [ ] T015 Implement queued retry worker in shared/ai/retry-queue-worker.ts
-- [ ] T016 Implement hard-delete cascade coordinator in shared/storage/reflection-cascade-delete.ts
-- [ ] T017 Implement pt-BR language and Jungian tone guard utilities in shared/ai/ptbr-tone-guard.ts
-- [ ] T018 Implement generation/export timing utility in shared/utils/performance-metrics.ts
+- [x] T009 Implement encrypted reflection storage adapter in shared/storage/encrypted-reflection-store.ts
+- [x] T010 [P] Implement app lock gateway and hook in shared/security/app-lock.ts and shared/security/use-app-lock.ts
+- [x] T011 [P] Implement local llama.rn runtime bootstrap service in shared/ai/local-ai-runtime.ts
+- [x] T012 [P] Implement RAG vector repository wrapper in shared/ai/reflection-rag-repository.ts
+- [x] T013 Implement Portuguese fallback prompt provider in shared/ai/fallback-prompts-ptbr.ts
+- [x] T014 Implement retry job persistence in shared/storage/generation-job-store.ts
+- [x] T015 Implement queued retry worker in shared/ai/retry-queue-worker.ts
+- [x] T016 Implement hard-delete cascade coordinator in shared/storage/reflection-cascade-delete.ts
+- [x] T017 Implement pt-BR language and Jungian tone guard utilities in shared/ai/ptbr-tone-guard.ts
+- [x] T018 Implement generation/export timing utility in shared/utils/performance-metrics.ts
 
 **Checkpoint**: Foundation ready — user story implementation can begin.
 
@@ -51,20 +51,20 @@
 
 ### Tests for User Story 1 (REQUIRED)
 
-- [ ] T019 [P] [US1] Add unit tests for reflection validation and language guard in **tests**/unit/reflection/create-reflection.spec.ts
-- [ ] T020 [P] [US1] Add integration test for guided question generation in normal mode in **tests**/integration/reflection/guided-questions-normal.spec.ts
-- [ ] T021 [P] [US1] Add integration test for fallback prompts plus queued retry in **tests**/integration/reflection/guided-questions-fallback-retry.spec.ts
-- [ ] T022 [P] [US1] Add end-to-end daily reflection flow test in **tests**/e2e/reflection/daily-flow.e2e.ts
+- [x] T019 [P] [US1] Add unit tests for reflection validation and language guard in **tests**/unit/reflection/create-reflection.spec.ts
+- [x] T020 [P] [US1] Add integration test for guided question generation in normal mode in **tests**/integration/reflection/guided-questions-normal.spec.ts
+- [x] T021 [P] [US1] Add integration test for fallback prompts plus queued retry in **tests**/integration/reflection/guided-questions-fallback-retry.spec.ts
+- [x] T022 [P] [US1] Add end-to-e2e daily reflection flow test in **tests**/e2e/reflection/daily-flow.e2e.ts
 
 ### Implementation for User Story 1
 
-- [ ] T023 [P] [US1] Implement ReflectionEntry domain model in features/reflection/model/reflection-entry.ts
-- [ ] T024 [P] [US1] Implement GuidedQuestionSet domain model in features/reflection/model/guided-question-set.ts
-- [ ] T025 [US1] Implement reflection repository adapter in features/reflection/repository/reflection-repository.ts
-- [ ] T026 [US1] Implement reflection creation and guided question service in features/reflection/service/reflection-service.ts
+- [x] T023 [P] [US1] Implement ReflectionEntry domain model in features/reflection/model/reflection-entry.ts
+- [x] T024 [P] [US1] Implement GuidedQuestionSet domain model in features/reflection/model/guided-question-set.ts
+- [x] T025 [US1] Implement reflection repository adapter in features/reflection/repository/reflection-repository.ts
+- [x] T026 [US1] Implement reflection creation and guided question service in features/reflection/service/reflection-service.ts
 - [ ] T027 [US1] Implement hard-delete reflection use case in features/reflection/service/delete-reflection-cascade.ts
-- [ ] T028 [US1] Implement daily reflection ViewModel in features/reflection/view-model/use-daily-reflection-vm.ts
-- [ ] T029 [US1] Implement daily reflection screen in features/reflection/view/daily-reflection-screen.tsx
+- [x] T028 [US1] Implement daily reflection ViewModel in features/reflection/view-model/use-daily-reflection-vm.ts
+- [x] T029 [US1] Implement daily reflection screen in features/reflection/view/daily-reflection-screen.tsx
 - [x] T030 [US1] Wire daily reflection route in app/(reflection)/daily.tsx
 - [ ] T031 [US1] Add delete confirmation and action flow in components/DocumentModal.tsx
 - [ ] T032 [US1] Wire generation state UX in components/ChatInput.tsx and components/MessagesList.tsx

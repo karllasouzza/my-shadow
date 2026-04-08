@@ -1,18 +1,18 @@
 /**
  * T026: Reflection creation and guided question service
- * 
+ *
  * Orchestrates creation of reflections and generation of guided questions
  * with support for normal, fallback, and retry modes.
  */
 
-import { Result, ok, err, createError } from "../../../shared/utils/app-error";
-import { ReflectionEntry } from "../model/reflection-entry";
-import { GuidedQuestionSet } from "../model/guided-question-set";
-import { getReflectionRepository } from "./reflection-repository";
-import { getPtBRJungianGuard } from "../../../shared/ai/ptbr-tone-guard";
 import { getFallbackPromptProvider } from "../../../shared/ai/fallback-prompts-ptbr";
+import { getPtBRJungianGuard } from "../../../shared/ai/ptbr-tone-guard";
 import { getGenerationJobStore } from "../../../shared/storage/generation-job-store";
+import { Result, createError, err, ok } from "../../../shared/utils/app-error";
 import { getPerformanceMetrics } from "../../../shared/utils/performance-metrics";
+import { GuidedQuestionSet } from "../model/guided-question-set";
+import { ReflectionEntry } from "../model/reflection-entry";
+import { getReflectionRepository } from "./reflection-repository";
 
 export class ReflectionService {
   private repository = getReflectionRepository();
@@ -28,7 +28,7 @@ export class ReflectionService {
     content: string,
     entryDate?: string,
     moodTags?: string[],
-    triggerTags?: string[]
+    triggerTags?: string[],
   ): Promise<Result<ReflectionEntry>> {
     const stopTiming = this.metrics.startTiming("create_reflection");
 
@@ -44,7 +44,7 @@ export class ReflectionService {
         content,
         entryDate,
         moodTags,
-        triggerTags
+        triggerTags,
       );
 
       if (!entryResult.success) {
@@ -67,8 +67,8 @@ export class ReflectionService {
           "UNKNOWN_ERROR",
           "Failed to create reflection",
           {},
-          error as Error
-        )
+          error as Error,
+        ),
       );
     }
   }
@@ -79,7 +79,7 @@ export class ReflectionService {
   async generateGuidedQuestions(
     reflectionId: string,
     augmentedGeneration: boolean = true,
-    contextWindowDays: number = 30
+    contextWindowDays: number = 30,
   ): Promise<
     Result<{
       questionSet: GuidedQuestionSet;
@@ -96,7 +96,9 @@ export class ReflectionService {
       }
 
       if (!reflectionResult.data) {
-        return err(createError("NOT_FOUND", "Reflection not found", { reflectionId }));
+        return err(
+          createError("NOT_FOUND", "Reflection not found", { reflectionId }),
+        );
       }
 
       // TODO: In a real implementation, this would:
@@ -106,7 +108,8 @@ export class ReflectionService {
       // 4. Validate tone and language
 
       // For now, use fallback implementation
-      const fallbackQuestions = this.fallbackProvider.getGuidedQuestionsFallback();
+      const fallbackQuestions =
+        this.fallbackProvider.getGuidedQuestionsFallback();
 
       // Create question set with fallback mode
       const qSetResult = GuidedQuestionSet.create(
@@ -115,7 +118,7 @@ export class ReflectionService {
         "fallback_template",
         [reflectionId],
         "llama2-7b",
-        "v1"
+        "v1",
       );
 
       if (!qSetResult.success) {
@@ -134,7 +137,7 @@ export class ReflectionService {
       const jobResult = await this.jobStore.createJob(
         "guided_questions",
         reflectionId,
-        3
+        3,
       );
 
       let queuedRetryJobId: string | undefined;
@@ -158,8 +161,8 @@ export class ReflectionService {
           "LOCAL_GENERATION_UNAVAILABLE",
           "Failed to generate guided questions",
           { reflectionId },
-          error as Error
-        )
+          error as Error,
+        ),
       );
     }
   }
@@ -168,7 +171,7 @@ export class ReflectionService {
    * Get guided questions for a reflection
    */
   async getGuidedQuestions(
-    reflectionId: string
+    reflectionId: string,
   ): Promise<Result<GuidedQuestionSet[]>> {
     try {
       return await this.repository.getQuestionSetsByReflection(reflectionId);
@@ -178,8 +181,8 @@ export class ReflectionService {
           "STORAGE_ERROR",
           "Failed to retrieve guided questions",
           {},
-          error as Error
-        )
+          error as Error,
+        ),
       );
     }
   }
@@ -218,8 +221,8 @@ export class ReflectionService {
           "STORAGE_ERROR",
           "Failed to delete reflection",
           { reflectionId },
-          error as Error
-        )
+          error as Error,
+        ),
       );
     }
   }
