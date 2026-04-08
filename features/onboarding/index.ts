@@ -1,32 +1,50 @@
 // Domain Models
 export {
-  validatePassword,
-  generateSalt,
-  hashPassword,
-} from './model/user-credential';
-export type { UserCredential } from './model/user-credential';
+    generateSalt,
+    hashPassword, validatePassword
+} from "./model/user-credential";
+export type { UserCredential } from "./model/user-credential";
 
-export { MODEL_CATALOG } from './model/model-configuration';
-export type { ModelConfiguration, AvailableModel } from './model/model-configuration';
+export { MODEL_CATALOG } from "./model/model-configuration";
+export type {
+    AvailableModel, ModelConfiguration
+} from "./model/model-configuration";
 
 // Repository
-export { getCredentialRepository } from './repository/credential-repository';
-export { CredentialRepository } from './repository/credential-repository';
+export { CredentialRepository, getCredentialRepository } from "./repository/credential-repository";
 
-export { getModelRepository } from './repository/model-repository';
-export { ModelRepository } from './repository/model-repository';
+export { getModelRepository, ModelRepository } from "./repository/model-repository";
 
 // Service
-export { getDeviceInfo, filterCompatibleModels, getRecommendedModel } from './service/device-detector';
-export type { DeviceInfoResult } from './service/device-detector';
+export {
+    filterCompatibleModels, getDeviceInfo, getRecommendedModel
+} from "./service/device-detector";
+export type { DeviceInfoResult } from "./service/device-detector";
+
+export { getModelManager, ModelManager } from "./service/model-manager";
+
+export { getInitialRoute } from "./service/onboarding-guard";
+export type { OnboardingRoute } from "./service/onboarding-guard";
 
 // View Model
-export { useSecurityGateVm } from './view-model/use-security-gate-vm';
+export { useSecurityGateVm } from "./view-model/use-security-gate-vm";
 export type {
-  SecurityGateState,
-  SecurityGateMode,
-  UseSecurityGateVm,
-} from './view-model/use-security-gate-vm';
+    SecurityGateMode, SecurityGateState, UseSecurityGateVm
+} from "./view-model/use-security-gate-vm";
+
+export { useModelSelectionVm } from "./view-model/use-model-selection-vm";
+export type {
+    ModelItem, ModelSelectionState,
+    UseModelSelectionVm
+} from "./view-model/use-model-selection-vm";
+
+export { useModelLoadingVm } from "./view-model/use-model-loading-vm";
+export type {
+    LoadStatus, ModelLoadingState, UseModelLoadingVm
+} from "./view-model/use-model-loading-vm";
 
 // View
-export { SecurityGateScreen } from './view/security-gate-screen';
+export { ModelLoadingScreen } from "./view/model-loading-screen";
+export { ModelSelectionScreen } from "./view/model-selection-screen";
+export { SecurityGateScreen } from "./view/security-gate-screen";
+
