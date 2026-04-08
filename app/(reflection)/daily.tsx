@@ -1,10 +1,6 @@
 import React from "react";
-import { Text, View } from "react-native";
+import DailyReflectionScreen from "../../features/reflection/view/daily-reflection-screen";
 
-export default function DailyReflectionScreen() {
-  return (
-    <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-      <Text>Daily Reflection (placeholder)</Text>
-    </View>
-  );
+export default function DailyReflectionRoute() {
+  return <DailyReflectionScreen />;
 }
