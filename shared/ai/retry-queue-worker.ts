@@ -5,11 +5,17 @@
  * with exponential backoff and status notification.
  */
 
+import { GuidedQuestionSet } from "../../features/reflection/model/guided-question-set";
+import { getReflectionRepository } from "../../features/reflection/repository/reflection-repository";
+import { getReviewRepository } from "../../features/review/repository/review-repository";
 import {
     GenerationJob,
     getGenerationJobStore,
 } from "../storage/generation-job-store";
 import { Result, createError, err, ok } from "../utils/app-error";
+import { getLocalAIRuntime } from "./local-ai-runtime";
+import { getPtBRJungianGuard } from "./ptbr-tone-guard";
+import { getReflectionRAGRepository } from "./reflection-rag-repository";
 
 export interface RetryWorkerConfig {
   pollIntervalMs: number; // How often to check for pending jobs
@@ -25,6 +31,12 @@ export type RetryStatusCallback = (job: GenerationJob) => void;
  */
 export class RetryQueueWorker {
   private jobStore = getGenerationJobStore();
+  private reflectionRepository = getReflectionRepository();
+  private reviewRepository = getReviewRepository();
+  private runtime = getLocalAIRuntime();
+  private ragRepository = getReflectionRAGRepository();
+  private toneGuard = getPtBRJungianGuard();
+
   private config: RetryWorkerConfig;
   private isRunning = false;
   private pollTimer: ReturnType<typeof setInterval> | null = null;
@@ -140,42 +152,37 @@ export class RetryQueueWorker {
   private async processJob(job: GenerationJob): Promise<void> {
     try {
       this.activeJobCount++;
+      const nextAttempt = job.attempts + 1;
 
       // Mark as running
       await this.jobStore.updateJob(job.id, {
         status: "running",
-        attempts: job.attempts + 1,
+        attempts: nextAttempt,
       });
 
       this.notifyStatusChange(job);
 
-      // TODO: Actually execute the generation job
-      // This would call the appropriate generation service based on targetType
-      // For now, simulate success
-      const success = Math.random() > 0.3; // 70% success rate for simulation
-
-      if (success) {
+      const executionResult = await this.executeGenerationJob(job);
+      if (executionResult.success) {
         await this.jobStore.updateJob(job.id, {
           status: "succeeded",
         });
         this.notifyStatusChange({ ...job, status: "succeeded" });
       } else {
         // Schedule retry if attempts remaining
-        if (job.attempts < job.maxAttempts) {
-          const backoffMs = this.calculateBackoff(job.attempts);
-          const delayUntil = Date.now() + backoffMs;
+        if (nextAttempt < job.maxAttempts) {
+          const backoffMs = this.calculateBackoff(nextAttempt - 1);
 
           await this.jobStore.updateJob(job.id, {
             status: "queued",
-            lastError: "Generation failed, scheduled for retry",
+            lastError: `${executionResult.error.message}. Retry in ~${backoffMs}ms.`,
           });
 
-          // Note: Real implementation would schedule timer to respawn job
           this.notifyStatusChange({ ...job, status: "queued" });
         } else {
           await this.jobStore.updateJob(job.id, {
             status: "failed",
-            lastError: "Max retries exceeded",
+            lastError: `${executionResult.error.message}. Max retries exceeded.`,
           });
           this.notifyStatusChange({ ...job, status: "failed" });
         }
@@ -189,6 +196,321 @@ export class RetryQueueWorker {
     } finally {
       this.activeJobCount--;
     }
+  }
+
+  private async executeGenerationJob(
+    job: GenerationJob,
+  ): Promise<Result<void>> {
+    if (job.targetType === "guided_questions") {
+      return this.retryGuidedQuestions(job.targetRefId);
+    }
+
+    if (job.targetType === "final_review") {
+      return this.retryFinalReview(job.targetRefId);
+    }
+
+    return err(
+      createError(
+        "RETRY_QUEUE_ERROR",
+        `Unsupported target type: ${job.targetType}`,
+      ),
+    );
+  }
+
+  private async retryGuidedQuestions(
+    reflectionId: string,
+  ): Promise<Result<void>> {
+    const reflectionResult =
+      await this.reflectionRepository.getById(reflectionId);
+    if (!reflectionResult.success) {
+      return err(reflectionResult.error);
+    }
+
+    if (!reflectionResult.data) {
+      return err(
+        createError("NOT_FOUND", `Reflection ${reflectionId} not found`),
+      );
+    }
+
+    const reflection = reflectionResult.data;
+    const ragInit = await this.ragRepository.initialize();
+    let retrievalContextIds: string[] = [reflectionId];
+    let retrievedTexts: string[] = [];
+
+    if (ragInit.success) {
+      const ragResult = await this.ragRepository.searchByText(
+        reflection.content,
+        6,
+        0.45,
+      );
+      if (ragResult.success) {
+        const contextRows = ragResult.data
+          .filter((row) => row.reflectionId !== reflectionId)
+          .slice(0, 5);
+        retrievalContextIds = [
+          reflectionId,
+          ...contextRows.map((row) => row.reflectionId),
+        ];
+        retrievedTexts = contextRows.map((row) => row.text);
+      }
+    }
+
+    const runtimeInit = await this.runtime.initialize();
+    if (!runtimeInit.success) {
+      return err(runtimeInit.error);
+    }
+
+    await this.runtime.waitReady();
+    const modelLoadResult = await this.runtime.loadModel(
+      "qwen2.5-0.5b-quantized",
+      "",
+    );
+    if (!modelLoadResult.success) {
+      return err(modelLoadResult.error);
+    }
+
+    const promptParts = [
+      "Voce e um assistente de reflexao em Portugues (pt-BR), com tom introspectivo e junguiano.",
+      `Reflexao: ${reflection.content}`,
+    ];
+
+    if (retrievedTexts.length > 0) {
+      promptParts.push(
+        `Contexto relacionado:\n- ${retrievedTexts.join("\n- ")}`,
+      );
+    }
+
+    const generationResult = await this.runtime.generateGuidedQuestions(
+      promptParts.join("\n\n"),
+      6,
+    );
+    if (!generationResult.success) {
+      return err(generationResult.error);
+    }
+
+    const validatedQuestions: string[] = [];
+    for (const question of generationResult.data) {
+      const validation = this.toneGuard.validate(question);
+      if (!validation.success) {
+        return err(
+          createError(
+            "VALIDATION_ERROR",
+            "Generated guided question did not pass language/tone validation",
+            { question },
+          ),
+        );
+      }
+      validatedQuestions.push(question);
+    }
+
+    const questionSetResult = GuidedQuestionSet.create(
+      reflectionId,
+      validatedQuestions.slice(0, 8),
+      "retry_result",
+      retrievalContextIds,
+      this.runtime.getCurrentModel()?.id ?? "qwen2.5-0.5b-quantized",
+      "executorch-0.8",
+    );
+    if (!questionSetResult.success) {
+      return err(questionSetResult.error);
+    }
+
+    const saveResult = await this.reflectionRepository.saveQuestionSet(
+      questionSetResult.data,
+    );
+    if (!saveResult.success) {
+      return err(saveResult.error);
+    }
+
+    return ok(void 0);
+  }
+
+  private async retryFinalReview(reviewId: string): Promise<Result<void>> {
+    const reviewResult = await this.reviewRepository.getById(reviewId);
+    if (!reviewResult.success) {
+      return err(reviewResult.error);
+    }
+
+    if (!reviewResult.data) {
+      return err(createError("NOT_FOUND", `Review ${reviewId} not found`));
+    }
+
+    const review = reviewResult.data;
+    const reflectionContents: string[] = [];
+
+    for (const reflectionId of review.reflectionIds) {
+      const reflectionResult =
+        await this.reflectionRepository.getById(reflectionId);
+      if (reflectionResult.success && reflectionResult.data?.content) {
+        reflectionContents.push(reflectionResult.data.content.trim());
+      }
+    }
+
+    if (reflectionContents.length === 0) {
+      return err(
+        createError(
+          "NOT_FOUND",
+          "No reflection content available to retry final review generation",
+          { reviewId },
+        ),
+      );
+    }
+
+    const runtimeInit = await this.runtime.initialize();
+    if (!runtimeInit.success) {
+      return err(runtimeInit.error);
+    }
+
+    await this.runtime.waitReady();
+    const modelLoadResult = await this.runtime.loadModel(
+      "qwen2.5-0.5b-quantized",
+      "",
+    );
+    if (!modelLoadResult.success) {
+      return err(modelLoadResult.error);
+    }
+
+    const completionResult = await this.runtime.generateCompletion([
+      {
+        role: "system",
+        content:
+          "Voce sintetiza reflexoes em portugues do Brasil com tom junguiano, acolhedor e nao diretivo.",
+      },
+      {
+        role: "user",
+        content: this.buildReviewPrompt(
+          review.periodStart,
+          review.periodEnd,
+          reflectionContents,
+        ),
+      },
+    ]);
+    if (!completionResult.success) {
+      return err(completionResult.error);
+    }
+
+    const parsed = this.parseReviewOutput(completionResult.data.text);
+    if (!parsed) {
+      return err(
+        createError(
+          "LOCAL_GENERATION_UNAVAILABLE",
+          "Unable to parse final review generation output",
+        ),
+      );
+    }
+
+    const toneValidation = this.toneGuard.validate(parsed.summary);
+    if (!toneValidation.success) {
+      return err(toneValidation.error);
+    }
+
+    const saveResult = await this.reviewRepository.save({
+      ...review,
+      summary: parsed.summary,
+      recurringPatterns: parsed.patterns,
+      emotionalTriggers: parsed.triggers,
+      nextInquiryPrompts: parsed.prompts,
+      generationMode: "retry_result",
+      modelId: this.runtime.getCurrentModel()?.id ?? review.modelId,
+      modelVersion: "executorch-0.8",
+      updatedAt: new Date().toISOString(),
+    });
+
+    if (!saveResult.success) {
+      return err(saveResult.error);
+    }
+
+    return ok(void 0);
+  }
+
+  private buildReviewPrompt(
+    periodStart: string,
+    periodEnd: string,
+    reflectionContents: string[],
+  ): string {
+    const numberedReflections = reflectionContents
+      .map((content, index) => {
+        const compact = content.replace(/\s+/g, " ").trim();
+        return `${index + 1}. ${compact.slice(0, 900)}`;
+      })
+      .join("\n");
+
+    return [
+      `Periodo: ${periodStart} ate ${periodEnd}`,
+      "Tarefa: sintetizar padroes recorrentes, gatilhos emocionais e proximas investigacoes.",
+      "Regras:",
+      "- Responder somente em pt-BR.",
+      "- Nao inventar fatos alem das reflexoes fornecidas.",
+      "- Manter tom introspectivo, acolhedor e nao-diretivo.",
+      "Formato obrigatorio:",
+      "RESUMO:",
+      "texto",
+      "PADROES:",
+      "- item",
+      "GATILHOS:",
+      "- item",
+      "PROMPTS:",
+      "- pergunta?",
+      "Reflexoes:",
+      numberedReflections,
+    ].join("\n");
+  }
+
+  private parseReviewOutput(text: string): {
+    summary: string;
+    patterns: string[];
+    triggers: string[];
+    prompts: string[];
+  } | null {
+    const normalized = text.replace(/\r/g, "");
+    const summary = this.extractSection(normalized, "RESUMO:", "PADROES:");
+    const patterns = this.parseBulletList(
+      this.extractSection(normalized, "PADROES:", "GATILHOS:"),
+    );
+    const triggers = this.parseBulletList(
+      this.extractSection(normalized, "GATILHOS:", "PROMPTS:"),
+    );
+    const prompts = this.parseBulletList(
+      this.extractSection(normalized, "PROMPTS:"),
+    ).map((item) => (item.endsWith("?") ? item : `${item}?`));
+
+    if (!summary || prompts.length === 0) {
+      return null;
+    }
+
+    return {
+      summary,
+      patterns,
+      triggers,
+      prompts,
+    };
+  }
+
+  private extractSection(
+    text: string,
+    startMarker: string,
+    endMarker?: string,
+  ): string {
+    const start = text.indexOf(startMarker);
+    if (start < 0) {
+      return "";
+    }
+
+    const startIndex = start + startMarker.length;
+    const endIndex = endMarker ? text.indexOf(endMarker, startIndex) : -1;
+    const section =
+      endIndex >= 0 ? text.slice(startIndex, endIndex) : text.slice(startIndex);
+
+    return section.trim();
+  }
+
+  private parseBulletList(section: string): string[] {
+    return section
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .map((line) => line.replace(/^(\d+[).:-]|[-*])\s*/, "").trim())
+      .filter((line) => line.length > 0);
   }
 
   /**

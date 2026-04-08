@@ -5,14 +5,21 @@
  * and export operations against defined p95 budgets.
  */
 
+export type OperationType =
+  | "guided_questions"
+  | "final_review"
+  | "markdown_export"
+  | "create_reflection"
+  | "generate_guided_questions";
+
 export interface TimingBudget {
-  operationType: "guided_questions" | "final_review" | "markdown_export";
+  operationType: OperationType;
   p95Ms: number;
   p99Ms?: number;
 }
 
 export interface TimingMetric {
-  operationType: string;
+  operationType: OperationType;
   startMs: number;
   endMs?: number;
   durationMs?: number;
@@ -25,10 +32,15 @@ export interface TimingMetric {
  */
 export class PerformanceMetrics {
   private metrics: TimingMetric[] = [];
-  private budgets: Map<string, TimingBudget> = new Map([
+  private budgets: Map<OperationType, TimingBudget> = new Map([
     ["guided_questions", { operationType: "guided_questions", p95Ms: 8000 }],
     ["final_review", { operationType: "final_review", p95Ms: 20000 }],
     ["markdown_export", { operationType: "markdown_export", p95Ms: 10000 }],
+    ["create_reflection", { operationType: "create_reflection", p95Ms: 5000 }],
+    [
+      "generate_guided_questions",
+      { operationType: "generate_guided_questions", p95Ms: 8000 },
+    ],
   ]);
 
   constructor() {}
@@ -36,7 +48,9 @@ export class PerformanceMetrics {
   /**
    * Start timing an operation
    */
-  startTiming(operationType: string): () => void {
+  startTiming(
+    operationType: OperationType,
+  ): (metadata?: Record<string, unknown>) => void {
     const metric: TimingMetric = {
       operationType,
       startMs: Date.now(),
@@ -75,7 +89,7 @@ export class PerformanceMetrics {
   /**
    * Get timing summary for an operation type
    */
-  getSummary(operationType: string): {
+  getSummary(operationType: OperationType): {
     count: number;
     minMs: number;
     maxMs: number;
@@ -121,7 +135,7 @@ export class PerformanceMetrics {
   /**
    * Check if operation is within budget
    */
-  isWithinBudget(operationType: string, durationMs: number): boolean {
+  isWithinBudget(operationType: OperationType, durationMs: number): boolean {
     const budget = this.budgets.get(operationType);
     if (!budget) return true; // No budget defined
     return durationMs <= budget.p95Ms;
@@ -130,7 +144,7 @@ export class PerformanceMetrics {
   /**
    * Set custom budget
    */
-  setBudget(operationType: string, p95Ms: number): void {
+  setBudget(operationType: OperationType, p95Ms: number): void {
     this.budgets.set(operationType, { operationType, p95Ms });
   }
 

@@ -11,7 +11,7 @@ export interface EmbeddingRecord {
   id: string;
   reflectionId: string;
   text: string;
-  embedding: number[]; // Vector embedding
+  embedding?: number[]; // Optional pre-computed vector
   metadata: {
     entryDate: string;
     moodTags?: string[];
@@ -26,14 +26,25 @@ export interface RetrievalResult {
   entryDate: string;
 }
 
+interface RAGNativeModules {
+  initExecutorch: (config: any) => void;
+  ExpoResourceFetcher: unknown;
+  ExecuTorchEmbeddings: any;
+  OPSQLiteVectorStore: any;
+  MULTI_QA_MINILM_L6_COS_V1: {
+    modelSource: unknown;
+    tokenizerSource: unknown;
+  };
+}
+
 /**
  * RAG repository providing vector search capabilities
  */
 export class ReflectionRAGRepository {
   private initialized = false;
-  // In production, this would be the actual OP SQLite vector store from react-native-rag
-
-  constructor() {}
+  private readonly storeName = "reflection-rag-v1";
+  private modules: RAGNativeModules | null = null;
+  private vectorStore: any = null;
 
   /**
    * Initialize the RAG vector store
@@ -44,8 +55,26 @@ export class ReflectionRAGRepository {
         return ok(void 0);
       }
 
-      // TODO: Initialize OP SQLite vector store
-      // This would involve setting up the database with vector support
+      const modulesResult = await this.loadNativeModules();
+      if (!modulesResult.success) {
+        return err(modulesResult.error);
+      }
+
+      this.modules = modulesResult.data;
+      this.modules.initExecutorch({
+        resourceFetcher: this.modules.ExpoResourceFetcher,
+      });
+
+      const embeddings = new this.modules.ExecuTorchEmbeddings({
+        modelSource: this.modules.MULTI_QA_MINILM_L6_COS_V1.modelSource,
+        tokenizerSource: this.modules.MULTI_QA_MINILM_L6_COS_V1.tokenizerSource,
+      });
+
+      this.vectorStore = new this.modules.OPSQLiteVectorStore({
+        name: this.storeName,
+        embeddings,
+      });
+      await this.vectorStore.load();
 
       this.initialized = true;
       return ok(void 0);
@@ -66,12 +95,29 @@ export class ReflectionRAGRepository {
    */
   async storeEmbedding(record: EmbeddingRecord): Promise<Result<void>> {
     try {
-      if (!this.initialized) {
-        return err(createError("NOT_READY", "RAG repository not initialized"));
+      const readyResult = await this.ensureInitialized();
+      if (!readyResult.success) {
+        return err(readyResult.error);
       }
 
-      // TODO: Store embedding in vector database
-      // This would use react-native-rag to insert the vector
+      // Upsert by removing stale vectors for this reflection before insert.
+      await this.vectorStore.delete({
+        predicate: (value: any) =>
+          value.id === record.id ||
+          value.metadata?.reflectionId === record.reflectionId,
+      });
+
+      await this.vectorStore.add({
+        id: record.id,
+        document: record.text,
+        embedding: record.embedding,
+        metadata: {
+          reflectionId: record.reflectionId,
+          entryDate: record.metadata.entryDate,
+          moodTags: record.metadata.moodTags ?? [],
+          triggerTags: record.metadata.triggerTags ?? [],
+        },
+      });
 
       return ok(void 0);
     } catch (error) {
@@ -95,14 +141,49 @@ export class ReflectionRAGRepository {
     threshold: number = 0.7,
   ): Promise<Result<RetrievalResult[]>> {
     try {
-      if (!this.initialized) {
-        return err(createError("NOT_READY", "RAG repository not initialized"));
+      const readyResult = await this.ensureInitialized();
+      if (!readyResult.success) {
+        return err(readyResult.error);
       }
 
-      // TODO: Perform vector search
-      // This would use cosine similarity to find similar reflections
+      const results = await this.vectorStore.query({
+        queryEmbedding,
+        nResults: limit,
+      });
 
-      return ok([]);
+      return ok(this.mapQueryResults(results, threshold));
+    } catch (error) {
+      return err(
+        createError(
+          "STORAGE_ERROR",
+          "Failed to search embeddings",
+          {},
+          error as Error,
+        ),
+      );
+    }
+  }
+
+  /**
+   * Search for similar reflections using raw text query.
+   */
+  async searchByText(
+    queryText: string,
+    limit: number = 5,
+    threshold: number = 0.7,
+  ): Promise<Result<RetrievalResult[]>> {
+    try {
+      const readyResult = await this.ensureInitialized();
+      if (!readyResult.success) {
+        return err(readyResult.error);
+      }
+
+      const results = await this.vectorStore.query({
+        queryText,
+        nResults: limit,
+      });
+
+      return ok(this.mapQueryResults(results, threshold));
     } catch (error) {
       return err(
         createError(
@@ -120,11 +201,16 @@ export class ReflectionRAGRepository {
    */
   async deleteEmbedding(reflectionId: string): Promise<Result<void>> {
     try {
-      if (!this.initialized) {
-        return err(createError("NOT_READY", "RAG repository not initialized"));
+      const readyResult = await this.ensureInitialized();
+      if (!readyResult.success) {
+        return err(readyResult.error);
       }
 
-      // TODO: Delete embedding from vector database
+      await this.vectorStore.delete({
+        predicate: (value: any) =>
+          value.metadata?.reflectionId === reflectionId ||
+          value.id === reflectionId,
+      });
 
       return ok(void 0);
     } catch (error) {
@@ -147,13 +233,43 @@ export class ReflectionRAGRepository {
     endDate: string,
   ): Promise<Result<EmbeddingRecord[]>> {
     try {
-      if (!this.initialized) {
-        return err(createError("NOT_READY", "RAG repository not initialized"));
+      const readyResult = await this.ensureInitialized();
+      if (!readyResult.success) {
+        return err(readyResult.error);
       }
 
-      // TODO: Query embeddings by date range
+      const rows = await this.vectorStore.db.execute(
+        "SELECT id, document, embedding, metadata FROM vectors",
+      );
 
-      return ok([]);
+      const records: EmbeddingRecord[] = [];
+      for (const row of rows.rows as any[]) {
+        const metadata = this.parseMetadata(row.metadata);
+        if (!metadata.entryDate) {
+          continue;
+        }
+        if (metadata.entryDate < startDate || metadata.entryDate > endDate) {
+          continue;
+        }
+
+        records.push({
+          id: String(row.id),
+          reflectionId: String(metadata.reflectionId ?? row.id),
+          text: String(row.document ?? ""),
+          embedding: this.toEmbeddingArray(row.embedding),
+          metadata: {
+            entryDate: String(metadata.entryDate),
+            moodTags: Array.isArray(metadata.moodTags)
+              ? metadata.moodTags
+              : undefined,
+            triggerTags: Array.isArray(metadata.triggerTags)
+              ? metadata.triggerTags
+              : undefined,
+          },
+        });
+      }
+
+      return ok(records);
     } catch (error) {
       return err(
         createError(
@@ -171,7 +287,17 @@ export class ReflectionRAGRepository {
    */
   async clear(): Promise<Result<void>> {
     try {
-      // TODO: Clear vector store
+      if (!this.initialized || !this.vectorStore) {
+        return ok(void 0);
+      }
+
+      if (typeof this.vectorStore.deleteVectorStore === "function") {
+        await this.vectorStore.deleteVectorStore();
+      }
+
+      await this.vectorStore.unload();
+      this.vectorStore = null;
+      this.initialized = false;
 
       return ok(void 0);
     } catch (error) {
@@ -179,6 +305,103 @@ export class ReflectionRAGRepository {
         createError(
           "STORAGE_ERROR",
           "Failed to clear embeddings",
+          {},
+          error as Error,
+        ),
+      );
+    }
+  }
+
+  private async ensureInitialized(): Promise<Result<void>> {
+    if (this.initialized) {
+      return ok(void 0);
+    }
+    return this.initialize();
+  }
+
+  private mapQueryResults(rows: any[], threshold: number): RetrievalResult[] {
+    return rows
+      .map((row) => {
+        const metadata = this.parseMetadata(row.metadata);
+        return {
+          reflectionId: String(metadata.reflectionId ?? row.id),
+          score: Number(row.similarity ?? 0),
+          text: String(row.document ?? ""),
+          entryDate: String(metadata.entryDate ?? ""),
+        } as RetrievalResult;
+      })
+      .filter((row) => row.score >= threshold);
+  }
+
+  private parseMetadata(metadata: unknown): Record<string, any> {
+    if (!metadata) {
+      return {};
+    }
+
+    if (typeof metadata === "string") {
+      try {
+        return JSON.parse(metadata);
+      } catch {
+        return {};
+      }
+    }
+
+    if (typeof metadata === "object") {
+      return metadata as Record<string, any>;
+    }
+
+    return {};
+  }
+
+  private toEmbeddingArray(rawEmbedding: unknown): number[] {
+    if (Array.isArray(rawEmbedding)) {
+      return rawEmbedding.map((value) => Number(value));
+    }
+
+    if (rawEmbedding instanceof Float32Array) {
+      return Array.from(rawEmbedding);
+    }
+
+    if (rawEmbedding instanceof ArrayBuffer) {
+      return Array.from(new Float32Array(rawEmbedding));
+    }
+
+    if (ArrayBuffer.isView(rawEmbedding)) {
+      const view = rawEmbedding as Uint8Array;
+      const slicedBuffer = view.buffer.slice(
+        view.byteOffset,
+        view.byteOffset + view.byteLength,
+      );
+      if (slicedBuffer.byteLength % 4 === 0) {
+        return Array.from(new Float32Array(slicedBuffer));
+      }
+    }
+
+    return [];
+  }
+
+  private async loadNativeModules(): Promise<Result<RAGNativeModules>> {
+    try {
+      const [executorchModule, ragExecuTorchModule, opSqliteModule, fetcher] =
+        await Promise.all([
+          import("react-native-executorch"),
+          import("@react-native-rag/executorch"),
+          import("@react-native-rag/op-sqlite"),
+          import("react-native-executorch-expo-resource-fetcher"),
+        ]);
+
+      return ok({
+        initExecutorch: executorchModule.initExecutorch,
+        ExpoResourceFetcher: fetcher.ExpoResourceFetcher,
+        ExecuTorchEmbeddings: ragExecuTorchModule.ExecuTorchEmbeddings,
+        OPSQLiteVectorStore: opSqliteModule.OPSQLiteVectorStore,
+        MULTI_QA_MINILM_L6_COS_V1: executorchModule.MULTI_QA_MINILM_L6_COS_V1,
+      });
+    } catch (error) {
+      return err(
+        createError(
+          "NOT_READY",
+          "Unable to load native RAG dependencies",
           {},
           error as Error,
         ),

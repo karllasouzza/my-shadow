@@ -5,12 +5,13 @@
  * All data is encrypted at rest and secured with app lock.
  */
 
-import { MMKV } from "react-native-mmkv";
+import type { MMKV } from "react-native-mmkv";
+import { createMMKV } from "react-native-mmkv";
 import { Result, createError, err, ok } from "../utils/app-error";
 
 export interface ReflectionRecord {
   id: string;
-  entryDate: string; // iso date yyyy-mm-dd
+  entryDate: string; // ISO date yyyy-mm-dd
   content: string;
   moodTags?: string[];
   triggerTags?: string[];
@@ -55,7 +56,7 @@ export class EncryptedReflectionStore {
   private listKey = "reflection:list"; // Track all reflection IDs
 
   constructor(storageName: string = "reflections") {
-    this.storage = new MMKV({ id: storageName });
+    this.storage = createMMKV({ id: storageName });
   }
 
   /**
@@ -64,13 +65,13 @@ export class EncryptedReflectionStore {
   async saveReflection(record: ReflectionRecord): Promise<Result<void>> {
     try {
       const key = `${this.reflectionPrefix}${record.id}`;
-      this.storage.setString(key, JSON.stringify(record));
+      this.storage.set(key, JSON.stringify(record));
 
       // Track in list
       const list = this.getReflectionList();
       if (!list.includes(record.id)) {
         list.push(record.id);
-        this.storage.setString(this.listKey, JSON.stringify(list));
+        this.storage.set(this.listKey, JSON.stringify(list));
       }
 
       return ok(void 0);
@@ -146,14 +147,14 @@ export class EncryptedReflectionStore {
   async deleteReflection(id: string): Promise<Result<void>> {
     try {
       const key = `${this.reflectionPrefix}${id}`;
-      this.storage.delete(key);
+      this.storage.remove(key);
 
       // Remove from tracking list
       const list = this.getReflectionList();
       const index = list.indexOf(id);
       if (index > -1) {
         list.splice(index, 1);
-        this.storage.setString(this.listKey, JSON.stringify(list));
+        this.storage.set(this.listKey, JSON.stringify(list));
       }
 
       return ok(void 0);
@@ -177,7 +178,7 @@ export class EncryptedReflectionStore {
   ): Promise<Result<void>> {
     try {
       const key = `${this.questionPrefix}${record.id}`;
-      this.storage.setString(key, JSON.stringify(record));
+      this.storage.set(key, JSON.stringify(record));
       return ok(void 0);
     } catch (error) {
       return err(
@@ -233,7 +234,7 @@ export class EncryptedReflectionStore {
   async deleteQuestionSet(id: string): Promise<Result<void>> {
     try {
       const key = `${this.questionPrefix}${id}`;
-      this.storage.delete(key);
+      this.storage.remove(key);
       return ok(void 0);
     } catch (error) {
       return err(
@@ -253,7 +254,7 @@ export class EncryptedReflectionStore {
   async saveFinalReview(record: FinalReviewRecord): Promise<Result<void>> {
     try {
       const key = `${this.reviewPrefix}${record.id}`;
-      this.storage.setString(key, JSON.stringify(record));
+      this.storage.set(key, JSON.stringify(record));
       return ok(void 0);
     } catch (error) {
       return err(
@@ -312,7 +313,7 @@ export class EncryptedReflectionStore {
   async deleteFinalReview(id: string): Promise<Result<void>> {
     try {
       const key = `${this.reviewPrefix}${id}`;
-      this.storage.delete(key);
+      this.storage.remove(key);
       return ok(void 0);
     } catch (error) {
       return err(

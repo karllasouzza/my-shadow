@@ -6,7 +6,8 @@
  */
 
 import * as SecureStore from "expo-secure-store";
-import { MMKV } from "react-native-mmkv";
+import type { MMKV } from "react-native-mmkv";
+import { createMMKV } from "react-native-mmkv";
 import { Result, createError, err, ok } from "../utils/app-error";
 
 interface AppLockState {
@@ -25,7 +26,7 @@ export class AppLockGateway {
   private lockTimeoutMs = 15 * 60 * 1000; // 15 minutes
 
   constructor() {
-    this.storage = new MMKV({ id: "app_lock" });
+    this.storage = createMMKV({ id: "app_lock" });
   }
 
   /**
@@ -42,7 +43,7 @@ export class AppLockGateway {
         isLocked: true,
         lastUnlockTime: undefined,
       };
-      this.storage.setString(this.lockKey, JSON.stringify(lockState));
+      this.storage.set(this.lockKey, JSON.stringify(lockState));
 
       return ok(void 0);
     } catch (error) {
@@ -81,7 +82,7 @@ export class AppLockGateway {
         lockToken: token,
         lastUnlockTime: Date.now(),
       };
-      this.storage.setString(this.lockKey, JSON.stringify(lockState));
+      this.storage.set(this.lockKey, JSON.stringify(lockState));
 
       return ok(token);
     } catch (error) {
@@ -105,7 +106,7 @@ export class AppLockGateway {
         isLocked: true,
         lockToken: undefined,
       };
-      this.storage.setString(this.lockKey, JSON.stringify(lockState));
+      this.storage.set(this.lockKey, JSON.stringify(lockState));
       return ok(void 0);
     } catch (error) {
       return err(

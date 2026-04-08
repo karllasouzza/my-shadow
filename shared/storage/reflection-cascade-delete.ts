@@ -5,6 +5,7 @@
  * Ensures no orphaned records remain and maintains referential integrity.
  */
 
+import { getReviewRepository } from "../../features/review/repository/review-repository";
 import { getReflectionStore } from "../storage/encrypted-reflection-store";
 import { getGenerationJobStore } from "../storage/generation-job-store";
 import { Result, createError, err, ok } from "../utils/app-error";
@@ -23,6 +24,7 @@ export interface CascadeDeleteResult {
 export class ReflectionCascadeDelete {
   private reflectionStore = getReflectionStore();
   private jobStore = getGenerationJobStore();
+  private reviewRepository = getReviewRepository();
 
   /**
    * Execute cascade delete for a reflection and all dependent artifacts
@@ -31,8 +33,6 @@ export class ReflectionCascadeDelete {
     reflectionId: string,
   ): Promise<Result<CascadeDeleteResult>> {
     try {
-      const startTime = Date.now();
-
       // Verify reflection exists
       const reflectionResult =
         await this.reflectionStore.getReflection(reflectionId);
@@ -79,8 +79,31 @@ export class ReflectionCascadeDelete {
         }
       }
 
-      // TODO: Delete dependent final reviews
-      // This would require querying reviews that reference this reflection
+      // Delete dependent final reviews and related queued jobs
+      const reviewsResult =
+        await this.reviewRepository.getByReflectionId(reflectionId);
+      if (reviewsResult.success) {
+        for (const review of reviewsResult.data) {
+          const deleteResult = await this.reviewRepository.delete(review.id);
+          if (deleteResult.success) {
+            deletedReviewCount++;
+          }
+
+          if (jobsResult.success) {
+            for (const job of jobsResult.data) {
+              if (
+                job.targetType === "final_review" &&
+                job.targetRefId === review.id
+              ) {
+                const deleteJobResult = await this.jobStore.deleteJob(job.id);
+                if (deleteJobResult.success) {
+                  deletedJobCount++;
+                }
+              }
+            }
+          }
+        }
+      }
 
       // Delete the reflection itself
       const deleteReflectionResult =

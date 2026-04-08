@@ -5,7 +5,8 @@
  * Uses encrypted local storage to persist job queue across app restarts.
  */
 
-import { MMKV } from "react-native-mmkv";
+import type { MMKV } from "react-native-mmkv";
+import { createMMKV } from "react-native-mmkv";
 import { Result, createError, err, ok } from "../utils/app-error";
 
 export interface GenerationJob {
@@ -29,7 +30,7 @@ export class GenerationJobStore {
   private queueKey = "job:queue";
 
   constructor() {
-    this.storage = new MMKV({ id: "generation_jobs" });
+    this.storage = createMMKV({ id: "generation_jobs" });
   }
 
   /**
@@ -56,7 +57,7 @@ export class GenerationJobStore {
       };
 
       const key = `${this.jobPrefix}${id}`;
-      this.storage.setString(key, JSON.stringify(job));
+      this.storage.set(key, JSON.stringify(job));
 
       // Add to queue
       this.addToQueue(id);
@@ -96,7 +97,7 @@ export class GenerationJobStore {
         updatedAt: new Date().toISOString(),
       };
 
-      this.storage.setString(key, JSON.stringify(updated));
+      this.storage.set(key, JSON.stringify(updated));
       return ok(void 0);
     } catch (error) {
       return err(
@@ -173,7 +174,7 @@ export class GenerationJobStore {
   async deleteJob(jobId: string): Promise<Result<void>> {
     try {
       const key = `${this.jobPrefix}${jobId}`;
-      this.storage.delete(key);
+      this.storage.remove(key);
 
       // Remove from queue
       this.removeFromQueue(jobId);
@@ -199,10 +200,10 @@ export class GenerationJobStore {
       const keys = this.storage.getAllKeys();
       for (const key of keys) {
         if (key.startsWith(this.jobPrefix)) {
-          this.storage.delete(key);
+          this.storage.remove(key);
         }
       }
-      this.storage.delete(this.queueKey);
+      this.storage.remove(this.queueKey);
       return ok(void 0);
     } catch (error) {
       return err(
@@ -224,7 +225,7 @@ export class GenerationJobStore {
     const queue: string[] = queueData ? JSON.parse(queueData) : [];
     if (!queue.includes(jobId)) {
       queue.push(jobId);
-      this.storage.setString(this.queueKey, JSON.stringify(queue));
+      this.storage.set(this.queueKey, JSON.stringify(queue));
     }
   }
 
@@ -238,7 +239,7 @@ export class GenerationJobStore {
       const index = queue.indexOf(jobId);
       if (index > -1) {
         queue.splice(index, 1);
-        this.storage.setString(this.queueKey, JSON.stringify(queue));
+        this.storage.set(this.queueKey, JSON.stringify(queue));
       }
     }
   }
