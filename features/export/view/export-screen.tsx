@@ -1,11 +1,13 @@
 /**
  * T052: Export Screen
  * UI for markdown export feature with date range selection and artifact filtering
+ * Theme: Shadow Jung (dark purple/gold)
  */
 
+import { Button } from "@/components/ui/button";
+import { Text } from "@/components/ui/text";
 import React, { useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
-import { Text } from "../../../components/ui/text";
+import { Pressable, ScrollView, TextInput, View } from "react-native";
 import { useExportViewModel } from "../view-model/use-export-vm";
 
 export function ExportScreen() {
@@ -32,125 +34,123 @@ export function ExportScreen() {
   const isPeriodSelected = !!state.periodStart && !!state.periodEnd;
 
   return (
-    <ScrollView className="flex-1 bg-white">
+    <ScrollView className="flex-1 bg-background">
       <View className="p-6 gap-6">
         {/* Header */}
         <View className="gap-2">
-          <Text className="text-2xl font-bold text-gray-900">
+          <Text variant="h2" className="text-accent">
             Exportar Reflexões
           </Text>
-          <Text className="text-base text-gray-600">
+          <Text className="text-base text-muted-foreground">
             Gere um arquivo Markdown com suas reflexões e análises
           </Text>
         </View>
 
         {/* Error Banner */}
         {state.error && (
-          <View className="bg-red-100 border border-red-300 rounded-lg p-4 gap-2">
-            <Text className="text-base font-semibold text-red-900">
+          <View className="bg-destructive/10 border border-destructive/30 rounded-lg p-4 gap-2">
+            <Text className="text-destructive font-semibold">
               Erro na Exportação
             </Text>
-            <Text className="text-sm text-red-800">{state.error}</Text>
-            <Pressable
+            <Text className="text-sm text-destructive/80">{state.error}</Text>
+            <Button
+              variant="destructive"
+              size="sm"
               onPress={clearError}
-              className="self-start mt-2 px-4 py-2 bg-red-500 rounded-lg"
+              className="self-start"
             >
-              <Text className="text-white text-sm font-medium">Fechar</Text>
-            </Pressable>
+              <Text className="text-destructive-foreground text-sm font-medium">
+                Fechar
+              </Text>
+            </Button>
           </View>
         )}
 
         {/* Successful Export Display */}
         {state.bundle && !state.isExporting && (
-          <View className="bg-green-100 border border-green-300 rounded-lg p-4 gap-3">
-            <Text className="text-lg font-bold text-green-900">
+          <View className="bg-success/10 border border-success/30 rounded-lg p-4 gap-3">
+            <Text variant="h3" className="text-success">
               ✓ Exportação Concluída
             </Text>
             <View className="gap-2">
               <View className="gap-1">
-                <Text className="text-sm text-gray-700">Arquivo:</Text>
-                <Text className="font-mono text-sm text-gray-900">
+                <Text className="text-sm text-muted-foreground">Arquivo:</Text>
+                <Text className="font-mono text-sm text-foreground">
                   {state.bundle.fileName}
                 </Text>
               </View>
               <View className="gap-1">
-                <Text className="text-sm text-gray-700">Tamanho:</Text>
-                <Text className="text-sm text-gray-900">
+                <Text className="text-sm text-muted-foreground">Tamanho:</Text>
+                <Text className="text-sm text-foreground">
                   {(state.bundle.getFileSize() / 1024).toFixed(2)} KB
                 </Text>
               </View>
               <View className="gap-1">
-                <Text className="text-sm text-gray-700">Seções:</Text>
-                <Text className="text-sm text-gray-900">
+                <Text className="text-sm text-muted-foreground">Seções:</Text>
+                <Text className="text-sm text-foreground">
                   {state.bundle.getSectionCount()} seções
                 </Text>
               </View>
             </View>
-            <Pressable
-              onPress={clearExport}
-              className="mt-3 px-4 py-3 bg-green-600 rounded-lg"
-            >
-              <Text className="text-white text-center font-medium">
+            <Button onPress={clearExport} variant="default" className="mt-3">
+              <Text className="text-primary-foreground text-center font-medium">
                 Nova Exportação
               </Text>
-            </Pressable>
+            </Button>
           </View>
         )}
 
         {/* Period Selection */}
         <View className="gap-4">
-          <Text className="text-lg font-semibold text-gray-900">Período</Text>
+          <Text variant="h4" className="text-foreground">
+            Período
+          </Text>
 
           <View className="gap-3">
             <View>
-              <Text className="text-sm font-medium text-gray-700 mb-2">
+              <Text className="text-sm font-medium text-muted-foreground mb-2">
                 Data de Início
               </Text>
-              <View className="border border-gray-300 rounded-lg p-3">
-                <Text
-                  className="text-base text-gray-900"
-                  onPress={() => setStartDate("2026-03-01")}
-                >
-                  {startDate || "Selecionar data"}
-                </Text>
-              </View>
+              <TextInput
+                value={startDate}
+                onChangeText={setStartDate}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor="hsl(240 5% 50%)"
+                className="bg-secondary border border-border rounded-lg p-3 text-foreground"
+                selectionColor="hsl(277 65% 50%)"
+              />
             </View>
 
             <View>
-              <Text className="text-sm font-medium text-gray-700 mb-2">
+              <Text className="text-sm font-medium text-muted-foreground mb-2">
                 Data de Fim
               </Text>
-              <View className="border border-gray-300 rounded-lg p-3">
-                <Text
-                  className="text-base text-gray-900"
-                  onPress={() => setEndDate("2026-03-31")}
-                >
-                  {endDate || "Selecionar data"}
-                </Text>
-              </View>
+              <TextInput
+                value={endDate}
+                onChangeText={setEndDate}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor="hsl(240 5% 50%)"
+                className="bg-secondary border border-border rounded-lg p-3 text-foreground"
+                selectionColor="hsl(277 65% 50%)"
+              />
             </View>
 
-            <Pressable
+            <Button
               onPress={handleSelectPeriod}
-              className={`py-3 px-4 rounded-lg ${
-                startDate && endDate ? "bg-blue-600" : "bg-gray-300"
-              }`}
+              disabled={!startDate || !endDate}
+              className="w-full"
             >
-              <Text
-                className={`text-center font-semibold ${
-                  startDate && endDate ? "text-white" : "text-gray-600"
-                }`}
-              >
+              <Text className="text-primary-foreground font-semibold">
                 Confirmar Período
               </Text>
-            </Pressable>
+            </Button>
           </View>
         </View>
 
         {/* Artifact Selection */}
         {isPeriodSelected && (
           <View className="gap-4">
-            <Text className="text-lg font-semibold text-gray-900">
+            <Text variant="h4" className="text-foreground">
               O Que Incluir
             </Text>
 
@@ -159,25 +159,27 @@ export function ExportScreen() {
                 onPress={() => toggleReflectionId("sample-1")}
                 className={`flex-row items-center gap-3 p-3 rounded-lg border ${
                   state.selectedReflectionIds.includes("sample-1")
-                    ? "bg-blue-50 border-blue-300"
-                    : "border-gray-300"
+                    ? "bg-primary/10 border-primary/30"
+                    : "border-border"
                 }`}
               >
                 <View
-                  className={`w-6 h-6 rounded border-2 flex items-center justify-center ${
+                  className={`w-6 h-6 rounded border-2 items-center justify-center ${
                     state.selectedReflectionIds.includes("sample-1")
-                      ? "bg-blue-600 border-blue-600"
-                      : "border-gray-400"
+                      ? "bg-primary border-primary"
+                      : "border-muted-foreground"
                   }`}
                 >
                   {state.selectedReflectionIds.includes("sample-1") && (
-                    <Text className="text-white text-sm font-bold">✓</Text>
+                    <Text className="text-primary-foreground text-sm font-bold">
+                      ✓
+                    </Text>
                   )}
                 </View>
-                <Text className="flex-1 text-base text-gray-900">
+                <Text className="flex-1 text-base text-foreground">
                   Reflexões
                 </Text>
-                <Text className="text-sm text-gray-600">
+                <Text className="text-sm text-muted-foreground">
                   {state.selectedReflectionIds.length}
                 </Text>
               </Pressable>
@@ -186,25 +188,27 @@ export function ExportScreen() {
                 onPress={() => toggleQuestionSetId("sample-1")}
                 className={`flex-row items-center gap-3 p-3 rounded-lg border ${
                   state.selectedQuestionSetIds.includes("sample-1")
-                    ? "bg-blue-50 border-blue-300"
-                    : "border-gray-300"
+                    ? "bg-primary/10 border-primary/30"
+                    : "border-border"
                 }`}
               >
                 <View
-                  className={`w-6 h-6 rounded border-2 flex items-center justify-center ${
+                  className={`w-6 h-6 rounded border-2 items-center justify-center ${
                     state.selectedQuestionSetIds.includes("sample-1")
-                      ? "bg-blue-600 border-blue-600"
-                      : "border-gray-400"
+                      ? "bg-primary border-primary"
+                      : "border-muted-foreground"
                   }`}
                 >
                   {state.selectedQuestionSetIds.includes("sample-1") && (
-                    <Text className="text-white text-sm font-bold">✓</Text>
+                    <Text className="text-primary-foreground text-sm font-bold">
+                      ✓
+                    </Text>
                   )}
                 </View>
-                <Text className="flex-1 text-base text-gray-900">
+                <Text className="flex-1 text-base text-foreground">
                   Conjuntos de Questões
                 </Text>
-                <Text className="text-sm text-gray-600">
+                <Text className="text-sm text-muted-foreground">
                   {state.selectedQuestionSetIds.length}
                 </Text>
               </Pressable>
@@ -213,25 +217,27 @@ export function ExportScreen() {
                 onPress={() => toggleReviewId("sample-1")}
                 className={`flex-row items-center gap-3 p-3 rounded-lg border ${
                   state.selectedReviewIds.includes("sample-1")
-                    ? "bg-blue-50 border-blue-300"
-                    : "border-gray-300"
+                    ? "bg-primary/10 border-primary/30"
+                    : "border-border"
                 }`}
               >
                 <View
-                  className={`w-6 h-6 rounded border-2 flex items-center justify-center ${
+                  className={`w-6 h-6 rounded border-2 items-center justify-center ${
                     state.selectedReviewIds.includes("sample-1")
-                      ? "bg-blue-600 border-blue-600"
-                      : "border-gray-400"
+                      ? "bg-primary border-primary"
+                      : "border-muted-foreground"
                   }`}
                 >
                   {state.selectedReviewIds.includes("sample-1") && (
-                    <Text className="text-white text-sm font-bold">✓</Text>
+                    <Text className="text-primary-foreground text-sm font-bold">
+                      ✓
+                    </Text>
                   )}
                 </View>
-                <Text className="flex-1 text-base text-gray-900">
+                <Text className="flex-1 text-base text-foreground">
                   Análises Periódicas
                 </Text>
-                <Text className="text-sm text-gray-600">
+                <Text className="text-sm text-muted-foreground">
                   {state.selectedReviewIds.length}
                 </Text>
               </Pressable>
@@ -241,23 +247,16 @@ export function ExportScreen() {
 
         {/* Generate Button */}
         {isPeriodSelected && !state.bundle && (
-          <Pressable
+          <Button
             onPress={generateExport}
             disabled={state.isExporting}
-            className={`py-3 px-6 rounded-lg flex items-center justify-center ${
-              state.isExporting ? "bg-gray-400" : "bg-green-600"
-            }`}
+            variant="secondary"
+            className="w-full py-4"
           >
-            {state.isExporting ? (
-              <View className="flex-row items-center gap-2">
-                <Text className="text-white font-semibold">Gerando...</Text>
-              </View>
-            ) : (
-              <Text className="text-white text-lg font-semibold">
-                Gerar Exportação
-              </Text>
-            )}
-          </Pressable>
+            <Text className="text-accent-foreground text-lg font-semibold">
+              {state.isExporting ? "Gerando..." : "Gerar Exportação"}
+            </Text>
+          </Button>
         )}
       </View>
     </ScrollView>

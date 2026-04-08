@@ -7,68 +7,52 @@
  * - Save/update/delete reviews
  * - Query reviews by reflection IDs
  *
- * Storage: expo-sqlite (persistent, survives app restarts)
+ * Storage: MMKV encrypted (persistent, survives app restarts)
  */
 
-import * as SQLite from "expo-sqlite";
+import { createMMKV } from "react-native-mmkv";
 import { Result, createError, err, ok } from "../../../shared/utils/app-error";
 import type { FinalReviewRecord } from "../model/final-review";
 
-const DB_NAME = "review-store.db";
-const TABLE_NAME = "final_reviews";
+const REVIEWS_STORAGE_ID = "final_reviews";
 
-let dbInstance: SQLite.SQLiteDatabase | null = null;
-let initialized = false;
+let reviewsStorage: ReturnType<typeof createMMKV> | null = null;
 
-async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
-  if (dbInstance) return dbInstance;
-  dbInstance = await SQLite.openDatabaseAsync(DB_NAME);
-  return dbInstance;
+function getStorage(): ReturnType<typeof createMMKV> {
+  if (!reviewsStorage) {
+    reviewsStorage = createMMKV({ id: REVIEWS_STORAGE_ID });
+  }
+  return reviewsStorage;
 }
 
-export async function initReviewRepository(): Promise<void> {
-  if (initialized) return;
-  const db = await getDatabase();
-
-  await db.execAsync(`
-    CREATE TABLE IF NOT EXISTS ${TABLE_NAME} (
-      id TEXT PRIMARY KEY NOT NULL,
-      period_start TEXT NOT NULL,
-      period_end TEXT NOT NULL,
-      summary TEXT NOT NULL DEFAULT '',
-      recurring_patterns TEXT NOT NULL DEFAULT '[]',
-      trigger_themes TEXT NOT NULL DEFAULT '[]',
-      next_inquiry_prompts TEXT NOT NULL DEFAULT '[]',
-      reflection_ids TEXT NOT NULL DEFAULT '[]',
-      source TEXT NOT NULL DEFAULT 'local-ai',
-      generated_at TEXT NOT NULL DEFAULT (datetime('now')),
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-  `);
-
-  initialized = true;
+function reviewKey(id: string): string {
+  return `review:${id}`;
 }
 
-function recordFromRow(row: Record<string, unknown>): FinalReviewRecord {
+function parseReview(json: string): FinalReviewRecord {
+  const raw = JSON.parse(json) as Record<string, unknown>;
   return {
-    id: row.id as string,
-    periodStart: row.period_start as string,
-    periodEnd: row.period_end as string,
-    summary: row.summary as string,
-    recurringPatterns: JSON.parse(row.recurring_patterns as string) as string[],
-    triggerThemes: JSON.parse(row.trigger_themes as string) as string[],
-    nextInquiryPrompts: JSON.parse(
-      row.next_inquiry_prompts as string,
-    ) as string[],
-    reflectionIds: JSON.parse(row.reflection_ids as string) as string[],
-    source: row.source as string as "local-ai" | "fallback",
-    generatedAt: row.generated_at as string,
+    id: raw.id as string,
+    periodStart: raw.periodStart as string,
+    periodEnd: raw.periodEnd as string,
+    summary: (raw.summary as string) ?? "",
+    recurringPatterns: (raw.recurringPatterns as string[]) ?? [],
+    emotionalTriggers: (raw.emotionalTriggers as string[]) ?? [],
+    nextInquiryPrompts: (raw.nextInquiryPrompts as string[]) ?? [],
+    reflectionIds: (raw.reflectionIds as string[]) ?? [],
+    generationMode: ((raw.generationMode as string) ?? "normal") as
+      | "normal"
+      | "fallback_template"
+      | "retry_result",
+    modelId: raw.modelId as string | undefined,
+    modelVersion: raw.modelVersion as string | undefined,
+    generatedAt: (raw.generatedAt as string) ?? new Date().toISOString(),
+    updatedAt: (raw.updatedAt as string) ?? new Date().toISOString(),
   };
 }
 
 /**
- * Review repository with expo-sqlite persistence
+ * Review repository with MMKV persistence
  */
 export class ReviewRepository {
   /**
@@ -76,13 +60,10 @@ export class ReviewRepository {
    */
   async getById(reviewId: string): Promise<Result<FinalReviewRecord | null>> {
     try {
-      const db = await getDatabase();
-      const rows = await db.getAllAsync(
-        `SELECT * FROM ${TABLE_NAME} WHERE id = ?`,
-        [reviewId],
-      );
-      if (rows.length === 0) return ok(null);
-      return ok(recordFromRow(rows[0]));
+      const storage = getStorage();
+      const json = storage.getString(reviewKey(reviewId));
+      if (!json) return ok(null);
+      return ok(parseReview(json));
     } catch (error) {
       return err(
         createError(
@@ -103,12 +84,24 @@ export class ReviewRepository {
     periodEnd: string,
   ): Promise<Result<FinalReviewRecord[]>> {
     try {
-      const db = await getDatabase();
-      const rows = await db.getAllAsync(
-        `SELECT * FROM ${TABLE_NAME} WHERE period_start >= ? AND period_end <= ? ORDER BY generated_at DESC`,
-        [periodStart, periodEnd],
-      );
-      return ok(rows.map(recordFromRow));
+      const storage = getStorage();
+      const keys = storage.getAllKeys();
+      const reviews: FinalReviewRecord[] = [];
+
+      for (const key of keys) {
+        if (!key.startsWith("review:")) continue;
+        const json = storage.getString(key);
+        if (!json) continue;
+        const review = parseReview(json);
+        if (
+          review.periodStart >= periodStart &&
+          review.periodEnd <= periodEnd
+        ) {
+          reviews.push(review);
+        }
+      }
+
+      return ok(reviews);
     } catch (error) {
       return err(
         createError(
@@ -128,12 +121,21 @@ export class ReviewRepository {
     reflectionId: string,
   ): Promise<Result<FinalReviewRecord[]>> {
     try {
-      const db = await getDatabase();
-      const rows = await db.getAllAsync(
-        `SELECT * FROM ${TABLE_NAME} WHERE reflection_ids LIKE ?`,
-        [`%${reflectionId}%`],
-      );
-      return ok(rows.map(recordFromRow));
+      const storage = getStorage();
+      const keys = storage.getAllKeys();
+      const reviews: FinalReviewRecord[] = [];
+
+      for (const key of keys) {
+        if (!key.startsWith("review:")) continue;
+        const json = storage.getString(key);
+        if (!json) continue;
+        const review = parseReview(json);
+        if (review.reflectionIds.includes(reflectionId)) {
+          reviews.push(review);
+        }
+      }
+
+      return ok(reviews);
     } catch (error) {
       return err(
         createError(
@@ -151,25 +153,8 @@ export class ReviewRepository {
    */
   async save(review: FinalReviewRecord): Promise<Result<void>> {
     try {
-      const db = await getDatabase();
-      await db.runAsync(
-        `INSERT OR REPLACE INTO ${TABLE_NAME}
-          (id, period_start, period_end, summary, recurring_patterns,
-           trigger_themes, next_inquiry_prompts, reflection_ids, source, generated_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
-        [
-          review.id,
-          review.periodStart,
-          review.periodEnd,
-          review.summary,
-          JSON.stringify(review.recurringPatterns),
-          JSON.stringify(review.triggerThemes),
-          JSON.stringify(review.nextInquiryPrompts),
-          JSON.stringify(review.reflectionIds),
-          review.source,
-          review.generatedAt,
-        ],
-      );
+      const storage = getStorage();
+      storage.set(reviewKey(review.id), JSON.stringify(review));
       return ok(void 0);
     } catch (error) {
       return err(
@@ -188,8 +173,8 @@ export class ReviewRepository {
    */
   async delete(reviewId: string): Promise<Result<void>> {
     try {
-      const db = await getDatabase();
-      await db.runAsync(`DELETE FROM ${TABLE_NAME} WHERE id = ?`, [reviewId]);
+      const storage = getStorage();
+      storage.remove(reviewKey(reviewId));
       return ok(void 0);
     } catch (error) {
       return err(
@@ -208,11 +193,18 @@ export class ReviewRepository {
    */
   async listAll(): Promise<Result<FinalReviewRecord[]>> {
     try {
-      const db = await getDatabase();
-      const rows = await db.getAllAsync(
-        `SELECT * FROM ${TABLE_NAME} ORDER BY generated_at DESC`,
-      );
-      return ok(rows.map(recordFromRow));
+      const storage = getStorage();
+      const keys = storage.getAllKeys();
+      const reviews: FinalReviewRecord[] = [];
+
+      for (const key of keys) {
+        if (!key.startsWith("review:")) continue;
+        const json = storage.getString(key);
+        if (!json) continue;
+        reviews.push(parseReview(json));
+      }
+
+      return ok(reviews);
     } catch (error) {
       return err(
         createError(
@@ -230,8 +222,13 @@ export class ReviewRepository {
    */
   async clear(): Promise<Result<void>> {
     try {
-      const db = await getDatabase();
-      await db.execAsync(`DELETE FROM ${TABLE_NAME}`);
+      const storage = getStorage();
+      const keys = storage.getAllKeys();
+      for (const key of keys) {
+        if (key.startsWith("review:")) {
+          storage.remove(key);
+        }
+      }
       return ok(void 0);
     } catch (error) {
       return err(

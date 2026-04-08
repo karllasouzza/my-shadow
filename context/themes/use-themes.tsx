@@ -18,7 +18,7 @@ type UserPreferences = {
 const ThemeProviderComponent = ({ children }: ThemeProviderProps) => {
   const insets = useSafeAreaInsets();
   const [userPreferences, setUserPreferences] = useState<UserPreferences>({
-    theme: "default",
+    theme: "shadow",
     colorScheme: "system",
     backgroundColor: "--color-background",
   });
@@ -34,7 +34,7 @@ const ThemeProviderComponent = ({ children }: ThemeProviderProps) => {
   }, [userPreferences, systemColorScheme]);
 
   const safeThemeName = useMemo(
-    () => userPreferences?.theme || "default",
+    () => userPreferences?.theme || "shadow",
     [userPreferences],
   );
 
@@ -51,7 +51,7 @@ const ThemeProviderComponent = ({ children }: ThemeProviderProps) => {
     const theme: UserPreferences["theme"] =
       storedThemeName && storedThemeName in themes
         ? (storedThemeName as keyof typeof themes)
-        : "default";
+        : "shadow";
 
     const backgroundColor = storedBackgroundColor ?? "--color-background";
 

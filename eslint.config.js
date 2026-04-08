@@ -13,4 +13,14 @@ module.exports = defineConfig([
       "**/*.min.js",
     ],
   },
+  {
+    rules: {
+      "import/no-unresolved": [
+        "error",
+        {
+          ignore: ["^react-native-edge-to-edge", "^react-native-nitro-modules"],
+        },
+      ],
+    },
+  },
 ]);

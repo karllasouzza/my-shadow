@@ -1,198 +1,120 @@
-import { vars } from 'nativewind';
+import { vars } from "nativewind";
 
 /**
  * Raw color values - Single source of truth for all theme colors.
- * These are the actual color values without NativeWind's vars() wrapper.
- * Use this when you need to access colors programmatically (e.g., for NavigationBar).
  *
- * Design System: Ecobi Grocery Green Theme
- * Primary: Moss Green (#41be52)
- * Secondary: Beige (#eaf1da)
- * Neutral: Bright Snow
- * Accent: Hunter Green / Mint Cream
- * Typography: Poppins (sans) + Lora (serif)
+ * Design System: Shadow Jung Theme (Carl Jung inspired)
+ * Primary: Deep Shadow Purple (#6b21a8 → HSL 277 65% 40%)
+ * Secondary: Dark Slate (#1a1a1a → HSL 240 4% 14%)
+ * Background: Near Black (#0a0a0a → HSL 240 5% 3%)
+ * Accent: Individuation Gold (#d4a843 → HSL 40 60% 55%)
+ * Concept: The unconscious shadow rendered in deep purple and warm gold
  */
 export const rawColors = {
-  default: {
+  shadow: {
     light: {
       // === CORE ===
-      '--color-primary': '123 44% 34%',
-      '--color-primary-foreground': '0 0% 100%',
-      '--color-secondary': '122 30% 93%',
-      '--color-secondary-foreground': '125 59% 24%',
-      '--color-background': '90 20% 98%',
-      '--color-foreground': '127 15% 12%',
+      "--color-primary": "277 65% 40%",
+      "--color-primary-foreground": "0 0% 100%",
+      "--color-secondary": "240 4% 14%",
+      "--color-secondary-foreground": "240 5% 90%",
+      "--color-background": "240 5% 6%",
+      "--color-foreground": "240 5% 92%",
 
       // === SURFACES ===
-      '--color-card': '90 20% 98%',
-      '--color-card-foreground': '127 12% 14%',
-      '--color-popover': '90 20% 98%',
-      '--color-popover-foreground': '127 12% 14%',
+      "--color-card": "240 4% 9%",
+      "--color-card-foreground": "240 5% 96%",
+      "--color-popover": "240 4% 9%",
+      "--color-popover-foreground": "240 5% 96%",
 
       // === MUTED / ACCENT ===
-      '--color-muted': '90 12% 94%',
-      '--color-muted-foreground': '138 5% 38%',
-      '--color-accent': '122 38% 83%',
-      '--color-accent-foreground': '125 59% 24%',
+      "--color-muted": "240 3% 14%",
+      "--color-muted-foreground": "240 5% 60%",
+      "--color-accent": "40 60% 55%",
+      "--color-accent-foreground": "240 5% 8%",
 
       // === DESTRUCTIVE ===
-      '--color-destructive': '1 65% 47%',
-      '--color-destructive-foreground': '0 0% 100%',
+      "--color-destructive": "0 70% 55%",
+      "--color-destructive-foreground": "0 0% 100%",
 
       // === BORDERS & INPUTS ===
-      '--color-border': '90 10% 88%',
-      '--color-input': '90 12% 88%',
-      '--color-ring': '123 44% 34%',
+      "--color-border": "240 4% 18%",
+      "--color-input": "240 4% 18%",
+      "--color-ring": "277 65% 50%",
 
       // === SEMANTIC ===
-      '--color-success': '123 44% 34%',
-      '--color-success-foreground': '0 0% 100%',
-      '--color-warning': '38 92% 50%',
-      '--color-warning-foreground': '127 15% 12%',
-      '--color-info': '125 59% 24%',
-      '--color-info-foreground': '0 0% 100%',
+      "--color-success": "160 50% 45%",
+      "--color-success-foreground": "240 5% 96%",
+      "--color-warning": "40 75% 55%",
+      "--color-warning-foreground": "240 5% 8%",
+      "--color-info": "277 50% 60%",
+      "--color-info-foreground": "240 5% 96%",
 
       // === ONBOARDING ===
-      '--color-onboarding-1': '2 100% 96%',
-      '--color-onboarding-1-foreground': '125 56% 8%',
-      '--color-onboarding-2': '122 38% 88%',
-      '--color-onboarding-2-foreground': '125 59% 24%',
-      '--color-onboarding-3': '90 12% 94%',
-      '--color-onboarding-3-foreground': '127 15% 12%',
+      "--color-onboarding-1": "240 5% 3%",
+      "--color-onboarding-1-foreground": "240 5% 92%",
+      "--color-onboarding-2": "277 40% 15%",
+      "--color-onboarding-2-foreground": "240 5% 96%",
+      "--color-onboarding-3": "240 3% 12%",
+      "--color-onboarding-3-foreground": "240 5% 90%",
 
       // === BOTTOM BAR ===
-      '--color-bottom-bar': '90 15% 95%',
-      '--color-bottom-bar-foreground': '132 12% 10%',
-      '--color-bottom-bar-accent': '123 44% 34%',
-      '--color-bottom-bar-accent-foreground': '0 0% 100%',
+      "--color-bottom-bar": "240 4% 5%",
+      "--color-bottom-bar-foreground": "240 5% 88%",
+      "--color-bottom-bar-accent": "277 65% 40%",
+      "--color-bottom-bar-accent-foreground": "0 0% 100%",
     },
     dark: {
       // === CORE ===
-      '--color-primary': '122 42% 52%',
-      '--color-primary-foreground': '120 100% 98%',
-      '--color-secondary': '132 10% 18%',
-      '--color-secondary-foreground': '115 14% 88%',
-      '--color-background': '138 8% 9%',
-      '--color-foreground': '120 8% 88%',
+      "--color-primary": "277 70% 48%",
+      "--color-primary-foreground": "0 0% 100%",
+      "--color-secondary": "240 4% 14%",
+      "--color-secondary-foreground": "240 5% 90%",
+      "--color-background": "240 5% 3%",
+      "--color-foreground": "240 5% 96%",
 
       // === SURFACES ===
-      '--color-card': '136 9% 13%',
-      '--color-card-foreground': '120 8% 88%',
-      '--color-popover': '134 9% 11%',
-      '--color-popover-foreground': '34 20% 90%',
+      "--color-card": "240 4% 7%",
+      "--color-card-foreground": "240 5% 96%",
+      "--color-popover": "240 4% 7%",
+      "--color-popover-foreground": "240 5% 96%",
 
       // === MUTED / ACCENT ===
-      '--color-muted': '138 8% 7%',
-      '--color-muted-foreground': '130 8% 65%',
-      '--color-accent': '122 38% 38%',
-      '--color-accent-foreground': '34 25% 92%',
+      "--color-muted": "240 3% 12%",
+      "--color-muted-foreground": "240 5% 58%",
+      "--color-accent": "40 65% 58%",
+      "--color-accent-foreground": "240 5% 8%",
 
       // === DESTRUCTIVE ===
-      '--color-destructive': '1 65% 52%',
-      '--color-destructive-foreground': '34 25% 95%',
+      "--color-destructive": "0 70% 55%",
+      "--color-destructive-foreground": "0 0% 100%",
 
       // === BORDERS & INPUTS ===
-      '--color-border': '132 10% 20%',
-      '--color-input': '132 10% 20%',
-      '--color-ring': '122 42% 52%',
+      "--color-border": "240 4% 16%",
+      "--color-input": "240 4% 16%",
+      "--color-ring": "277 70% 55%",
 
       // === SEMANTIC ===
-      '--color-success': '122 42% 52%',
-      '--color-success-foreground': '120 100% 98%',
-      '--color-warning': '43 96% 56%',
-      '--color-warning-foreground': '138 8% 9%',
-      '--color-info': '123 38% 60%',
-      '--color-info-foreground': '120 100% 98%',
+      "--color-success": "160 50% 48%",
+      "--color-success-foreground": "240 5% 96%",
+      "--color-warning": "40 75% 58%",
+      "--color-warning-foreground": "240 5% 8%",
+      "--color-info": "277 55% 65%",
+      "--color-info-foreground": "240 5% 96%",
 
       // === ONBOARDING ===
-      '--color-onboarding-1': '138 8% 7%',
-      '--color-onboarding-1-foreground': '115 14% 88%',
-      '--color-onboarding-2': '122 38% 38%',
-      '--color-onboarding-2-foreground': '34 25% 92%',
-      '--color-onboarding-3': '138 7% 7%',
-      '--color-onboarding-3-foreground': '120 8% 88%',
+      "--color-onboarding-1": "240 5% 3%",
+      "--color-onboarding-1-foreground": "240 5% 96%",
+      "--color-onboarding-2": "277 40% 18%",
+      "--color-onboarding-2-foreground": "240 5% 96%",
+      "--color-onboarding-3": "240 3% 10%",
+      "--color-onboarding-3-foreground": "240 5% 90%",
 
       // === BOTTOM BAR ===
-      '--color-bottom-bar': '138 9% 6%',
-      '--color-bottom-bar-foreground': '110 30% 95%',
-      '--color-bottom-bar-accent': '122 42% 52%',
-      '--color-bottom-bar-accent-foreground': '0 0% 100%',
-    },
-  },
-  purple: {
-    light: {
-      '--color-primary': '270 57% 50%',
-      '--color-primary-foreground': '0 0% 100%',
-      '--color-secondary': '273 100% 93%',
-      '--color-secondary-foreground': '272 100% 16%',
-      '--color-background': '0 0% 100%',
-      '--color-foreground': '272 100% 16%',
-      '--color-card': '0 0% 100%',
-      '--color-card-foreground': '272 100% 16%',
-      '--color-popover': '0 0% 100%',
-      '--color-popover-foreground': '272 100% 16%',
-      '--color-muted': '273 100% 93%',
-      '--color-muted-foreground': '272 81% 38%',
-      '--color-accent': '273 100% 93%',
-      '--color-accent-foreground': '272 100% 16%',
-      '--color-destructive': '0 84% 60%',
-      '--color-destructive-foreground': '0 0% 100%',
-      '--color-border': '270 100% 86%',
-      '--color-input': '270 100% 86%',
-      '--color-ring': '270 57% 50%',
-      '--color-success': '123 44% 34%',
-      '--color-success-foreground': '0 0% 100%',
-      '--color-warning': '38 92% 50%',
-      '--color-warning-foreground': '240 6% 10%',
-      '--color-info': '125 59% 24%',
-      '--color-info-foreground': '0 0% 100%',
-      '--color-onboarding-1': '228 96% 89%',
-      '--color-onboarding-1-foreground': '0 0% 0%',
-      '--color-onboarding-2': '288 96% 91%',
-      '--color-onboarding-2-foreground': '0 0% 0%',
-      '--color-onboarding-3': '32 98% 83%',
-      '--color-onboarding-3-foreground': '0 0% 0%',
-      '--color-bottom-bar': '267 100% 96%',
-      '--color-bottom-bar-foreground': '276 100% 20%',
-      '--color-bottom-bar-accent': '270 57% 50%',
-      '--color-bottom-bar-accent-foreground': '0 0% 100%',
-    },
-    dark: {
-      '--color-primary': '270 100% 86%',
-      '--color-primary-foreground': '272 100% 16%',
-      '--color-secondary': '273 100% 26%',
-      '--color-secondary-foreground': '273 100% 93%',
-      '--color-background': '272 100% 16%',
-      '--color-foreground': '273 100% 93%',
-      '--color-card': '273 100% 26%',
-      '--color-card-foreground': '273 100% 93%',
-      '--color-popover': '272 81% 38%',
-      '--color-popover-foreground': '273 100% 93%',
-      '--color-muted': '272 81% 38%',
-      '--color-muted-foreground': '270 100% 86%',
-      '--color-accent': '270 57% 50%',
-      '--color-accent-foreground': '273 100% 93%',
-      '--color-destructive': '0 91% 71%',
-      '--color-destructive-foreground': '273 100% 93%',
-      '--color-border': '272 81% 38%',
-      '--color-input': '270 57% 50%',
-      '--color-ring': '269 71% 61%',
-      '--color-success': '122 39% 49%',
-      '--color-success-foreground': '120 100% 98%',
-      '--color-warning': '43 96% 56%',
-      '--color-warning-foreground': '131 18% 18%',
-      '--color-info': '123 38% 57%',
-      '--color-info-foreground': '120 100% 98%',
-      '--color-onboarding-1': '228 96% 89%',
-      '--color-onboarding-1-foreground': '0 0% 100%',
-      '--color-onboarding-2': '288 96% 91%',
-      '--color-onboarding-2-foreground': '0 0% 100%',
-      '--color-onboarding-3': '32 98% 83%',
-      '--color-onboarding-3-foreground': '0 0% 100%',
-      '--color-bottom-bar': '272 100% 16%',
-      '--color-bottom-bar-foreground': '273 100% 89%',
-      '--color-bottom-bar-accent': '272 68% 57%',
-      '--color-bottom-bar-accent-foreground': '0 0% 100%',
+      "--color-bottom-bar": "240 4% 4%",
+      "--color-bottom-bar-foreground": "240 5% 85%",
+      "--color-bottom-bar-accent": "277 70% 48%",
+      "--color-bottom-bar-accent-foreground": "0 0% 100%",
     },
   },
 } as const;
@@ -202,12 +124,8 @@ export const rawColors = {
  * These are automatically generated from rawColors to avoid duplication.
  */
 export const themes = {
-  default: {
-    light: vars(rawColors.default.light),
-    dark: vars(rawColors.default.dark),
-  },
-  purple: {
-    light: vars(rawColors.purple.light),
-    dark: vars(rawColors.purple.dark),
+  shadow: {
+    light: vars(rawColors.shadow.light),
+    dark: vars(rawColors.shadow.dark),
   },
 };
