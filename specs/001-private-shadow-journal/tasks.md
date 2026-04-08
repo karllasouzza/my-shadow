@@ -15,7 +15,7 @@
 - [x] T002 Configure Bun-focused scripts in package.json
 - [x] T003 [P] Configure test runner and setup in jest.config.ts and **tests**/setup.ts
 - [x] T004 [P] Create documentation scaffold in **docs**/architecture/README.md, **docs**/decisions/README.md, and **docs**/quality/README.md
-- [ ] T005 [P] Create feature module barrel files in features/reflection/index.ts, features/review/index.ts, and features/export/index.ts
+- [x] T005 [P] Create feature module barrel files in features/reflection/index.ts, features/review/index.ts, and features/export/index.ts
 - [ ] T006 [P] Create reusable async state component in shared/components/state-view.tsx
 - [ ] T007 [P] Define shared error/result types in shared/utils/app-error.ts
 - [ ] T008 [P] Add reflection UI token mapping in shared/theme/reflection-theme.ts
