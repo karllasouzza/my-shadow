@@ -1,5 +1,12 @@
-import { TextInput, TouchableOpacity, View, StyleSheet } from 'react-native';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Ionicons from "@expo/vector-icons/Ionicons";
+import React from "react";
+import {
+    ActivityIndicator,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from "react-native";
 
 interface ChatInputProps {
   message: string;
@@ -12,6 +19,14 @@ interface ChatInputProps {
   isGenerating: boolean;
 }
 
+/**
+ * T032: ChatInput component with generation state UX
+ *
+ * Displays message input with status indicators for:
+ * - Generation in progress (spinner, disabled state)
+ * - Ready/not-ready state
+ * - Augmented generation mode toggle
+ */
 export const ChatInput = ({
   message,
   onMessageChange,
@@ -25,75 +40,80 @@ export const ChatInput = ({
   const messageSubmitBtnDisabled = !isReady || isGenerating || !message.trim();
 
   return (
-    <View style={chatInputStyles.container}>
+    <View className="bg-gray-200 rounded-2xl p-3 gap-2 mx-3 my-2">
+      {/* Status Indicator */}
+      {!isReady && (
+        <View className="bg-yellow-100 border-l-4 border-yellow-500 px-3 py-2 rounded">
+          <Text className="text-yellow-800 text-xs font-semibold">
+            Inicializando modelo local...
+          </Text>
+        </View>
+      )}
+
+      {/* Text Input */}
       <TextInput
         value={message}
         onChangeText={onMessageChange}
         multiline
-        placeholder="Ask anything"
-        placeholderTextColor="gray"
+        placeholder={
+          isGenerating ? "Aguardando geração..." : "Faça uma pergunta..."
+        }
+        placeholderTextColor="#999"
+        editable={!isGenerating && isReady}
+        className="bg-white rounded-lg px-3 py-2 text-gray-800 max-h-24"
       />
-      <View style={chatInputStyles.actionsContainer}>
-        <TouchableOpacity onPress={onAddDocument}>
-          <Ionicons name="document-text-outline" size={28} color="black" />
+
+      {/* Action Buttons */}
+      <View className="flex-row justify-between items-center">
+        {/* Document Button */}
+        <TouchableOpacity
+          onPress={onAddDocument}
+          disabled={isGenerating || !isReady}
+          className={isGenerating || !isReady ? "opacity-50" : ""}
+        >
+          <Ionicons
+            name="document-text-outline"
+            size={28}
+            color={isGenerating || !isReady ? "#999" : "black"}
+          />
         </TouchableOpacity>
-        <View style={chatInputStyles.rightActions}>
+
+        {/* Right Actions Row */}
+        <View className="flex-row items-center gap-2">
+          {/* Augmented Generation Toggle */}
           <TouchableOpacity
             onPress={onToggleAugmentedGeneration}
-            style={chatInputStyles.toggleButton}
+            disabled={isGenerating || !isReady}
+            className={`${augmentedGeneration ? "" : "opacity-50"}`}
           >
-            <Ionicons name="search-outline" size={28} />
-            {!augmentedGeneration && (
-              <View style={chatInputStyles.disabledOverlay} />
-            )}
+            <Ionicons
+              name="search-outline"
+              size={28}
+              color={isGenerating || !isReady ? "#999" : "black"}
+            />
           </TouchableOpacity>
-          <TouchableOpacity
-            onPress={onMessageSubmit}
-            disabled={messageSubmitBtnDisabled}
-            style={
-              messageSubmitBtnDisabled && chatInputStyles.submitButtonDisabled
-            }
-          >
-            <Ionicons name="arrow-up-circle" size={36} color="black" />
-          </TouchableOpacity>
+
+          {/* Generation Status & Submit Button */}
+          {isGenerating ? (
+            <View className="flex-row items-center gap-2 px-3 py-2">
+              <ActivityIndicator size="small" color="black" />
+              <Text className="text-xs text-gray-600">Gerando...</Text>
+            </View>
+          ) : (
+            <TouchableOpacity
+              onPress={onMessageSubmit}
+              disabled={messageSubmitBtnDisabled}
+              className={messageSubmitBtnDisabled ? "opacity-50" : ""}
+            >
+              <Ionicons
+                name="arrow-up-circle"
+                size={36}
+                color={messageSubmitBtnDisabled ? "#ccc" : "black"}
+              />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     </View>
   );
 };
-
-const chatInputStyles = StyleSheet.create({
-  container: {
-    backgroundColor: '#e8e8e8',
-    borderRadius: 12,
-    padding: 12,
-    gap: 8,
-    margin: 12,
-  },
-  actionsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  rightActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  toggleButton: {
-    position: 'relative',
-  },
-  disabledOverlay: {
-    backgroundColor: 'black',
-    width: 28,
-    height: 2,
-    borderRadius: 1,
-    position: 'absolute',
-    left: 'auto',
-    top: 14,
-    transform: [{ rotate: '-50deg' }],
-  },
-  submitButtonDisabled: {
-    opacity: 0.5,
-  },
-});
