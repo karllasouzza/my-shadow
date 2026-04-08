@@ -14,8 +14,7 @@ import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
+  ScrollView,
   Switch,
   TextInput,
   View,
@@ -32,7 +31,6 @@ export const SecurityGateScreen: React.FC = () => {
   const [returningPasswordVisible, setReturningPasswordVisible] =
     useState(false);
 
-  // Navigate when authentication succeeds
   useEffect(() => {
     if (state.success) {
       const timer = setTimeout(() => {
@@ -54,47 +52,27 @@ export const SecurityGateScreen: React.FC = () => {
     await actions.authenticateBiometric();
   };
 
-  const handleEnableBiometric = async () => {
-    await actions.enableBiometric();
-  };
-
   const handleToggleBiometric = async (value: boolean) => {
     if (value) {
-      await handleEnableBiometric();
+      await actions.enableBiometric();
     }
   };
 
-  console.log(
-    state.isLoading &&
-      state.mode === "firstTime" &&
-      !state.error &&
-      !state.success,
-  );
-
-  if (
-    state.isLoading &&
-    state.mode === "firstTime" &&
-    !state.error &&
-    !state.success
-  ) {
-    return (
-      <View className="flex-1 bg-background items-center justify-center">
-        <ActivityIndicator size="large" color="hsl(277, 65%, 48%)" />
-      </View>
-    );
-  }
+  const disabled = state.isLoading;
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    <View
       className="flex-1 bg-background"
+      style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
     >
-      <View
-        className="flex-1 justify-center px-6"
-        style={{
-          paddingBottom: insets.bottom + 24,
-          paddingTop: insets.top + 48,
+      <ScrollView
+        className="flex-1 px-6"
+        contentContainerStyle={{
+          justifyContent: "center",
+          flexGrow: 1,
+          paddingVertical: 32,
         }}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Header */}
         <View className="items-center mb-10">
@@ -106,6 +84,11 @@ export const SecurityGateScreen: React.FC = () => {
               ? "Configure sua senha para proteger suas reflexoes"
               : "Insira sua senha para continuar"}
           </Text>
+          {state.isLoading && (
+            <View className="mt-4">
+              <ActivityIndicator size="large" color="hsl(277, 65%, 48%)" />
+            </View>
+          )}
         </View>
 
         {/* Error Display */}
@@ -117,12 +100,9 @@ export const SecurityGateScreen: React.FC = () => {
           </View>
         )}
 
-        {/* Success - redirect handled by parent */}
-
         {state.mode === "firstTime" ? (
           /* FIRST TIME: Create Password */
-          <View className="gap-4">
-            {/* Password Input */}
+          <View className="gap-4" style={{ opacity: disabled ? 0.5 : 1 }}>
             <View>
               <Text className="text-foreground text-sm font-medium mb-2">
                 Senha
@@ -137,7 +117,7 @@ export const SecurityGateScreen: React.FC = () => {
                   className="flex-1 text-foreground py-3"
                   autoCapitalize="none"
                   autoCorrect={false}
-                  textContentType="password"
+                  editable={!disabled}
                 />
                 <Button
                   variant="ghost"
@@ -152,7 +132,6 @@ export const SecurityGateScreen: React.FC = () => {
               </View>
             </View>
 
-            {/* Confirm Password Input */}
             <View>
               <Text className="text-foreground text-sm font-medium mb-2">
                 Confirmar Senha
@@ -167,7 +146,7 @@ export const SecurityGateScreen: React.FC = () => {
                   className="flex-1 text-foreground py-3"
                   autoCapitalize="none"
                   autoCorrect={false}
-                  textContentType="password"
+                  editable={!disabled}
                 />
                 <Button
                   variant="ghost"
@@ -182,7 +161,6 @@ export const SecurityGateScreen: React.FC = () => {
               </View>
             </View>
 
-            {/* Biometric Toggle */}
             {state.showBiometricToggle && (
               <View className="flex-row items-center justify-between bg-card border border-border rounded-lg p-4 mt-2">
                 <View className="flex-1 mr-4">
@@ -196,6 +174,7 @@ export const SecurityGateScreen: React.FC = () => {
                 <Switch
                   value={state.biometricEnabled}
                   onValueChange={handleToggleBiometric}
+                  disabled={disabled}
                   trackColor={{
                     false: "hsl(240, 4%, 16%)",
                     true: "hsl(277, 65%, 48%)",
@@ -209,26 +188,20 @@ export const SecurityGateScreen: React.FC = () => {
               </View>
             )}
 
-            {/* Create Button */}
             <Button
               onPress={handleCreatePassword}
-              disabled={state.isLoading}
+              disabled={disabled}
               className="mt-6 bg-primary"
               size="lg"
             >
-              {state.isLoading ? (
-                <ActivityIndicator size="small" color="hsl(0, 0%, 100%)" />
-              ) : (
-                <Text className="text-primary-foreground font-semibold text-base">
-                  Criar Senha
-                </Text>
-              )}
+              <Text className="text-primary-foreground font-semibold text-base">
+                Criar Senha
+              </Text>
             </Button>
           </View>
         ) : (
           /* RETURNING: Authenticate */
-          <View className="gap-4">
-            {/* Password Input */}
+          <View className="gap-4" style={{ opacity: disabled ? 0.5 : 1 }}>
             <View>
               <Text className="text-foreground text-sm font-medium mb-2">
                 Senha
@@ -243,7 +216,7 @@ export const SecurityGateScreen: React.FC = () => {
                   className="flex-1 text-foreground py-3"
                   autoCapitalize="none"
                   autoCorrect={false}
-                  textContentType="password"
+                  editable={!disabled}
                   onSubmitEditing={handleAuthenticatePassword}
                 />
                 <Button
@@ -261,44 +234,34 @@ export const SecurityGateScreen: React.FC = () => {
               </View>
             </View>
 
-            {/* Authenticate Button */}
             <Button
               onPress={handleAuthenticatePassword}
-              disabled={state.isLoading || !state.passwordInput}
+              disabled={disabled || !state.passwordInput}
               className="bg-primary"
               size="lg"
             >
-              {state.isLoading ? (
-                <ActivityIndicator size="small" color="hsl(0, 0%, 100%)" />
-              ) : (
-                <Text className="text-primary-foreground font-semibold text-base">
-                  Entrar
-                </Text>
-              )}
+              <Text className="text-primary-foreground font-semibold text-base">
+                Entrar
+              </Text>
             </Button>
 
-            {/* Biometric Button */}
             {state.biometricEnabled && state.biometricEnrolled && (
               <Button
                 onPress={handleBiometricAuth}
-                disabled={state.isLoading}
+                disabled={disabled}
                 variant="outline"
                 className="border-accent mt-2"
                 size="lg"
               >
-                {state.isLoading ? (
-                  <ActivityIndicator size="small" color="hsl(40, 65%, 58%)" />
-                ) : (
-                  <Text className="text-accent font-semibold text-base">
-                    Usar Biometria
-                  </Text>
-                )}
+                <Text className="text-accent font-semibold text-base">
+                  Usar Biometria
+                </Text>
               </Button>
             )}
           </View>
         )}
-      </View>
-    </KeyboardAvoidingView>
+      </ScrollView>
+    </View>
   );
 };
 
