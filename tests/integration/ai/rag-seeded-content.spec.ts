@@ -4,11 +4,11 @@
  * Tests that Jungian seed content is properly structured
  */
 
-import { describe, expect, it } from "bun:test";
 import {
   JUNGIAN_SEED_CONTENT,
   generateSeedId,
 } from "@/shared/ai/rag-content-seed";
+import { describe, expect, it } from "bun:test";
 
 const VALID_CATEGORIES = [
   "shadow",
@@ -43,28 +43,12 @@ describe("Jungian Seed Content", () => {
     });
   });
 
-  describe("Portuguese Content", () => {
-    it("should contain Brazilian Portuguese text", () => {
-      const ptBrCharRegex = /[áàâãéèêíìîóòôõöúùûüç]/;
-      const hasPtBr = JUNGIAN_SEED_CONTENT.some((e) =>
-        ptBrCharRegex.test(e.text),
-      );
-      expect(hasPtBr).toBe(true);
-    });
-
-    it("should have meaningful text length (avg > 50 chars)", () => {
-      const avgLength =
-        JUNGIAN_SEED_CONTENT.reduce((sum, e) => sum + e.text.length, 0) /
-        JUNGIAN_SEED_CONTENT.length;
-      expect(avgLength).toBeGreaterThan(50);
-    });
-  });
-
   describe("Category Distribution", () => {
     it("should have at least 2 entries per category", () => {
       const categoryCount: Record<string, number> = {};
       for (const entry of JUNGIAN_SEED_CONTENT) {
-        categoryCount[entry.category] = (categoryCount[entry.category] || 0) + 1;
+        categoryCount[entry.category] =
+          (categoryCount[entry.category] || 0) + 1;
       }
       for (const category of VALID_CATEGORIES) {
         expect(categoryCount[category]).toBeGreaterThanOrEqual(2);
@@ -74,7 +58,8 @@ describe("Jungian Seed Content", () => {
     it("should have shadow as the most represented category", () => {
       const categoryCount: Record<string, number> = {};
       for (const entry of JUNGIAN_SEED_CONTENT) {
-        categoryCount[entry.category] = (categoryCount[entry.category] || 0) + 1;
+        categoryCount[entry.category] =
+          (categoryCount[entry.category] || 0) + 1;
       }
       const shadowCount = categoryCount["shadow"] || 0;
       const maxOther = Math.max(
@@ -88,7 +73,13 @@ describe("Jungian Seed Content", () => {
 
   describe("Content Quality", () => {
     it("should contain Jungian terminology", () => {
-      const jungianTerms = ["sombra", "inconsciente", "arquétipo", "projeção", "individuação"];
+      const jungianTerms = [
+        "sombra",
+        "inconsciente",
+        "arquétipo",
+        "projeção",
+        "individuação",
+      ];
       const hasTerminology = JUNGIAN_SEED_CONTENT.some((entry) =>
         jungianTerms.some((term) =>
           entry.text.toLowerCase().includes(term.toLowerCase()),

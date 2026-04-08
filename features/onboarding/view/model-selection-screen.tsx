@@ -40,11 +40,13 @@ export const ModelSelectionScreen: React.FC = () => {
     ),
   );
 
-  // Navigate to model loading screen when download completes
+  // Signal download complete - OnboardingRouter will detect and re-render
   useEffect(() => {
     if (state.downloadComplete && state.selectedModel) {
       const timer = setTimeout(() => {
-        router.push("/onboarding/model-loading" as any);
+        // Navigate to /onboarding; OnboardingRouter will detect model is ready
+        // and show the loading screen based on getInitialRoute()
+        router.replace("/onboarding" as any);
       }, 500);
       return () => clearTimeout(timer);
     }
@@ -161,7 +163,7 @@ export const ModelSelectionScreen: React.FC = () => {
           <Button
             variant="default"
             size="lg"
-            onPress={() => router.push("/onboarding/model-loading" as any)}
+            onPress={() => router.replace("/onboarding" as any)}
             className="bg-primary"
           >
             <Text className="text-primary-foreground font-semibold text-base">

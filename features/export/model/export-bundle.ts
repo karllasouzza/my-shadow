@@ -81,14 +81,6 @@ export class ExportBundle {
       );
     }
 
-    // Validate pt-BR requirement
-    const hasPtBR = /[àáâãäèéêëìíîïòóôõöùúûüçñ]/i.test(markdownContent);
-    if (!hasPtBR) {
-      return err(
-        createError("VALIDATION_ERROR", "Content must contain Portuguese text"),
-      );
-    }
-
     const fileName = `reflexoes_${periodStart}_${periodEnd}.md`;
     const id = `export_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
@@ -129,7 +121,7 @@ export class ExportBundle {
   }
 
   getFileSize(): number {
-    return new Blob([this.markdownContent]).size;
+    return new TextEncoder().encode(this.markdownContent).length;
   }
 
   getSectionCount(): number {

@@ -11,6 +11,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
     MODEL_CATALOG,
     type AvailableModel,
+    type ModelConfiguration,
 } from "../model/model-configuration";
 import { getModelRepository } from "../repository/model-repository";
 import { getDeviceInfo } from "../service/device-detector";
@@ -178,7 +179,23 @@ export const useModelSelectionVm = (): UseModelSelectionVm => {
         return;
       }
 
+      // Mark as downloaded and save full ModelConfiguration
       modelRepository.markModelAsDownloaded(model.key);
+
+      const modelConfig: ModelConfiguration = {
+        id: `${model.key}:${Date.now()}`,
+        displayName: model.name,
+        modelKey: model.key,
+        filePath,
+        fileSizeBytes: model.fileSizeBytes,
+        estimatedRamBytes: model.estimatedRamBytes,
+        downloadStatus: "completed",
+        downloadProgress: 100,
+        isLoaded: false,
+        lastUsedAt: null,
+        customFolderUri: null,
+      };
+      modelRepository.saveActiveModel(modelConfig);
 
       setState((s) => ({
         ...s,

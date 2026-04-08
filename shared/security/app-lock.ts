@@ -5,6 +5,11 @@
  * Uses MMKV for secure storage and provides hook for React components.
  */
 
+import {
+    CryptoDigestAlgorithm,
+    digestStringAsync,
+    getRandomBytes,
+} from "expo-crypto";
 import * as SecureStore from "expo-secure-store";
 import type { MMKV } from "react-native-mmkv";
 import { createMMKV } from "react-native-mmkv";
@@ -23,6 +28,7 @@ export class AppLockGateway {
   private storage: MMKV;
   private lockKey = "app_lock:state";
   private pinKey = "app_lock:pin:hash";
+  private saltKey = "app_lock:pin:salt";
   private lockTimeoutMs = 15 * 60 * 1000; // 15 minutes
 
   constructor() {
@@ -34,9 +40,9 @@ export class AppLockGateway {
    */
   async initializeLock(pin: string): Promise<Result<void>> {
     try {
-      // In production, use proper hashing (bcrypt, scrypt, etc)
-      // This is a simplified example
-      const pinHash = this.hashPin(pin);
+      const salt = this.generateSalt();
+      this.storage.set(this.saltKey, salt);
+      const pinHash = await this.hashPin(pin, salt);
       await SecureStore.setItemAsync(this.pinKey, pinHash);
 
       const lockState: AppLockState = {
@@ -70,7 +76,14 @@ export class AppLockGateway {
         );
       }
 
-      const inputHash = this.hashPin(pin);
+      const salt = this.storage.getString(this.saltKey);
+      if (!salt) {
+        return err(
+          createError("SECURITY_LOCK_REQUIRED", "App lock salt missing"),
+        );
+      }
+
+      const inputHash = await this.hashPin(pin, salt);
       if (inputHash !== storedHash) {
         return err(createError("SECURITY_LOCK_REQUIRED", "Invalid PIN"));
       }
@@ -172,8 +185,10 @@ export class AppLockGateway {
         return err(unlockResult.error);
       }
 
-      // Set new PIN
-      const newHash = this.hashPin(newPin);
+      // Set new PIN with new salt
+      const newSalt = this.generateSalt();
+      this.storage.set(this.saltKey, newSalt);
+      const newHash = await this.hashPin(newPin, newSalt);
       await SecureStore.setItemAsync(this.pinKey, newHash);
 
       return ok(void 0);
@@ -190,26 +205,34 @@ export class AppLockGateway {
   }
 
   /**
-   * Simple hash function (use stronger hashing in production)
+   * Generate random salt
    */
-  private hashPin(pin: string): string {
-    // This is a placeholder. Use bcrypt or similar in production
-    let hash = 0;
-    for (let i = 0; i < pin.length; i++) {
-      const char = pin.charCodeAt(i);
-      hash = (hash << 5) - hash + char;
-      hash = hash & hash; // Convert to 32-bit integer
-    }
-    return Math.abs(hash).toString(16);
+  private generateSalt(): string {
+    const bytes = getRandomBytes(16);
+    return Array.from(bytes, (b: number) =>
+      b.toString(16).padStart(2, "0"),
+    ).join("");
   }
 
   /**
-   * Generate session token
+   * SHA-256 hash with salt using expo-crypto
+   */
+  private async hashPin(pin: string, salt: string): Promise<string> {
+    const hash = await digestStringAsync(
+      CryptoDigestAlgorithm.SHA256,
+      `${salt}:${pin}`,
+    );
+    return hash;
+  }
+
+  /**
+   * Generate cryptographically secure session token
    */
   private generateToken(): string {
-    return (
-      Math.random().toString(36).substring(2, 15) + Date.now().toString(36)
-    );
+    const bytes = getRandomBytes(16);
+    return Array.from(bytes, (b: number) =>
+      b.toString(16).padStart(2, "0"),
+    ).join("");
   }
 }
 

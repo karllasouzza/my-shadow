@@ -5,6 +5,8 @@
  * All data is encrypted at rest and secured with app lock.
  */
 
+import { getRandomBytes } from "expo-crypto";
+import * as SecureStore from "expo-secure-store";
 import type { MMKV } from "react-native-mmkv";
 import { createMMKV } from "react-native-mmkv";
 import { Result, createError, err, ok } from "../utils/app-error";
@@ -44,6 +46,20 @@ export interface FinalReviewRecord {
   generatedAt: string;
 }
 
+const REFLECTION_ENCRYPTION_KEY_STORAGE = "reflection_mmkv_key";
+
+async function getOrCreateEncryptionKey(): Promise<string> {
+  let key = await SecureStore.getItemAsync(REFLECTION_ENCRYPTION_KEY_STORAGE);
+  if (!key) {
+    const randomBytes = getRandomBytes(16);
+    key = Array.from(randomBytes, (b: number) =>
+      b.toString(16).padStart(2, "0"),
+    ).join("");
+    await SecureStore.setItemAsync(REFLECTION_ENCRYPTION_KEY_STORAGE, key);
+  }
+  return key;
+}
+
 /**
  * Encrypted storage adapter using MMKV
  * Provides namespaced key organization for reflections, questions, and reviews
@@ -55,8 +71,19 @@ export class EncryptedReflectionStore {
   private reviewPrefix = "review:";
   private listKey = "reflection:list"; // Track all reflection IDs
 
-  constructor(storageName: string = "reflections") {
+  private constructor(storageName: string = "reflections") {
     this.storage = createMMKV({ id: storageName });
+  }
+
+  static async create(
+    storageName: string = "reflections",
+  ): Promise<EncryptedReflectionStore> {
+    const store = new EncryptedReflectionStore(storageName);
+    const key = await getOrCreateEncryptionKey();
+    if (!store.storage.isEncrypted) {
+      store.storage.encrypt(key);
+    }
+    return store;
   }
 
   /**
@@ -360,11 +387,20 @@ export class EncryptedReflectionStore {
 }
 
 // Singleton instance
-let instance: EncryptedReflectionStore;
+let instance: EncryptedReflectionStore | null = null;
+
+export const initReflectionStore =
+  async (): Promise<EncryptedReflectionStore> => {
+    if (instance) return instance;
+    instance = await EncryptedReflectionStore.create("reflection_encrypted");
+    return instance;
+  };
 
 export const getReflectionStore = (): EncryptedReflectionStore => {
   if (!instance) {
-    instance = new EncryptedReflectionStore("reflection_encrypted");
+    throw new Error(
+      "EncryptedReflectionStore not initialized. Call initReflectionStore() first.",
+    );
   }
   return instance;
 };

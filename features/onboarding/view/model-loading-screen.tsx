@@ -42,7 +42,7 @@ export const ModelLoadingScreen: React.FC = () => {
   useEffect(() => {
     if (state.loadStatus === "success") {
       const timer = setTimeout(() => {
-        router.replace("/(main)" as any);
+        router.replace("/");
       }, 500);
       return () => clearTimeout(timer);
     }

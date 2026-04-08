@@ -6,8 +6,8 @@
  * On completion: redirects to main app using router.replace('/').
  */
 
-import { router } from "expo-router";
-import React, { useEffect } from "react";
+import { router, useFocusEffect } from "expo-router";
+import React, { useCallback, useState } from "react";
 import {
     getInitialRoute,
     type OnboardingRoute,
@@ -41,18 +41,26 @@ export function OnboardingRouter({
   forceRoute,
   onComplete,
 }: OnboardingRouterProps): React.JSX.Element {
-  const route = forceRoute ?? getInitialRoute();
+  // Use state so we re-read guard on screen focus (child navigation triggers re-focus)
+  const [route, setRoute] = useState<OnboardingRoute>(
+    forceRoute ?? getInitialRoute(),
+  );
+
+  // Re-evaluate route when screen regains focus (after child redirects)
+  useFocusEffect(
+    useCallback(() => {
+      if (!forceRoute) {
+        setRoute(getInitialRoute());
+      }
+    }, [forceRoute]),
+  );
 
   // If already fully onboarded, redirect to main app
-  useEffect(() => {
-    if (route === "main") {
-      const timer = setTimeout(() => {
-        onComplete?.();
-        router.replace("/" as any);
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [route, onComplete]);
+  if (route === "main") {
+    onComplete?.();
+    router.replace("/");
+    return <React.Fragment />;
+  }
 
   switch (route) {
     case "security-gate":
@@ -64,15 +72,7 @@ export function OnboardingRouter({
     case "model-loading":
       return <ModelLoadingScreen />;
 
-    case "main":
     default:
-      // Show a brief loading state while redirecting
-      return (
-        <React.Fragment>
-          {/* Redirecting — no visible UI needed */}
-        </React.Fragment>
-      );
+      return <React.Fragment />;
   }
 }
-
-export default OnboardingRouter;

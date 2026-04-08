@@ -5,18 +5,43 @@
  * Singleton pattern with getRepository() accessor.
  */
 
+import { getRandomBytes } from "expo-crypto";
+import * as SecureStore from "expo-secure-store";
 import { MMKV, createMMKV } from "react-native-mmkv";
 import { UserCredential } from "../model/user-credential";
 
 const CREDENTIAL_KEY = "user_credential";
 const FIRST_LAUNCH_KEY = "is_first_launch";
 const BIOMETRIC_ENABLED_KEY = "biometric_enabled";
+const ENCRYPTION_KEY_STORAGE_KEY = "mmkv_encryption_key";
+
+async function getOrCreateEncryptionKey(): Promise<string> {
+  let key = await SecureStore.getItemAsync(ENCRYPTION_KEY_STORAGE_KEY);
+  if (!key) {
+    const randomBytes = getRandomBytes(16);
+    key = Array.from(randomBytes, (b: number) => b.toString(16).padStart(2, "0")).join(
+      "",
+    );
+    await SecureStore.setItemAsync(ENCRYPTION_KEY_STORAGE_KEY, key);
+  }
+  return key;
+}
 
 export class CredentialRepository {
   private storage: MMKV;
 
-  constructor() {
+  private constructor() {
     this.storage = createMMKV({ id: "auth_credentials" });
+  }
+
+  static async create(): Promise<CredentialRepository> {
+    const repo = new CredentialRepository();
+    // Ensure encryption key exists in SecureStore and encrypt MMKV
+    const key = await getOrCreateEncryptionKey();
+    if (!repo.storage.isEncrypted) {
+      repo.storage.encrypt(key);
+    }
+    return repo;
   }
 
   /**
@@ -101,9 +126,22 @@ export class CredentialRepository {
 // Singleton
 let instance: CredentialRepository | null = null;
 
+/**
+ * Initialize credential repository with encryption.
+ * Call once at app startup before using credentials.
+ */
+export const initCredentialRepository =
+  async (): Promise<CredentialRepository> => {
+    if (instance) return instance;
+    instance = await CredentialRepository.create();
+    return instance;
+  };
+
 export const getCredentialRepository = (): CredentialRepository => {
   if (!instance) {
-    instance = new CredentialRepository();
+    throw new Error(
+      'CredentialRepository not initialized. Call initCredentialRepository() first.',
+    );
   }
   return instance;
 };

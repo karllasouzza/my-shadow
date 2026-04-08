@@ -7,19 +7,39 @@
  * All text in Brazilian Portuguese.
  */
 
-import React, { useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Switch, TextInput, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Button } from '@/components/ui/button';
-import { Text } from '@/components/ui/text';
-import { useSecurityGateVm } from '../view-model/use-security-gate-vm';
+import { Button } from "@/components/ui/button";
+import { Text } from "@/components/ui/text";
+import { router } from "expo-router";
+import React, { useEffect, useState } from "react";
+import {
+    ActivityIndicator,
+    KeyboardAvoidingView,
+    Platform,
+    Switch,
+    TextInput,
+    View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSecurityGateVm } from "../view-model/use-security-gate-vm";
 
 export const SecurityGateScreen: React.FC = () => {
   const { state, actions } = useSecurityGateVm();
   const insets = useSafeAreaInsets();
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
-  const [returningPasswordVisible, setReturningPasswordVisible] = useState(false);
+  const [returningPasswordVisible, setReturningPasswordVisible] =
+    useState(false);
+
+  // Navigate when authentication succeeds
+  useEffect(() => {
+    if (state.success) {
+      // Brief delay for UX, then re-enter onboarding router which will re-evaluate guard
+      const timer = setTimeout(() => {
+        router.replace("/onboarding" as any);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [state.success]);
 
   const handleCreatePassword = async () => {
     await actions.createPassword();
@@ -43,7 +63,12 @@ export const SecurityGateScreen: React.FC = () => {
     }
   };
 
-  if (state.isLoading && state.mode === 'firstTime' && !state.error && !state.success) {
+  if (
+    state.isLoading &&
+    state.mode === "firstTime" &&
+    !state.error &&
+    !state.success
+  ) {
     return (
       <View className="flex-1 bg-background items-center justify-center">
         <ActivityIndicator size="large" color="hsl(277, 65%, 48%)" />
@@ -53,12 +78,15 @@ export const SecurityGateScreen: React.FC = () => {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
       className="flex-1 bg-background"
     >
       <View
         className="flex-1 justify-center px-6"
-        style={{ paddingBottom: insets.bottom + 24, paddingTop: insets.top + 48 }}
+        style={{
+          paddingBottom: insets.bottom + 24,
+          paddingTop: insets.top + 48,
+        }}
       >
         {/* Header */}
         <View className="items-center mb-10">
@@ -66,9 +94,9 @@ export const SecurityGateScreen: React.FC = () => {
             My Shadow
           </Text>
           <Text className="text-muted-foreground text-sm mt-2 text-center">
-            {state.mode === 'firstTime'
-              ? 'Configure sua senha para proteger suas reflexoes'
-              : 'Insira sua senha para continuar'}
+            {state.mode === "firstTime"
+              ? "Configure sua senha para proteger suas reflexoes"
+              : "Insira sua senha para continuar"}
           </Text>
         </View>
 
@@ -83,7 +111,7 @@ export const SecurityGateScreen: React.FC = () => {
 
         {/* Success - redirect handled by parent */}
 
-        {state.mode === 'firstTime' ? (
+        {state.mode === "firstTime" ? (
           /* FIRST TIME: Create Password */
           <View className="gap-4">
             {/* Password Input */}
@@ -110,7 +138,7 @@ export const SecurityGateScreen: React.FC = () => {
                   className="ml-1"
                 >
                   <Text className="text-muted-foreground text-xs">
-                    {passwordVisible ? 'Ocultar' : 'Exibir'}
+                    {passwordVisible ? "Ocultar" : "Exibir"}
                   </Text>
                 </Button>
               </View>
@@ -140,7 +168,7 @@ export const SecurityGateScreen: React.FC = () => {
                   className="ml-1"
                 >
                   <Text className="text-muted-foreground text-xs">
-                    {confirmVisible ? 'Ocultar' : 'Exibir'}
+                    {confirmVisible ? "Ocultar" : "Exibir"}
                   </Text>
                 </Button>
               </View>
@@ -160,8 +188,15 @@ export const SecurityGateScreen: React.FC = () => {
                 <Switch
                   value={state.biometricEnabled}
                   onValueChange={handleToggleBiometric}
-                  trackColor={{ false: 'hsl(240, 4%, 16%)', true: 'hsl(277, 65%, 48%)' }}
-                  thumbColor={state.biometricEnabled ? 'hsl(40, 65%, 58%)' : 'hsl(240, 5%, 60%)'}
+                  trackColor={{
+                    false: "hsl(240, 4%, 16%)",
+                    true: "hsl(277, 65%, 48%)",
+                  }}
+                  thumbColor={
+                    state.biometricEnabled
+                      ? "hsl(40, 65%, 58%)"
+                      : "hsl(240, 5%, 60%)"
+                  }
                 />
               </View>
             )}
@@ -206,11 +241,13 @@ export const SecurityGateScreen: React.FC = () => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  onPress={() => setReturningPasswordVisible(!returningPasswordVisible)}
+                  onPress={() =>
+                    setReturningPasswordVisible(!returningPasswordVisible)
+                  }
                   className="ml-1"
                 >
                   <Text className="text-muted-foreground text-xs">
-                    {returningPasswordVisible ? 'Ocultar' : 'Exibir'}
+                    {returningPasswordVisible ? "Ocultar" : "Exibir"}
                   </Text>
                 </Button>
               </View>
