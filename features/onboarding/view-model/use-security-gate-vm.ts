@@ -5,18 +5,16 @@
  * Handles first-time password creation and returning user authentication.
  */
 
-import * as LocalAuthentication from 'expo-local-authentication';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import * as LocalAuthentication from "expo-local-authentication";
+import { useCallback, useEffect, useState } from "react";
 import {
-  getCredentialRepository,
-} from '../repository/credential-repository';
-import {
-  generateSalt,
-  hashPassword,
-  validatePassword,
-} from '../model/user-credential';
+    generateSalt,
+    hashPassword,
+    validatePassword,
+} from "../model/user-credential";
+import { getCredentialRepository } from "../repository/credential-repository";
 
-export type SecurityGateMode = 'firstTime' | 'returning';
+export type SecurityGateMode = "firstTime" | "returning";
 
 export interface SecurityGateState {
   mode: SecurityGateMode;
@@ -48,9 +46,9 @@ export const useSecurityGateVm = (): UseSecurityGateVm => {
   const credentialRepo = getCredentialRepository();
 
   const [state, setState] = useState<SecurityGateState>({
-    mode: 'firstTime',
-    passwordInput: '',
-    confirmPassword: '',
+    mode: "firstTime",
+    passwordInput: "",
+    confirmPassword: "",
     isLoading: true,
     error: null,
     biometricEnabled: false,
@@ -63,20 +61,36 @@ export const useSecurityGateVm = (): UseSecurityGateVm => {
   // Initialize: determine mode and biometric capabilities
   useEffect(() => {
     const init = async () => {
-      const isFirstLaunch = credentialRepo.isFirstLaunch();
-      const hasHardware = await LocalAuthentication.hasHardwareAsync();
-      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-      const isBiometricEnabled = credentialRepo.isBiometricEnabled();
+      try {
+        const isFirstLaunch = credentialRepo.isFirstLaunch();
+        let hasHardware = false;
+        let isEnrolled = false;
+        try {
+          hasHardware = await LocalAuthentication.hasHardwareAsync();
+          isEnrolled = await LocalAuthentication.isEnrolledAsync();
+        } catch {
+          // Biometric APIs may not be available in dev builds
+        }
+        const isBiometricEnabled = credentialRepo.isBiometricEnabled();
 
-      setState((s) => ({
-        ...s,
-        mode: isFirstLaunch ? 'firstTime' : 'returning',
-        biometricAvailable: hasHardware,
-        biometricEnrolled: isEnrolled,
-        biometricEnabled: isBiometricEnabled,
-        showBiometricToggle: hasHardware && isEnrolled,
-        isLoading: false,
-      }));
+        setState((s) => ({
+          ...s,
+          mode: isFirstLaunch ? "firstTime" : "returning",
+          biometricAvailable: hasHardware,
+          biometricEnrolled: isEnrolled,
+          biometricEnabled: isBiometricEnabled,
+          showBiometricToggle: hasHardware && isEnrolled,
+          isLoading: false,
+        }));
+      } catch {
+        // On any error, default to first-time mode and stop loading
+        setState((s) => ({
+          ...s,
+          mode: "firstTime",
+          isLoading: false,
+          error: "Erro ao inicializar a tela de seguranca.",
+        }));
+      }
     };
 
     init();
@@ -100,13 +114,13 @@ export const useSecurityGateVm = (): UseSecurityGateVm => {
     // Validate password
     const validation = validatePassword(passwordInput);
     if (!validation.valid) {
-      setState((s) => ({ ...s, error: validation.error ?? 'Senha invalida.' }));
+      setState((s) => ({ ...s, error: validation.error ?? "Senha invalida." }));
       return;
     }
 
     // Check confirmation match
     if (passwordInput !== confirmPassword) {
-      setState((s) => ({ ...s, error: 'As senhas nao coincidem.' }));
+      setState((s) => ({ ...s, error: "As senhas nao coincidem." }));
       return;
     }
 
@@ -132,13 +146,13 @@ export const useSecurityGateVm = (): UseSecurityGateVm => {
         ...s,
         isLoading: false,
         success: true,
-        mode: 'returning',
+        mode: "returning",
       }));
     } catch {
       setState((s) => ({
         ...s,
         isLoading: false,
-        error: 'Erro ao criar senha. Tente novamente.',
+        error: "Erro ao criar senha. Tente novamente.",
       }));
     }
   }, [state.passwordInput, state.confirmPassword]);
@@ -147,7 +161,7 @@ export const useSecurityGateVm = (): UseSecurityGateVm => {
     const { passwordInput } = state;
 
     if (!passwordInput) {
-      setState((s) => ({ ...s, error: 'Digite sua senha.' }));
+      setState((s) => ({ ...s, error: "Digite sua senha." }));
       return;
     }
 
@@ -159,7 +173,7 @@ export const useSecurityGateVm = (): UseSecurityGateVm => {
         setState((s) => ({
           ...s,
           isLoading: false,
-          error: 'Nenhuma senha configurada. Reinicie o aplicativo.',
+          error: "Nenhuma senha configurada. Reinicie o aplicativo.",
         }));
         return;
       }
@@ -175,14 +189,14 @@ export const useSecurityGateVm = (): UseSecurityGateVm => {
         setState((s) => ({
           ...s,
           isLoading: false,
-          error: 'Senha incorreta. Tente novamente.',
+          error: "Senha incorreta. Tente novamente.",
         }));
       }
     } catch {
       setState((s) => ({
         ...s,
         isLoading: false,
-        error: 'Erro ao autenticar. Tente novamente.',
+        error: "Erro ao autenticar. Tente novamente.",
       }));
     }
   }, [state.passwordInput]);
@@ -192,8 +206,8 @@ export const useSecurityGateVm = (): UseSecurityGateVm => {
 
     try {
       const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: 'Autenticar com biometria',
-        fallbackLabel: 'Usar senha',
+        promptMessage: "Autenticar com biometria",
+        fallbackLabel: "Usar senha",
         disableDeviceFallback: true,
       });
 
@@ -203,14 +217,14 @@ export const useSecurityGateVm = (): UseSecurityGateVm => {
         return true;
       }
 
-      if (result.error === 'user_cancel' || result.error === 'lockout') {
+      if (result.error === "user_cancel" || result.error === "lockout") {
         setState((s) => ({
           ...s,
           isLoading: false,
           error:
-            result.error === 'lockout'
-              ? 'Muitas tentativas falhas. Tente novamente mais tarde.'
-              : 'Autenticacao cancelada.',
+            result.error === "lockout"
+              ? "Muitas tentativas falhas. Tente novamente mais tarde."
+              : "Autenticacao cancelada.",
         }));
       } else {
         setState((s) => ({ ...s, isLoading: false }));
@@ -221,7 +235,7 @@ export const useSecurityGateVm = (): UseSecurityGateVm => {
       setState((s) => ({
         ...s,
         isLoading: false,
-        error: 'Erro ao autenticar com biometria.',
+        error: "Erro ao autenticar com biometria.",
       }));
       return false;
     }
@@ -231,7 +245,7 @@ export const useSecurityGateVm = (): UseSecurityGateVm => {
     if (!state.biometricAvailable || !state.biometricEnrolled) {
       setState((s) => ({
         ...s,
-        error: 'Biometria nao disponivel neste dispositivo.',
+        error: "Biometria nao disponivel neste dispositivo.",
       }));
       return;
     }
@@ -241,8 +255,8 @@ export const useSecurityGateVm = (): UseSecurityGateVm => {
     try {
       // Require biometric auth to enable the feature
       const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: 'Ativar autenticacao biometrica',
-        fallbackLabel: 'Cancelar',
+        promptMessage: "Ativar autenticacao biometrica",
+        fallbackLabel: "Cancelar",
         disableDeviceFallback: true,
       });
 
@@ -257,14 +271,14 @@ export const useSecurityGateVm = (): UseSecurityGateVm => {
         setState((s) => ({
           ...s,
           isLoading: false,
-          error: 'Autenticacao necessaria para ativar biometria.',
+          error: "Autenticacao necessaria para ativar biometria.",
         }));
       }
     } catch {
       setState((s) => ({
         ...s,
         isLoading: false,
-        error: 'Erro ao ativar biometria.',
+        error: "Erro ao ativar biometria.",
       }));
     }
   }, [state.biometricAvailable, state.biometricEnrolled]);

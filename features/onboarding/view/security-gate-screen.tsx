@@ -64,6 +64,13 @@ export const SecurityGateScreen: React.FC = () => {
     }
   };
 
+  console.log(
+    state.isLoading &&
+      state.mode === "firstTime" &&
+      !state.error &&
+      !state.success,
+  );
+
   if (
     state.isLoading &&
     state.mode === "firstTime" &&

@@ -9,8 +9,8 @@
 import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
-    getInitialRoute,
-    type OnboardingRoute,
+  getInitialRoute,
+  type OnboardingRoute,
 } from "../service/onboarding-guard";
 import { ModelLoadingScreen } from "../view/model-loading-screen";
 import { ModelSelectionScreen } from "../view/model-selection-screen";
@@ -54,6 +54,8 @@ export function OnboardingRouter({
       }
     }, [forceRoute]),
   );
+
+  console.log(route);
 
   // If already fully onboarded, redirect to main app
   if (route === "main") {
