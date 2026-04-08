@@ -6,15 +6,15 @@
  */
 
 import { getFallbackPromptProvider } from "../../../shared/ai/fallback-prompts-ptbr";
+import { getLocalAIRuntime } from "../../../shared/ai/local-ai-runtime";
 import { getPtBRJungianGuard } from "../../../shared/ai/ptbr-tone-guard";
+import { getReflectionRAGRepository } from "../../../shared/ai/reflection-rag-repository";
 import { getGenerationJobStore } from "../../../shared/storage/generation-job-store";
 import { Result, createError, err, ok } from "../../../shared/utils/app-error";
 import { getPerformanceMetrics } from "../../../shared/utils/performance-metrics";
 import { GuidedQuestionSet } from "../model/guided-question-set";
 import { ReflectionEntry } from "../model/reflection-entry";
 import { getReflectionRepository } from "../repository/reflection-repository";
-import { getLocalAIRuntime } from "../../../shared/ai/local-ai-runtime";
-import { getReflectionRAGRepository } from "../../../shared/ai/reflection-rag-repository";
 
 export class ReflectionService {
   private repository = getReflectionRepository();
@@ -168,7 +168,9 @@ export class ReflectionService {
         );
         promptParts.push(`Reflexão: ${content}`);
         if (retrievedTexts.length > 0) {
-          promptParts.push(`Contexto adicional:\n- ${retrievedTexts.join("\n- ")}`);
+          promptParts.push(
+            `Contexto adicional:\n- ${retrievedTexts.join("\n- ")}`,
+          );
         }
 
         const prompt = promptParts.join("\n\n");
@@ -193,7 +195,8 @@ export class ReflectionService {
 
       // If generation failed or validation failed, use fallback and queue a retry
       if (!generatedQuestions) {
-        const fallbackQuestions = this.fallbackProvider.getGuidedQuestionsFallback();
+        const fallbackQuestions =
+          this.fallbackProvider.getGuidedQuestionsFallback();
 
         // Create question set with fallback mode
         const qSetResult = GuidedQuestionSet.create(

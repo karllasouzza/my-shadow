@@ -6,6 +6,7 @@
 
 import { useCallback, useState } from "react";
 import type { AppError } from "../../../shared/utils/app-error";
+import { getReflectionRepository } from "../../reflection/repository/reflection-repository";
 import { getReviewService } from "../service/review-service";
 
 interface ReviewState {
@@ -13,6 +14,8 @@ interface ReviewState {
   isGenerating: boolean;
   periodStart?: string;
   periodEnd?: string;
+  reflectionIds: string[];
+  reflectionCount: number;
   review?: {
     id: string;
     summary: string;
@@ -25,29 +28,56 @@ interface ReviewState {
 
 export function usePeriodReviewViewModel() {
   const service = getReviewService();
+  const reflectionRepository = getReflectionRepository();
   const [state, setState] = useState<ReviewState>({
     isLoading: false,
     isGenerating: false,
+    reflectionIds: [],
+    reflectionCount: 0,
   });
 
-  const selectPeriod = useCallback(async (start: string, end: string) => {
-    setState((s) => ({ ...s, isLoading: true }));
-    try {
-      // In real app, would fetch reflections for period
-      setState((s) => ({
-        ...s,
-        periodStart: start,
-        periodEnd: end,
-        isLoading: false,
-      }));
-    } catch (error) {
-      setState((s) => ({
-        ...s,
-        error: error as AppError,
-        isLoading: false,
-      }));
-    }
-  }, []);
+  const selectPeriod = useCallback(
+    async (start: string, end: string) => {
+      setState((s) => ({ ...s, isLoading: true }));
+      try {
+        const reflectionsResult = await reflectionRepository.getByDateRange(
+          start,
+          end,
+        );
+
+        if (!reflectionsResult.success) {
+          setState((s) => ({
+            ...s,
+            isLoading: false,
+            error: reflectionsResult.error,
+          }));
+          return;
+        }
+
+        const reflectionIds = reflectionsResult.data.map(
+          (reflection) => reflection.id,
+        );
+
+        setState((s) => ({
+          ...s,
+          periodStart: start,
+          periodEnd: end,
+          reflectionIds,
+          reflectionCount: reflectionIds.length,
+          review: undefined,
+          error: undefined,
+          isLoading: false,
+        }));
+      } catch (error) {
+        setState((s) => ({
+          ...s,
+          error: error as AppError,
+          isLoading: false,
+        }));
+      }
+    },
+    [reflectionRepository],
+  );
 
   const generateReview = useCallback(async () => {
     if (!state.periodStart || !state.periodEnd) {
@@ -61,12 +91,24 @@ export function usePeriodReviewViewModel() {
       return;
     }
 
+    if (state.reflectionIds.length === 0) {
+      setState((s) => ({
+        ...s,
+        error: {
+          code: "NOT_FOUND",
+          message:
+            "Nenhuma reflexão encontrada no período selecionado para gerar revisão.",
+        },
+      }));
+      return;
+    }
+
     setState((s) => ({ ...s, isGenerating: true, error: undefined }));
     try {
       const result = await service.generateFinalReview(
         state.periodStart,
         state.periodEnd,
-        ["refl_mock"], // Mock reflection IDs
+        state.reflectionIds,
       );
 
       if (!result.success) {
@@ -85,7 +127,7 @@ export function usePeriodReviewViewModel() {
         isGenerating: false,
       }));
     }
-  }, [state.periodStart, state.periodEnd, service]);
+  }, [state.periodStart, state.periodEnd, state.reflectionIds, service]);
 
   const clearError = useCallback(() => {
     setState((s) => ({ ...s, error: undefined }));

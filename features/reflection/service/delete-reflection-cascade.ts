@@ -10,10 +10,10 @@
  * and all linked generated artifacts in cascade with no recovery option."
  */
 
-import { getReflectionCascadeDelete } from "../../../shared/storage/reflection-cascade-delete";
-import { getGenerationJobStore } from "../../../shared/storage/generation-job-store";
 import { getReflectionStore } from "../../../shared/storage/encrypted-reflection-store";
-import { Result, ok, err, createError } from "../../../shared/utils/app-error";
+import { getGenerationJobStore } from "../../../shared/storage/generation-job-store";
+import { getReflectionCascadeDelete } from "../../../shared/storage/reflection-cascade-delete";
+import { Result, createError, err, ok } from "../../../shared/utils/app-error";
 
 export class DeleteReflectionCascadeService {
   private reflectionStore = getReflectionStore();
@@ -29,9 +29,8 @@ export class DeleteReflectionCascadeService {
   async deleteReflectionCascade(reflectionId: string): Promise<Result<void>> {
     try {
       // Verify reflection exists before deleting
-      const existsResult = await this.reflectionStore.getReflection(
-        reflectionId,
-      );
+      const existsResult =
+        await this.reflectionStore.getReflection(reflectionId);
       if (!existsResult.success) {
         return err(existsResult.error);
       }
@@ -42,9 +41,8 @@ export class DeleteReflectionCascadeService {
       }
 
       // Execute cascade delete via coordinator
-      const cascadeResult = await this.cascadeDelete.deleteReflectionCascade(
-        reflectionId,
-      );
+      const cascadeResult =
+        await this.cascadeDelete.deleteReflectionCascade(reflectionId);
 
       if (!cascadeResult.success) {
         return err(cascadeResult.error);
