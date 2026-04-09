@@ -1,30 +1,15 @@
-/**
- * Onboarding: Security Gate Screen
- *
- * Shadow Jung themed authentication screen (dark purple/gold).
- * First-time: password creation + confirm + biometric enrollment toggle.
- * Returning: password input OR biometric prompt button.
- * All text in Brazilian Portuguese.
- */
-
 import { Button } from "@/components/ui/button";
+import { Icon } from "@/components/ui/icon";
 import { Text } from "@/components/ui/text";
 import type { RelativePathString } from "expo-router";
 import { useRouter } from "expo-router";
+import { Eye, EyeClosed, Loader2 } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  ScrollView,
-  Switch,
-  TextInput,
-  View,
-} from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ScrollView, Switch, TextInput, View } from "react-native";
 import { useSecurityGateVm } from "../view-model/use-security-gate-vm";
 
 export const SecurityGateScreen: React.FC = () => {
   const { state, actions } = useSecurityGateVm();
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
@@ -33,10 +18,7 @@ export const SecurityGateScreen: React.FC = () => {
 
   useEffect(() => {
     if (state.success) {
-      const timer = setTimeout(() => {
-        router.replace("/onboarding" as RelativePathString);
-      }, 300);
-      return () => clearTimeout(timer);
+      router.replace("/onboarding" as RelativePathString);
     }
   }, [state.success, router]);
 
@@ -61,32 +43,25 @@ export const SecurityGateScreen: React.FC = () => {
   const disabled = state.isLoading;
 
   return (
-    <View
-      className="flex-1 bg-background"
-      style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
-    >
+    <View className="flex-1 w-full h-full bg-background">
       <ScrollView
         className="flex-1 px-6"
-        contentContainerStyle={{
-          justifyContent: "center",
-          flexGrow: 1,
-          paddingVertical: 32,
-        }}
+        contentContainerClassName="justify-center flex-1 flex-grow"
         keyboardShouldPersistTaps="handled"
       >
         {/* Header */}
-        <View className="items-center mb-10">
-          <Text className="text-3xl font-bold text-accent tracking-wide">
+        <View className="items-center flex mb-10">
+          <Text className="text-3xl font-bold text-primary-foreground tracking-wide">
             My Shadow
           </Text>
           <Text className="text-muted-foreground text-sm mt-2 text-center">
             {state.mode === "firstTime"
-              ? "Configure sua senha para proteger suas reflexoes"
+              ? "Configure sua senha para proteger suas reflexões"
               : "Insira sua senha para continuar"}
           </Text>
           {state.isLoading && (
             <View className="mt-4">
-              <ActivityIndicator size="large" color="hsl(277, 65%, 48%)" />
+              <Icon as={Loader2} className="text-primary size-6" />
             </View>
           )}
         </View>
@@ -102,7 +77,10 @@ export const SecurityGateScreen: React.FC = () => {
 
         {state.mode === "firstTime" ? (
           /* FIRST TIME: Create Password */
-          <View className="gap-4" style={{ opacity: disabled ? 0.5 : 1 }}>
+          <View
+            className="flex flex-col gap-4"
+            style={{ opacity: disabled ? 0.5 : 1 }}
+          >
             <View>
               <Text className="text-foreground text-sm font-medium mb-2">
                 Senha
@@ -125,9 +103,10 @@ export const SecurityGateScreen: React.FC = () => {
                   onPress={() => setPasswordVisible(!passwordVisible)}
                   className="ml-1"
                 >
-                  <Text className="text-muted-foreground text-xs">
-                    {passwordVisible ? "Ocultar" : "Exibir"}
-                  </Text>
+                  <Icon
+                    as={passwordVisible ? EyeClosed : Eye}
+                    className="text-muted-foreground size-4"
+                  />
                 </Button>
               </View>
             </View>
@@ -154,9 +133,10 @@ export const SecurityGateScreen: React.FC = () => {
                   onPress={() => setConfirmVisible(!confirmVisible)}
                   className="ml-1"
                 >
-                  <Text className="text-muted-foreground text-xs">
-                    {confirmVisible ? "Ocultar" : "Exibir"}
-                  </Text>
+                  <Icon
+                    as={confirmVisible ? EyeClosed : Eye}
+                    className="text-muted-foreground size-4"
+                  />
                 </Button>
               </View>
             </View>
@@ -165,7 +145,7 @@ export const SecurityGateScreen: React.FC = () => {
               <View className="flex-row items-center justify-between bg-card border border-border rounded-lg p-4 mt-2">
                 <View className="flex-1 mr-4">
                   <Text className="text-foreground text-sm font-medium">
-                    Autenticacao Biometrica
+                    Autenticação Biométrica
                   </Text>
                   <Text className="text-muted-foreground text-xs mt-1">
                     Use sua digital ou rosto para acessar
