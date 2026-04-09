@@ -4,7 +4,7 @@ import { getThemeColorSafe } from "@/lib/tailwind-color";
 import { useColorScheme } from "nativewind";
 import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { Appearance, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { rawColors, themes } from "./theme-config";
 import { ThemeContext } from "./theme-context";
 import { ThemeProviderProps } from "./types";
@@ -16,9 +16,8 @@ type UserPreferences = {
 };
 
 const ThemeProviderComponent = ({ children }: ThemeProviderProps) => {
-  const insets = useSafeAreaInsets();
   const [userPreferences, setUserPreferences] = useState<UserPreferences>({
-    theme: "default",
+    theme: "shadow",
     colorScheme: "system",
     backgroundColor: "--color-background",
   });
@@ -34,7 +33,7 @@ const ThemeProviderComponent = ({ children }: ThemeProviderProps) => {
   }, [userPreferences, systemColorScheme]);
 
   const safeThemeName = useMemo(
-    () => userPreferences?.theme || "default",
+    () => userPreferences?.theme || "shadow",
     [userPreferences],
   );
 
@@ -51,7 +50,7 @@ const ThemeProviderComponent = ({ children }: ThemeProviderProps) => {
     const theme: UserPreferences["theme"] =
       storedThemeName && storedThemeName in themes
         ? (storedThemeName as keyof typeof themes)
-        : "default";
+        : "shadow";
 
     const backgroundColor = storedBackgroundColor ?? "--color-background";
 
@@ -179,20 +178,16 @@ const ThemeProviderComponent = ({ children }: ThemeProviderProps) => {
             : effectiveColorScheme
         }
       />
-      <View
+      <SafeAreaView
         style={{
           flex: 1,
           backgroundColor: backgroundColorConverted,
-          paddingTop: insets.top,
-          paddingRight: insets.right,
-          paddingBottom: insets.bottom,
-          paddingLeft: insets.left,
         }}
       >
-        <View className="h-full w-full" style={themeVars}>
+        <View className="flex-1 h-full w-full" style={themeVars}>
           {children}
         </View>
-      </View>
+      </SafeAreaView>
     </ThemeContext.Provider>
   );
 };

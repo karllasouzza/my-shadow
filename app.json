@@ -41,7 +41,10 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-sqlite",
+      "react-native-edge-to-edge",
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,

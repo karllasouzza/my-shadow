@@ -1,7 +1,6 @@
-import { ScrollView, StyleSheet, Text, View } from "react-native";
-import type { Message } from "react-native-rag";
-// import LlamaIcon from '../../assets/icons/llama_icon.svg';
 import React, { useRef } from "react";
+import { ActivityIndicator, ScrollView, Text, View } from "react-native";
+import type { Message } from "react-native-rag";
 
 interface MessagesListProps {
   messages: Message[];
@@ -9,6 +8,14 @@ interface MessagesListProps {
   isGenerating: boolean;
 }
 
+/**
+ * T032: MessagesList component with generation state UX
+ *
+ * Displays message history and active generation status with:
+ * - User/assistant message differentiation
+ * - Generation progress indicator
+ * - Streaming response preview
+ */
 export const MessagesList = ({
   messages,
   response,
@@ -22,92 +29,67 @@ export const MessagesList = ({
       onContentSizeChange={() => {
         scrollRef.current?.scrollToEnd({ animated: false });
       }}
-      style={messagesListStyles.container}
+      className="flex-1 px-2 py-1"
     >
+      {/* Message History */}
       {messages.map((message, index) => (
         <View
           key={index}
-          style={
+          className={`flex-row my-2 ${
             message.role === "assistant"
-              ? messagesListStyles.assistantMessageContainer
-              : messagesListStyles.userMessageContainer
-          }
+              ? "justify-start"
+              : "justify-end flex-row-reverse"
+          }`}
         >
+          {/* Assistant Icon */}
           {message.role === "assistant" && (
-            <View style={messagesListStyles.iconContainer}>
-              {/* <LlamaIcon width={24} height={24} /> */}
+            <View className="w-8 h-8 rounded-lg bg-gray-200 justify-center items-center mr-2">
+              {/* Icon would go here */}
             </View>
           )}
-          <Text
-            style={[
-              messagesListStyles.messageText,
-              message.role === "user" && messagesListStyles.userMessageText,
-            ]}
+
+          {/* Message Bubble */}
+          <View
+            className={`max-w-3/4 rounded-xl px-3 py-2 ${
+              message.role === "assistant" ? "bg-gray-100" : "bg-black"
+            }`}
           >
-            {message.content}
-          </Text>
+            <Text
+              className={`text-sm leading-5 ${
+                message.role === "user" ? "text-white" : "text-gray-800"
+              }`}
+            >
+              {message.content}
+            </Text>
+          </View>
         </View>
       ))}
+
+      {/* Generation Status */}
       {isGenerating && (
-        <View style={messagesListStyles.assistantMessageContainer}>
-          <View style={messagesListStyles.iconContainer}>
-            {/* <LlamaIcon width={24} height={24} /> */}
+        <View className="flex-row my-2 justify-start">
+          {/* Assistant Icon */}
+          <View className="w-8 h-8 rounded-lg bg-gray-200 justify-center items-center mr-2">
+            <ActivityIndicator size="small" color="black" />
           </View>
-          {!response ? (
-            <View>
-              <Text>Generating...</Text>
-            </View>
-          ) : (
-            <Text style={messagesListStyles.responseText}>
-              {response.trim()}
-            </Text>
-          )}
+
+          {/* Response Bubble */}
+          <View className="bg-gray-100 rounded-xl px-3 py-2 max-w-3/4 flex-1">
+            {!response ? (
+              <View className="flex-row items-center gap-2">
+                <ActivityIndicator size="small" color="gray" />
+                <Text className="text-sm text-gray-600">
+                  Gerando resposta...
+                </Text>
+              </View>
+            ) : (
+              <Text className="text-sm leading-5 text-gray-800">
+                {response.trim()}
+              </Text>
+            )}
+          </View>
         </View>
       )}
     </ScrollView>
   );
 };
-
-const messagesListStyles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 8,
-  },
-  assistantMessageContainer: {
-    flexDirection: "row",
-    marginVertical: 8,
-  },
-  userMessageContainer: {
-    flexDirection: "row-reverse",
-    marginVertical: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    maxWidth: "75%",
-    borderRadius: 12,
-    alignSelf: "flex-end",
-    alignItems: "center",
-    backgroundColor: "black",
-  },
-  iconContainer: {
-    borderRadius: 12,
-    height: 32,
-    width: 32,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#e8e8e8",
-    marginRight: 8,
-  },
-  messageText: {
-    fontSize: 14,
-    lineHeight: 19.6,
-    flexShrink: 1,
-  },
-  userMessageText: {
-    color: "white",
-  },
-  responseText: {
-    fontSize: 14,
-    lineHeight: 19.6,
-    flexShrink: 1,
-  },
-});
