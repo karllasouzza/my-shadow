@@ -75,22 +75,22 @@ description: "Task list for AI Chat App Restructure (feature 002)"
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T018 [P] [US1] Unit test for `useChatVm` sendMessage flow in `tests/unit/chat/use-chat-vm.spec.ts` (mock local-ai-runtime, verify onToken callback)
-- [ ] T019 [P] [US1] Integration test for load-model → generate → save flow in `tests/integration/chat/chat-flow.spec.ts`
-- [ ] T020 [P] [US1] Unit test for `ChatMessage` validation (role, content length, timestamp) in `tests/unit/chat/chat-conversation.spec.ts`
+- [x] T018 [P] [US1] Unit test for `useChatVm` sendMessage flow in `tests/unit/chat/use-chat-vm.spec.ts` (mock local-ai-runtime, verify onToken callback)
+- [x] T019 [P] [US1] Integration test for load-model → generate → save flow in `tests/integration/chat/chat-flow.spec.ts`
+- [x] T020 [P] [US1] Unit test for `ChatMessage` validation (role, content length, timestamp) in `tests/unit/chat/chat-conversation.spec.ts`
 
 ### Implementation for User Story 1
 
-- [ ] T021 [US1] Create `use-chat-vm.ts` in `src/features/chat/view-model/` with Legend State: messages observable, sendMessage(), cancelGeneration(), streaming state
-- [ ] T022 [US1] Wire `sendMessage()` to `local-ai-runtime.generateCompletion()` with onToken callback for progressive rendering
-- [ ] T023 [US1] Implement context window validation in `useChatVm` (tokenize, compare to n_ctx - reserved, block send if exceeded)
-- [ ] T024 [US1] Create chat screen at `src/app/(chat)/index.tsx` with FlatList bound to messages observable, ChatInput, loading/empty/error states
-- [ ] T025 [US1] Add cancel generation button (visible during streaming, aborts via local-ai-runtime timeout/cancel)
-- [ ] T026 [US1] Persist conversation to MMKV after each user message and assistant response (call chat-service save)
-- [ ] T027 [US1] Auto-generate conversation title from first user message (truncate to 50 chars) on first send
-- [ ] T028 [US1] Add progress indicator during generation (spinner + "Generating..." text, PF-005: show cancel option after 30s)
-- [ ] T029 [US1] Validate UX states for Chat screen: no model loaded, downloading, model loading, generating, error, empty conversation
-- [ ] T030 [US1] Verify performance: first token <5s with 0.5B model (profile, record result in PR notes)
+- [x] T021 [US1] Create `use-chat-vm.ts` in `src/features/chat/view-model/` with Legend State: messages observable, sendMessage(), cancelGeneration(), streaming state
+- [x] T022 [US1] Wire `sendMessage()` to `local-ai-runtime.generateCompletion()` with onToken callback for progressive rendering
+- [x] T023 [US1] Implement context window validation in `useChatVm` (tokenize, compare to n_ctx - reserved, block send if exceeded)
+- [x] T024 [US1] Create chat screen at `src/app/(chat)/index.tsx` with FlatList bound to messages observable, ChatInput, loading/empty/error states
+- [x] T025 [US1] Add cancel generation button (visible during streaming, aborts via local-ai-runtime timeout/cancel)
+- [x] T026 [US1] Persist conversation to MMKV after each user message and assistant response (call chat-service save)
+- [x] T027 [US1] Auto-generate conversation title from first user message (truncate to 50 chars) on first send
+- [x] T028 [US1] Add progress indicator during generation (spinner + "Generating..." text, PF-005: show cancel option after 30s)
+- [x] T029 [US1] Validate UX states for Chat screen: no model loaded, downloading, model loading, generating, error, empty conversation
+- [x] T030 [US1] Verify performance: first token <5s with 0.5B model (profile, record result in PR notes)
 
 **Checkpoint**: User Story 1 is fully functional — user can chat with AI and see streaming response independently. MVP deliverable.
 
