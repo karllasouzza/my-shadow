@@ -6,11 +6,11 @@
  * On completion: redirects to main app using router.replace('/').
  */
 
-import { router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
-  getInitialRoute,
-  type OnboardingRoute,
+    getInitialRoute,
+    type OnboardingRoute,
 } from "../service/onboarding-guard";
 import { ModelLoadingScreen } from "../view/model-loading-screen";
 import { ModelSelectionScreen } from "../view/model-selection-screen";
@@ -41,18 +41,29 @@ export function OnboardingRouter({
   forceRoute,
   onComplete,
 }: OnboardingRouterProps): React.JSX.Element {
+  // Read optional `route` search param to allow explicit navigation like
+  // `/onboarding?route=model-selection` which is useful for back/fallback actions.
+  const params: any = useLocalSearchParams();
+  const paramRoute =
+    typeof params?.route === "string" &&
+    ["security-gate", "model-selection", "model-loading", "main"].includes(
+      params.route,
+    )
+      ? (params.route as OnboardingRoute)
+      : undefined;
+
   // Use state so we re-read guard on screen focus (child navigation triggers re-focus)
   const [route, setRoute] = useState<OnboardingRoute>(
-    forceRoute ?? getInitialRoute(),
+    forceRoute ?? paramRoute ?? getInitialRoute(),
   );
 
   // Re-evaluate route when screen regains focus (after child redirects)
   useFocusEffect(
     useCallback(() => {
       if (!forceRoute) {
-        setRoute(getInitialRoute());
+        setRoute(paramRoute ?? getInitialRoute());
       }
-    }, [forceRoute]),
+    }, [forceRoute, paramRoute]),
   );
 
   console.log(route);

@@ -19,8 +19,8 @@ import { Loader2 } from "lucide-react-native";
 import React, { useCallback, useEffect } from "react";
 import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 import {
-  useModelSelectionVm,
-  type ModelItem,
+    useModelSelectionVm,
+    type ModelItem,
 } from "../view-model/use-model-selection-vm";
 
 export const ModelSelectionScreen: React.FC = () => {
@@ -31,9 +31,11 @@ export const ModelSelectionScreen: React.FC = () => {
   usePreventRemove(
     state.isDownloading,
     useCallback(
-      (event: { data: { action: { type: string } } }) => {
-        const action = event.data.action;
+      (event: any) => {
+        const action = event?.data?.action;
         if (action?.type === "GO_BACK" || action?.type === "NAVIGATE") {
+          // Prevent navigation while download is active and cancel the download
+          event?.preventDefault?.();
           actions.cancelDownload();
         }
       },

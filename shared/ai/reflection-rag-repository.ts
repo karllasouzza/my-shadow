@@ -5,102 +5,51 @@
  * for storing embeddings and retrieving contextual reflections during generation.
  *
  * ===========================================================================
- * T061: DUAL STRATEGY ARCHITECTURE (llama.rn LLM + executorch Embeddings)
+ * T064: UNIFIED ARCHITECTURE — llama.rn for Both LLM + Embeddings
  * ===========================================================================
  *
- * This module uses TWO separate native runtimes:
+ * This module uses ONE native runtime (llama.rn) for both:
  *
  * 1. llama.rn (LLM inference) — imported via shared/ai/local-ai-runtime.ts
  *    - Handles text generation, guided questions, completions
  *    - Uses GGUF models (Qwen 2.5 family)
  *    - Loaded on-demand, released when not needed
  *
- * 2. @react-native-rag/executorch (Embeddings) — imported directly here
+ * 2. llama.rn (Embedding generation) — imported directly here
  *    - Handles text embedding for vector similarity search
- *    - Uses MULTI_QA_MINILM_L6_COS_V1 model (384-dimensional vectors)
+ *    - Uses GGUF embedding model (Felladrin/gguf-multi-qa-MiniLM-L6-cos-v1)
+ *    - Returns 384-dimensional vectors compatible with original executorch output
  *    - Loaded once during RAG repository initialization
- *    - Model/config provided by react-native-executorch
  *
- * WHY TWO RUNTIMES?
- * - llama.rn does NOT currently include embedding generation support in the
- *   version we use (0.10.0). While it has an `embedding` method, it is designed
- *   for the LLM's internal representation, not for semantic search embeddings.
- * - @react-native-rag/executorch provides optimized embedding models
- *   (MiniLM-L6-cos-v1) specifically trained for semantic similarity.
- * - The two runtimes can coexist safely — they use separate native libraries
- *   and do not share memory or state.
+ * CONSOLIDATED ARCHITECTURE:
+ * - Removed @react-native-rag/executorch and react-native-executorch
+ * - Single LlamaContext for embeddings initialized with:
+ *   * embedding: true
+ *   * pooling_type: 'mean'
+ *   * embd_normalize: 1 (L2 normalization)
+ * - API: context.embedding(text) returns { embedding: number[] }
  *
- * NO CONFLICTS:
- * - react-native-executorch and llama.rn are independent native modules.
- * - They do not share GPU/CPU resources or memory pools.
- * - Each loads its own model binary into separate memory regions.
- * - Memory usage is additive but manageable on modern devices.
+ * BENEFITS:
+ * - Simplified dependency graph (single native module)
+ * - Faster startup (no ResourceFetcher adapter initialization)
+ * - Easier to debug (single runtime configuration)
+ * - Reduced app size long-term (when embedding model is downloaded on-demand)
  *
- * ===========================================================================
- * T064: FUTURE MIGRATION PATH — Moving Embeddings to llama.rn
- * ===========================================================================
- *
- * GOAL: Consolidate to a single native runtime (llama.rn) for both LLM
- * inference and embedding generation, reducing app size and memory footprint.
- *
- * PREREQUISITES:
- * 1. Confirm llama.rn supports embedding extraction compatible with
- *    MULTI_QA_MINILM_L6_COS_V1 output format (384-dim cosine similarity).
- *    - Check llama.rn docs for `embedding` API support.
- *    - Verify output vector dimensions match 384.
- *
- * 2. Obtain GGUF embedding model:
- *    - Felladrin/gguf-multi-qa-MiniLM-L6-cos-v1 is the GGUF-converted version
- *      of the same MiniLM model used by executorch.
- *    - Available at: https://huggingface.co/Felladrin/gguf-multi-qa-MiniLM-L6-cos-v1
- *    - This ensures embedding compatibility (same weights, same output space).
- *
- * MIGRATION STEPS:
- * Step 1: Add the GGUF embedding model to the app bundle or download it
- *         alongside the LLM model (same storage directory).
- *
- * Step 2: Create a separate LlamaContext for embeddings:
- *   ```ts
- *   const embeddingContext = await initLlama({
- *     model: "file://path/to/multi-qa-MiniLM-L6-cos-v1.gguf",
- *     embedding: true,     // Enable embedding mode
- *     n_ctx: 384,          // Output dimension
- *     n_gpu_layers: 0,     // Keep on CPU for consistency
- *   });
- *   ```
- *
- * Step 3: Replace ExecuTorchEmbeddings usage in this file with
- *         embeddingContext.embedding(text) calls.
- *
- * Step 4: Validate that new embeddings produce identical (or near-identical)
- *         cosine similarity scores compared to executorch embeddings.
- *         Use the test in tests/integration/rag/rag-retrieval.spec.ts
- *         to verify.
- *
- * Step 5: Remove @react-native-rag/executorch and react-native-executorch
- *         from package.json dependencies.
- *
- * RISKS AND CONSIDERATIONS:
- * - Memory: Running two LlamaContext instances simultaneously (one for LLM,
- *   one for embeddings) doubles the model memory footprint. Consider loading
- *   the embedding context only when needed and releasing it after.
- * - Performance: Embedding generation via llama.rn may be slower than
- *   executorch's optimized path. Benchmark on target devices.
- * - Compatibility: The GGUF conversion may introduce minor numerical
- *   differences. Set a tolerance threshold (e.g., cosine similarity within
- *   0.01 of original scores) in regression tests.
- * - App Size: Removing executorch reduces app size by ~15-20MB, but adding
- *   the GGUF embedding model adds ~90MB. Net increase of ~70MB.
+ * EMBEDDING MODEL:
+ * - Source: Felladrin/gguf-multi-qa-MiniLM-L6-cos-v1
+ * - Dimensions: 384 (compatible with previous executorch output)
+ * - Path pattern: Same storage directory as LLM models
  * ===========================================================================
  */
 
+import { LlamaContext, initLlama as initLlamaNative } from "llama.rn";
 import { Result, createError, err, ok } from "../utils/app-error";
 
 /**
- * T063: Expected embedding dimension for MULTI_QA_MINILM_L6_COS_V1.
+ * Expected embedding dimension for MiniLM-L6-cos-v1 (via GGUF).
  * All vectors stored in the RAG database must have exactly 384 dimensions.
  * This constant is used to validate embeddings on insert and to verify
- * compatibility with @react-native-rag/executorch.
+ * compatibility with llama.rn embedding output.
  */
 export const EXPECTED_EMBEDDING_DIMENSION = 384;
 
@@ -123,27 +72,20 @@ export interface RetrievalResult {
   entryDate: string;
 }
 
-interface RAGNativeModules {
-  OPSQLiteVectorStore: any;
-  MULTI_QA_MINILM_L6_COS_V1: {
-    modelSource: unknown;
-    tokenizerSource: unknown;
-  };
-  // T061: Keep @react-native-rag/executorch for embeddings temporarily
-  ExecuTorchEmbeddings: any;
-}
-
 /**
  * RAG repository providing vector search capabilities
  */
 export class ReflectionRAGRepository {
   private initialized = false;
   private readonly storeName = "reflection-rag-v1";
-  private modules: RAGNativeModules | null = null;
+  private embeddingContext: LlamaContext | null = null;
   private vectorStore: any = null;
 
   /**
-   * Initialize the RAG vector store
+   * Initialize the RAG vector store and embedding context
+   *
+   * Note: Embedding model path is auto-discovered from app storage.
+   * The embedding context is lazily loaded on first use to defer model loading.
    */
   async initialize(): Promise<Result<void>> {
     try {
@@ -151,25 +93,44 @@ export class ReflectionRAGRepository {
         return ok(void 0);
       }
 
-      const modulesResult = await this.loadNativeModules();
-      if (!modulesResult.success) {
-        return err(modulesResult.error);
+      // Load vector store (lazy-load embedding context on first embedding operation)
+      try {
+        const OPSQLiteVectorStore = await this.loadVectorStore();
+        if (!OPSQLiteVectorStore) {
+          throw new Error("OPSQLiteVectorStore not available");
+        }
+
+        // Create embeddings adapter that handles lazy-loading
+        const embeddingsAdapter = {
+          embedQuery: async (text: string): Promise<number[]> => {
+            // Lazy initialize embedding context on first use
+            if (!this.embeddingContext) {
+              const initResult = await this.ensureEmbeddingContextInitialized();
+              if (!initResult.success) {
+                throw initResult.error;
+              }
+            }
+            const result = await this.embeddingContext!.embedding(text);
+            return result.embedding;
+          },
+        };
+
+        this.vectorStore = new OPSQLiteVectorStore({
+          name: this.storeName,
+          embeddings: embeddingsAdapter,
+        });
+
+        await this.vectorStore.load();
+      } catch (error) {
+        return err(
+          createError(
+            "NOT_READY",
+            "Failed to initialize vector store",
+            {},
+            error as Error,
+          ),
+        );
       }
-
-      this.modules = modulesResult.data;
-
-      // T061: Embeddings are handled by @react-native-rag/executorch directly
-      // No need to call initExecutorch - just instantiate embeddings module
-      const embeddings = new this.modules.ExecuTorchEmbeddings({
-        modelSource: this.modules.MULTI_QA_MINILM_L6_COS_V1.modelSource,
-        tokenizerSource: this.modules.MULTI_QA_MINILM_L6_COS_V1.tokenizerSource,
-      });
-
-      this.vectorStore = new this.modules.OPSQLiteVectorStore({
-        name: this.storeName,
-        embeddings,
-      });
-      await this.vectorStore.load();
 
       this.initialized = true;
       return ok(void 0);
@@ -186,10 +147,173 @@ export class ReflectionRAGRepository {
   }
 
   /**
+   * Ensure embedding context is initialized (lazy-load)
+   *
+   * This discovers the embedding model path from app storage and initializes
+   * llama.rn embedding context on first call.
+   */
+  private async ensureEmbeddingContextInitialized(): Promise<Result<void>> {
+    if (this.embeddingContext) {
+      return ok(void 0);
+    }
+
+    try {
+      // Discover embedding model path from common locations
+      // Priority: 1) explicit model path, 2) app cache, 3) error
+      const embeddingModelPath = await this.discoverEmbeddingModelPath();
+      if (!embeddingModelPath) {
+        return err(
+          createError(
+            "NOT_READY",
+            "Embedding model not found. Ensure multi-qa-MiniLM-L6-cos-v1.gguf is available in app models directory.",
+            {
+              expectedFilename: "multi-qa-MiniLM-L6-cos-v1.gguf",
+              searchLocations: ["expo-cache/models", "expo-documents/models"],
+            },
+          ),
+        );
+      }
+
+      try {
+        console.log(
+          "[ReflectionRAGRepository] Initializing embedding context with:",
+          {
+            path: embeddingModelPath,
+          },
+        );
+
+        this.embeddingContext = await initLlamaNative({
+          model: embeddingModelPath,
+          embedding: true, // Enable embedding mode
+          pooling_type: "mean", // Pool token embeddings by averaging
+          embd_normalize: 1, // L2 normalization (unit vectors)
+          n_ctx: 384, // Context size for embeddings
+          n_gpu_layers: 0, // Keep on CPU for consistency
+        });
+
+        console.log(
+          "[ReflectionRAGRepository] Embedding context initialized successfully",
+        );
+        return ok(void 0);
+      } catch (error) {
+        return err(
+          createError(
+            "NOT_READY",
+            "Failed to initialize embedding model with llama.rn",
+            { path: embeddingModelPath },
+            error as Error,
+          ),
+        );
+      }
+    } catch (error) {
+      return err(
+        createError(
+          "NOT_READY",
+          "Failed to initialize embedding context",
+          {},
+          error as Error,
+        ),
+      );
+    }
+  }
+
+  /**
+   * Discover embedding model path by checking common app directories
+   *
+   * In test/mock environments, returns null gracefully
+   */
+  private async discoverEmbeddingModelPath(): Promise<string | null> {
+    try {
+      // Dynamically import FileSystem only in native environments
+      // This prevents Jest from trying to parse expo-file-system during tests
+      let FileSystem: any;
+      try {
+        const fsModule = await import("expo-file-system/legacy");
+        FileSystem = fsModule;
+      } catch (importError) {
+        // In test environments, FileSystem may not be available
+        console.debug(
+          "[ReflectionRAGRepository] FileSystem not available (expected in test env)",
+        );
+        return null;
+      }
+
+      if (!FileSystem || !FileSystem.documentDirectory) {
+        return null;
+      }
+
+      // Expected filename for embedding model
+      const embeddingFilename = "multi-qa-MiniLM-L6-cos-v1.gguf";
+
+      // Check common directories
+      const searchDirs = [
+        `${FileSystem.documentDirectory}models`,
+        `${FileSystem.cacheDirectory}models`,
+      ].filter((dir) => !!dir);
+
+      for (const dir of searchDirs) {
+        try {
+          const exists = await FileSystem.getInfoAsync(dir);
+          if (!exists.exists) {
+            continue;
+          }
+
+          // Check if model file exists in directory
+          const modelPath = `${dir}/${embeddingFilename}`;
+          const modelExists = await FileSystem.getInfoAsync(modelPath);
+          if (modelExists.exists && modelExists.isDirectory === false) {
+            return modelPath;
+          }
+        } catch (e) {
+          // Continue to next directory
+          continue;
+        }
+      }
+
+      return null;
+    } catch (error) {
+      console.debug(
+        "[ReflectionRAGRepository] Error discovering embedding model:",
+        error instanceof Error ? error.message : String(error),
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Load the OPSQLiteVectorStore from react-native-rag package
+   */
+  private async loadVectorStore(): Promise<any> {
+    try {
+      const rag = await import("@react-native-rag/op-sqlite");
+      return rag.OPSQLiteVectorStore;
+    } catch (error) {
+      throw new Error(
+        "Failed to load @react-native-rag/op-sqlite. Ensure it is installed.",
+      );
+    }
+  }
+
+  /**
+   * Check if RAG repository is initialized
+   */
+  private async ensureInitialized(): Promise<Result<void>> {
+    if (!this.initialized) {
+      return err(
+        createError(
+          "NOT_READY",
+          "RAG repository not initialized. Call initialize() first.",
+        ),
+      );
+    }
+    return ok(void 0);
+  }
+
+  /**
    * Store embedding for a reflection
    *
-   * T063: Validates that pre-computed embeddings have exactly 384 dimensions
-   * to ensure compatibility with @react-native-rag/executorch.
+   * Validates that pre-computed embeddings have exactly 384 dimensions
+   * to ensure compatibility with llama.rn embedding output.
    */
   async storeEmbedding(record: EmbeddingRecord): Promise<Result<void>> {
     try {
@@ -198,19 +322,12 @@ export class ReflectionRAGRepository {
         return err(readyResult.error);
       }
 
-      // T063: Validate vector dimensions on insert if pre-computed embedding provided
+      // Validate vector dimensions on insert if pre-computed embedding provided
       if (record.embedding !== undefined && record.embedding !== null) {
-        if (record.embedding.length !== EXPECTED_EMBEDDING_DIMENSION) {
-          return err(
-            createError(
-              "VALIDATION_ERROR",
-              `Embedding dimension mismatch: expected ${EXPECTED_EMBEDDING_DIMENSION}, got ${record.embedding.length}`,
-              {
-                expectedDimension: EXPECTED_EMBEDDING_DIMENSION,
-                actualDimension: record.embedding.length,
-              },
-            ),
-          );
+        const validationResult =
+          ReflectionRAGRepository.validateEmbeddingDimension(record.embedding);
+        if (!validationResult.success) {
+          return err(validationResult.error);
         }
       }
 
@@ -492,13 +609,6 @@ export class ReflectionRAGRepository {
     return ok(dotProduct / denominator);
   }
 
-  private async ensureInitialized(): Promise<Result<void>> {
-    if (this.initialized) {
-      return ok(void 0);
-    }
-    return this.initialize();
-  }
-
   private mapQueryResults(rows: any[], threshold: number): RetrievalResult[] {
     return rows
       .map((row) => {
@@ -558,34 +668,6 @@ export class ReflectionRAGRepository {
     }
 
     return [];
-  }
-
-  private async loadNativeModules(): Promise<Result<RAGNativeModules>> {
-    try {
-      // T061: Keep @react-native-rag/executorch for embeddings temporarily
-      // react-native-executorch is still needed for MULTI_QA_MINILM_L6_COS_V1 model config
-      const [executorchModule, ragExecuTorchModule, opSqliteModule] =
-        await Promise.all([
-          import("react-native-executorch"),
-          import("@react-native-rag/executorch"),
-          import("@react-native-rag/op-sqlite"),
-        ]);
-
-      return ok({
-        ExecuTorchEmbeddings: ragExecuTorchModule.ExecuTorchEmbeddings,
-        OPSQLiteVectorStore: opSqliteModule.OPSQLiteVectorStore,
-        MULTI_QA_MINILM_L6_COS_V1: executorchModule.MULTI_QA_MINILM_L6_COS_V1,
-      });
-    } catch (error) {
-      return err(
-        createError(
-          "NOT_READY",
-          "Unable to load native RAG dependencies",
-          {},
-          error as Error,
-        ),
-      );
-    }
   }
 }
 

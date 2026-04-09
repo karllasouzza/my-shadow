@@ -7,14 +7,14 @@
  * On success: updates lastUsedAt in ModelRepository.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { MODEL_CATALOG } from '../model/model-configuration';
-import { getModelRepository } from '../repository/model-repository';
-import { getDeviceInfo } from '../service/device-detector';
-import { getModelManager } from '../service/model-manager';
-import { getLocalAIRuntime } from '@/shared/ai/local-ai-runtime';
+import { getLocalAIRuntime } from "@/shared/ai/local-ai-runtime";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { MODEL_CATALOG } from "../model/model-configuration";
+import { getModelRepository } from "../repository/model-repository";
+import { getDeviceInfo } from "../service/device-detector";
+import { getModelManager } from "../service/model-manager";
 
-export type LoadStatus = 'loading' | 'success' | 'failed';
+export type LoadStatus = "loading" | "success" | "failed";
 
 export interface ModelLoadingState {
   loadStatus: LoadStatus;
@@ -40,7 +40,7 @@ export const useModelLoadingVm = (): UseModelLoadingVm => {
   const loadStartedRef = useRef(false);
 
   const [state, setState] = useState<ModelLoadingState>({
-    loadStatus: 'loading',
+    loadStatus: "loading",
     loadProgress: 0,
     errorMessage: null,
     modelName: null,
@@ -58,20 +58,22 @@ export const useModelLoadingVm = (): UseModelLoadingVm => {
   const loadModelInternal = useCallback(async () => {
     const activeModel = modelRepository.getActiveModel();
 
+    console.log(activeModel);
+
     if (!activeModel) {
       setState((s) => ({
         ...s,
-        loadStatus: 'failed',
+        loadStatus: "failed",
         isLoading: false,
         errorMessage:
-          'Nenhum modelo configurado. Volte e selecione um modelo primeiro.',
+          "Nenhum modelo configurado. Volte e selecione um modelo primeiro.",
       }));
       return;
     }
 
     setState((s) => ({
       ...s,
-      loadStatus: 'loading',
+      loadStatus: "loading",
       isLoading: true,
       errorMessage: null,
       loadProgress: 0,
@@ -83,14 +85,18 @@ export const useModelLoadingVm = (): UseModelLoadingVm => {
       const deviceInfo = await getDeviceInfo();
       const ramBudget60 = deviceInfo.ramBudget60;
 
+      console.log("RAM Budget 60% (bytes):", ramBudget60);
+
       const catalogModel = MODEL_CATALOG.find(
-        (m) => m.key === activeModel.id.split(':')[0],
+        (m) => m.key === activeModel.id.split(":")[0],
       );
+
+      console.log("Catalog Model:", catalogModel);
 
       if (catalogModel && catalogModel.estimatedRamBytes > ramBudget60) {
         setState((s) => ({
           ...s,
-          loadStatus: 'failed',
+          loadStatus: "failed",
           isLoading: false,
           errorMessage: `O modelo ${catalogModel.name} requer mais memoria RAM do que o disponivel neste dispositivo.`,
         }));
@@ -100,23 +106,26 @@ export const useModelLoadingVm = (): UseModelLoadingVm => {
       // Use the filePath from the active model config
       const filePath = activeModel.filePath || activeModel.customFolderUri;
 
+      console.log("Model file path:", filePath);
+
       if (!filePath) {
         setState((s) => ({
           ...s,
-          loadStatus: 'failed',
+          loadStatus: "failed",
           isLoading: false,
           errorMessage:
-            'Caminho do modelo nao encontrado. Faca o download novamente.',
+            "Caminho do modelo nao encontrado. Faca o download novamente.",
         }));
         return;
       }
 
       // Verify model file exists
       const verifyResult = await modelManager.verifyModel(filePath);
+      console.log("Verify Result:", verifyResult);
       if (!verifyResult.success) {
         setState((s) => ({
           ...s,
-          loadStatus: 'failed',
+          loadStatus: "failed",
           isLoading: false,
           errorMessage: verifyResult.error.message,
         }));
@@ -127,10 +136,11 @@ export const useModelLoadingVm = (): UseModelLoadingVm => {
 
       // Load model into memory
       const loadResult = await modelManager.loadModel(activeModel.id, filePath);
+      console.log("Load Result:", loadResult);
       if (!loadResult.success) {
         setState((s) => ({
           ...s,
-          loadStatus: 'failed',
+          loadStatus: "failed",
           isLoading: false,
           errorMessage: loadResult.error.message,
         }));
@@ -142,12 +152,19 @@ export const useModelLoadingVm = (): UseModelLoadingVm => {
       // Also load into runtime for immediate use
       const runtimeResult = await runtime.loadModel(activeModel.id, filePath);
       if (!runtimeResult.success) {
+        console.error("[ModelLoadingVM] Runtime error details:", {
+          error: runtimeResult.error,
+          modelId: activeModel.id,
+          filePath,
+          errorMessage: runtimeResult.error.message,
+          errorDetails: runtimeResult.error.details,
+        });
+
         setState((s) => ({
           ...s,
-          loadStatus: 'failed',
+          loadStatus: "failed",
           isLoading: false,
-          errorMessage:
-            'Falha ao inicializar o modelo no runtime de IA local.',
+          errorMessage: "Falha ao inicializar o modelo no runtime de IA local.",
         }));
         return;
       }
@@ -161,17 +178,16 @@ export const useModelLoadingVm = (): UseModelLoadingVm => {
 
       setState((s) => ({
         ...s,
-        loadStatus: 'success',
+        loadStatus: "success",
         isLoading: false,
         loadProgress: 100,
       }));
     } catch {
       setState((s) => ({
         ...s,
-        loadStatus: 'failed',
+        loadStatus: "failed",
         isLoading: false,
-        errorMessage:
-          'Erro inesperado ao carregar o modelo. Tente novamente.',
+        errorMessage: "Erro inesperado ao carregar o modelo. Tente novamente.",
       }));
     }
   }, []);
@@ -186,7 +202,7 @@ export const useModelLoadingVm = (): UseModelLoadingVm => {
       ...s,
       errorMessage: null,
       loadProgress: 0,
-      loadStatus: 'loading',
+      loadStatus: "loading",
       isLoading: true,
     }));
     loadStartedRef.current = true;
@@ -197,9 +213,9 @@ export const useModelLoadingVm = (): UseModelLoadingVm => {
     modelManager.cancelDownload();
     setState((s) => ({
       ...s,
-      loadStatus: 'failed',
+      loadStatus: "failed",
       isLoading: false,
-      errorMessage: 'Carregamento cancelado pelo usuario.',
+      errorMessage: "Carregamento cancelado pelo usuario.",
     }));
   }, []);
 

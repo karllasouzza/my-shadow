@@ -5,6 +5,7 @@
  * Model family is pinned to Qwen 2.5 GGUF models.
  */
 
+import * as FileSystem from "expo-file-system/legacy";
 import {
   LlamaContext,
   RNLlamaOAICompatibleMessage,
@@ -157,6 +158,17 @@ export class LocalAIRuntimeService {
         return err(initResult.error);
       }
 
+      // T022: Require a non-empty modelPath to avoid loading non-existent relative URIs
+      if (!modelPath || modelPath.trim().length === 0) {
+        return err(
+          createError(
+            "VALIDATION_ERROR",
+            "modelPath is required and cannot be empty. Provide an absolute GGUF file path.",
+            { modelId },
+          ),
+        );
+      }
+
       const resolvedPath = this.resolveModelPath(modelId, modelPath);
 
       if (
@@ -172,28 +184,98 @@ export class LocalAIRuntimeService {
         await this.unloadModel();
       }
 
-      // T012: Replace ExecuTorchLLM instantiation with initLlama
-      this.context = await initLlamaNative({
-        model: resolvedPath,
-        use_mlock: true,
-        n_ctx: DEFAULT_CONTEXT_LENGTH,
-        n_gpu_layers: 99,
-      });
+      // NEW: Pre-load diagnostics to validate model file
+      const diagnostics = await this.diagnoseModelFile(resolvedPath);
+      if (!diagnostics.isValid) {
+        console.error(
+          "[LocalAIRuntime] Model file diagnostics failed:",
+          diagnostics,
+        );
+        return err(
+          createError(
+            "VALIDATION_ERROR",
+            diagnostics.errorMessage,
+            diagnostics,
+          ),
+        );
+      }
 
-      const model: LlamaModel = {
-        id: modelId,
-        name: modelId,
-        path: resolvedPath,
-        sizeBytes: 0,
-        contextLength: DEFAULT_CONTEXT_LENGTH,
-        isLoaded: true,
+      // T012: Replace ExecuTorchLLM instantiation with initLlama
+      try {
+        console.log("[LocalAIRuntime] Initializing llama.rn with path:", {
+          modelId,
+          resolvedPath,
+          platform: Platform.OS,
+          n_ctx: DEFAULT_CONTEXT_LENGTH,
+          n_gpu_layers: 99,
+          use_mlock: true,
+        });
+
+        this.context = await initLlamaNative({
+          model: resolvedPath,
+          use_mlock: true,
+          n_ctx: DEFAULT_CONTEXT_LENGTH,
+          n_gpu_layers: 99,
+        });
+
+        console.log("[LocalAIRuntime] Model loaded successfully:", {
+          modelId,
+          resolvedPath,
+        });
+
+        const model: LlamaModel = {
+          id: modelId,
+          name: modelId,
+          path: resolvedPath,
+          sizeBytes: 0,
+          contextLength: DEFAULT_CONTEXT_LENGTH,
+          isLoaded: true,
+        };
+
+        this.currentModel = model;
+        return ok(model);
+      } catch (initError) {
+        const errorDetails = {
+          modelId,
+          resolvedPath,
+          errorMessage:
+            initError instanceof Error ? initError.message : "Unknown error",
+          errorStack: initError instanceof Error ? initError.stack : "",
+          platformOS: Platform.OS,
+        };
+
+        console.error(
+          "[LocalAIRuntime] Model initialization failed:",
+          errorDetails,
+        );
+
+        return err(
+          createError(
+            "NOT_READY",
+            "Failed to load model",
+            errorDetails,
+            initError as Error,
+          ),
+        );
+      }
+    } catch (error) {
+      const errorDetails = {
+        modelId,
+        resolvedPath: modelPath,
+        errorMessage: error instanceof Error ? error.message : "Unknown error",
+        errorStack: error instanceof Error ? error.stack : "",
+        platformOS: Platform.OS,
       };
 
-      this.currentModel = model;
-      return ok(model);
-    } catch (error) {
+      console.error("[LocalAIRuntime] Model loading failed:", errorDetails);
+
       return err(
-        createError("NOT_READY", "Failed to load model", {}, error as Error),
+        createError(
+          "NOT_READY",
+          "Failed to load model",
+          errorDetails,
+          error as Error,
+        ),
       );
     }
   }
@@ -462,12 +544,14 @@ export class LocalAIRuntimeService {
       return ok(void 0);
     }
 
-    const modelResult = await this.loadModel(DEFAULT_MODEL_ID, "");
-    if (!modelResult.success) {
-      return err(modelResult.error);
-    }
-
-    return ok(void 0);
+    // T022: No default model to auto-load - callers must provide a valid GGUF path
+    // via loadModel() before calling generateCompletion() or tokenize()
+    return err(
+      createError(
+        "NOT_READY",
+        "No model is currently loaded. Call loadModel() with a valid GGUF file path first.",
+      ),
+    );
   }
 
   /**
@@ -475,17 +559,79 @@ export class LocalAIRuntimeService {
    * Remove QWEN2*5* preset references and use GGUF file paths directly.
    */
   private resolveModelPath(modelId: string, modelPath: string): string {
-    // T022: No ExpoResourceFetcher needed - llama.rn uses direct file paths
-    if (modelPath && modelPath.trim().length > 0) {
-      // Ensure path has file:// prefix for llama.rn
-      if (modelPath.startsWith("file://")) {
-        return modelPath;
-      }
-      return `file://${modelPath}`;
+    // T022: modelPath is guaranteed to be non-empty by loadModel() validation
+    if (modelPath.startsWith("file://")) {
+      return modelPath;
     }
+    return `file://${modelPath}`;
+  }
 
-    // Default fallback path - should be overridden by model manager
-    return `file://${modelId}.gguf`;
+  private async diagnoseModelFile(
+    filePath: string,
+  ): Promise<{
+    isValid: boolean;
+    errorMessage: string;
+    details: Record<string, any>;
+  }> {
+    try {
+      console.log("[LocalAIRuntime] Diagnosing model file:", { filePath });
+
+      // FileSystem.getInfoAsync() works with file:// URIs as-is
+      const fileInfo = await FileSystem.getInfoAsync(filePath);
+      if (!fileInfo.exists) {
+        return {
+          isValid: false,
+          errorMessage: `Arquivo do modelo não encontrado em: ${filePath}`,
+          details: { filePath, exists: false },
+        };
+      }
+
+      // Log file size for debugging (don't block on size - let llama.rn validate the file)
+      const sizeInMB = (fileInfo.size || 0) / 1024 / 1024;
+      console.log("[LocalAIRuntime] Model file size check:", {
+        filePath,
+        size: fileInfo.size,
+        sizeInMB: sizeInMB.toFixed(2),
+      });
+
+      // Warn if file seems suspiciously small (likely incomplete download)
+      if (fileInfo.size && fileInfo.size < 10 * 1024 * 1024) {
+        console.warn("[LocalAIRuntime] Model file seems unusually small:", {
+          filePath,
+          size: fileInfo.size,
+          sizeInMB: sizeInMB.toFixed(2),
+          suggestion:
+            "File may be corrupted or download may have been interrupted. Consider re-downloading.",
+        });
+      }
+
+      console.log("[LocalAIRuntime] Model file diagnostics passed:", {
+        filePath,
+        size: fileInfo.size,
+        sizeInMB: sizeInMB.toFixed(2),
+      });
+
+      return {
+        isValid: true,
+        errorMessage: "",
+        details: { filePath, size: fileInfo.size },
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Erro desconhecido ao verificar arquivo";
+      console.error("[LocalAIRuntime] Model file diagnosis error:", {
+        filePath,
+        error: errorMessage,
+      });
+
+      return {
+        isValid: false,
+        errorMessage: `Erro ao verificar arquivo do modelo: ${errorMessage}`,
+        details: { filePath, error: errorMessage },
+      };
+    }
   }
 
   private extractQuestions(rawText: string, limit: number): string[] {

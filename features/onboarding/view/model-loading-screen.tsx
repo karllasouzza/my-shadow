@@ -29,9 +29,11 @@ export const ModelLoadingScreen: React.FC = () => {
   usePreventRemove(
     state.isLoading,
     useCallback(
-      (event: { data: { action: { type: string } } }) => {
-        const action = event.data.action;
+      (event: any) => {
+        const action = event?.data?.action;
         if (action?.type === "GO_BACK" || action?.type === "NAVIGATE") {
+          // Prevent the navigation (back) while loading and cancel the operation
+          event?.preventDefault?.();
           actions.cancel();
         }
       },
@@ -58,17 +60,11 @@ export const ModelLoadingScreen: React.FC = () => {
   };
 
   const handleGoBack = () => {
-    router.back();
+    router.replace("/onboarding?route=model-selection");
   };
 
   return (
-    <View
-      className="flex-1 bg-background items-center justify-center px-6"
-      style={{
-        paddingTop: insets.top,
-        paddingBottom: insets.bottom,
-      }}
-    >
+    <View className="flex-1 bg-background items-center justify-center px-6">
       {/* Loading State */}
       {state.loadStatus === "loading" && (
         <View className="items-center">

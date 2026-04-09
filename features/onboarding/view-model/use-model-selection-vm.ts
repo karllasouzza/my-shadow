@@ -9,9 +9,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  MODEL_CATALOG,
-  type AvailableModel,
-  type ModelConfiguration,
+    MODEL_CATALOG,
+    type AvailableModel,
+    type ModelConfiguration,
 } from "../model/model-configuration";
 import { getModelRepository } from "../repository/model-repository";
 import { getDeviceInfo } from "../service/device-detector";
@@ -149,6 +149,7 @@ export const useModelSelectionVm = (): UseModelSelectionVm => {
       const result = await modelManager.downloadModel(
         model.downloadUrl,
         undefined,
+        model.fileSizeBytes,
         (progress) => {
           setState((s) => ({ ...s, downloadProgress: progress }));
         },
