@@ -26,6 +26,7 @@ The error occurs in `LocalAIRuntimeService.loadModel()` when calling `initLlama(
 ## Root Cause Analysis (Suspected)
 
 ### Call Chain
+
 ```
 useModelLoadingVm (onboarding/view-model)
   → modelManager.loadModel(activeModel.id, filePath)
@@ -92,9 +93,9 @@ catch (error) {
     errorStack: error instanceof Error ? error.stack : "",
     platformOS: Platform.OS,
   };
-  
+
   console.error("[LocalAIRuntime] Model loading failed:", errorDetails);
-  
+
   return err(
     createError("NOT_READY", "Failed to load model", errorDetails, error as Error),
   );
@@ -113,7 +114,7 @@ if (!runtimeResult.success) {
     modelId: activeModel.id,
     filePath,
   });
-  
+
   // ... existing error handling
 }
 ```
@@ -121,6 +122,7 @@ if (!runtimeResult.success) {
 ### Phase 2: Add Pre-Load Diagnostics
 
 Before calling `initLlama()`, validate:
+
 1. File exists and is readable
 2. File size matches expected size
 3. File is valid GGUF (magic bytes check)
@@ -133,9 +135,9 @@ Before calling `initLlama()`, validate:
 async loadModel(modelId: string, modelPath: string): Promise<Result<LlamaModel>> {
   try {
     // ... existing validation
-    
+
     const resolvedPath = this.resolveModelPath(modelId, modelPath);
-    
+
     // NEW: Pre-load diagnostics
     const diagnostics = await this.diagnoseModelFile(resolvedPath);
     if (!diagnostics.isValid) {
@@ -144,7 +146,7 @@ async loadModel(modelId: string, modelPath: string): Promise<Result<LlamaModel>>
         createError("VALIDATION_ERROR", diagnostics.errorMessage, diagnostics),
       );
     }
-    
+
     // Continue with initLlama...
   } catch (error) {
     // ... error handling
@@ -197,7 +199,7 @@ Verify that `resolveModelPath()` produces correct platform-specific paths:
 private resolveModelPath(modelId: string, modelPath: string): string {
   // Current implementation (assumed):
   // return modelPath;
-  
+
   // Proposed: Add platform-specific URI handling
   if (Platform.OS === "android") {
     // Ensure absolute path, not relative or content:// URI
@@ -210,7 +212,7 @@ private resolveModelPath(modelId: string, modelPath: string): string {
       return `file://${modelPath}`;
     }
   }
-  
+
   return modelPath;
 }
 ```
