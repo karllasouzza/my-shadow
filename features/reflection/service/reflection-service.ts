@@ -12,6 +12,7 @@ import { getReflectionRAGRepository } from "../../../shared/ai/reflection-rag-re
 import { getGenerationJobStore } from "../../../shared/storage/generation-job-store";
 import { Result, createError, err, ok } from "../../../shared/utils/app-error";
 import { getPerformanceMetrics } from "../../../shared/utils/performance-metrics";
+import { getModelRepository } from "../../onboarding/repository/model-repository";
 import { GuidedQuestionSet } from "../model/guided-question-set";
 import { ReflectionEntry } from "../model/reflection-entry";
 import { getReflectionRepository } from "../repository/reflection-repository";
@@ -160,11 +161,22 @@ export class ReflectionService {
       if (runtimeInit.success) {
         await runtime.waitReady();
 
-        await runtime.loadModel("qwen2.5-0.5b-quantized", "");
+        // T022: Load model with valid path from model repository if available
+        const modelRepo = getModelRepository();
+        const activeModel = modelRepo.getActiveModel();
+        const modelPath = activeModel?.filePath || activeModel?.customFolderUri;
+
+        if (modelPath) {
+          await runtime.loadModel(
+            activeModel?.id || "qwen2.5-0.5b-quantized",
+            modelPath,
+          );
+        }
+        // If no modelPath available, ensureDefaultModelLoaded() will return proper error
 
         const promptParts: string[] = [];
         promptParts.push(
-          "Voce e um assistente de reflexao em Portugues (pt-BR) com perspectiva junguiana. Gere perguntas reflexivas nao-diretivas com tom introspectivo e compassivo.",
+          "Voce e um assistente de reflexao em Portugues do Brasil (pt-BR) com perspectiva junguiana. Gere perguntas reflexivas nao-diretivas com tom introspectivo e compassivo. Responda SOMENTE em portugues brasileiro. Nao use palavras em ingles.",
         );
         promptParts.push(`Reflexão: ${content}`);
         if (retrievedTexts.length > 0) {
@@ -204,8 +216,8 @@ export class ReflectionService {
           fallbackQuestions,
           "fallback_template",
           retrievalContextReflectionIds,
-          runtime.getCurrentModel()?.id ?? "qwen2.5-0.5b-quantized",
-          "executorch-0.8",
+          runtime.getCurrentModel()?.id ?? "qwen2.5-0.5b-q4",
+          "llama.rn-0.10",
         );
 
         if (!qSetResult.success) {
@@ -250,8 +262,8 @@ export class ReflectionService {
         generatedQuestions,
         "normal",
         retrievalContextReflectionIds,
-        runtime.getCurrentModel()?.id ?? "qwen2.5-0.5b-quantized",
-        "executorch-0.8",
+        runtime.getCurrentModel()?.id ?? "qwen2.5-0.5b-q4",
+        "llama.rn-0.10",
       );
 
       if (!qSetResult.success) {

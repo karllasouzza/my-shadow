@@ -16,7 +16,6 @@
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
     "@legendapp/state": "^3.0.0-beta.46",
-    "@react-native-rag/executorch": "^0.8.0",
     "@react-native-rag/op-sqlite": "^0.8.0",
     "@react-navigation/bottom-tabs": "^7.4.0",
     "@react-navigation/elements": "^2.6.3",
@@ -31,6 +30,7 @@
     "expo-constants": "~18.0.13",
     "expo-crypto": "~15.0.8",
     "expo-dev-client": "~6.0.20",
+    "expo-build-properties": "~55.0.0",
     "expo-file-system": "~19.0.21",
     "expo-font": "~14.0.11",
     "expo-haptics": "~15.0.8",
@@ -52,12 +52,10 @@
     "react-native": "0.81.5",
     "react-native-device-info": "^15.0.2",
     "react-native-edge-to-edge": "^1.8.1",
-    "react-native-executorch": "^0.8.1",
-    "react-native-executorch-expo-resource-fetcher": "^0.8.0",
     "react-native-gesture-handler": "~2.28.0",
     "react-native-mmkv": "^4.3.1",
     "react-native-monorepo-config": "^0.3.3",
-    "react-native-rag": "^0.8.0",
+    "llama.rn": "^0.10.0",
     "react-native-reanimated": "~4.1.1",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
@@ -74,11 +72,16 @@
     "libsql": true
   },
   "devDependencies": {
+    "@testing-library/jest-native": "^5.4.3",
+    "@testing-library/react-native": "^13.3.3",
+    "@types/jest": "^30.0.0",
     "@types/react": "~19.1.0",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
+    "jest": "^30.3.0",
     "react-native-builder-bob": "^0.41.0",
     "react-native-svg-transformer": "^1.5.3",
+    "ts-node": "^10.9.2",
     "typescript": "~5.9.2"
   },
   "private": true

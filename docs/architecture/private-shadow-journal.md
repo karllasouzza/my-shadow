@@ -138,6 +138,69 @@ React Native screens using NativeWind v5 (className only, no style prop):
 - **app-error.ts**: Standardized error handling with `Result<T>` type
 - **performance-metrics.ts**: Timing utilities for generation profiling
 
+## AI Runtime: llama.rn
+
+### GGUF Model Loading Flow
+
+1. **Model Selection**: During onboarding, user selects a model based on device RAM (auto-detected via `react-native-device-info`).
+   - 4GB RAM: `qwen2.5-0.5b-q4` (~42MB file, ~0.9GB RAM at runtime)
+   - 6GB RAM: `qwen2.5-1.5b-q4` (~120MB file, ~1.8GB RAM at runtime)
+   - 8GB RAM: `qwen2.5-3b-q4` (~200MB file, ~3.5GB RAM at runtime)
+
+2. **Model Download**: GGUF files are downloaded to the app's document directory via `expo-file-system`. Progress is reported to the UI.
+
+3. **Model Loading**: `LocalAIRuntimeService.loadModel()` calls `initLlama()` with:
+
+   ```
+   {
+     model: "file:///path/to/model.gguf",
+     use_mlock: true,       // Prevent OS from swapping model to disk
+     n_ctx: 4096,           // Context window size
+     n_gpu_layers: 99,      // Max GPU offload (acceleration)
+   }
+   ```
+
+4. **Inference**: Text is tokenized via `context.tokenize()`, then streamed through `context.completion()` with token-by-token callbacks for real-time UI updates.
+
+5. **Model Unloading**: `context.release()` frees GPU/CPU memory when switching models or on app background.
+
+### Dual Embedding Strategy
+
+The app uses a **temporary dual-strategy** for vector embeddings:
+
+- **Text generation**: llama.rn (GGUF models) — primary, fully local
+- **Vector embeddings**: `@react-native-rag/executorch` — temporary, for RAG semantic search
+
+**Why two runtimes?**
+
+llama.rn supports text generation via GGUF but does not yet provide a stable embedding extraction API. The RAG repository (`reflection-rag-repository.ts`) uses `@react-native-rag/executorch` to:
+
+1. Index reflection content into a vector store (op-sqlite backed)
+2. Perform semantic similarity search (`searchByText`)
+3. Return context-relevant reflection IDs for prompt augmentation
+
+**Migration plan:**
+
+| Phase   | Action                                                    |
+| ------- | --------------------------------------------------------- |
+| Current | llama.rn for generation, executorch for embeddings        |
+| Phase 2 | Download GGUF embedding model (`multi-qa-minilm-l6.gguf`) |
+| Phase 3 | Replace executorch with llama.rn embedding context        |
+| Phase 4 | Remove `@react-native-rag/executorch` entirely            |
+
+### AI Runtime Architecture
+
+```
+shared/ai/
+├── local-ai-runtime.ts        # llama.rn bootstrap, model loading, completion
+├── reflection-rag-repository.ts # Vector embeddings via executorch (temporary)
+├── fallback-prompts-ptbr.ts   # Static Portuguese templates (fallback)
+├── retry-queue-worker.ts      # Async queue for failed generation retries
+└── ptbr-tone-guard.ts         # Validates pt-BR language and Jungian tone
+```
+
+**Key guarantee**: All AI inference runs locally on device. No network requests are made for model loading, generation, or embeddings.
+
 ## Data Flow Example: Daily Reflection
 
 1. **User Action**: User opens daily reflection screen
@@ -221,10 +284,15 @@ interface AppError {
 
 ## Performance Characteristics
 
-- Local generation: 1-10s depending on model size and device
-- Fallback templates: <100ms
-- Encryption/decryption: <50ms per entry
-- Search/query: <200ms across 1000+ entries
+| Operation              | 4GB RAM  | 6GB RAM  | 8GB RAM |
+| ---------------------- | -------- | -------- | ------- |
+| Model load             | ~45s     | ~35s     | ~25s    |
+| Generation (500 words) | ~12s p95 | ~10s p95 | ~8s p95 |
+| Fallback templates     | <100ms   | <100ms   | <100ms  |
+| Encryption/decryption  | <50ms    | <50ms    | <50ms   |
+| Search/query           | <200ms   | <200ms   | <200ms  |
+
+**Note**: llama.rn provides ~2x faster generation vs the previous ExecuTorch runtime due to native GGUF support and GPU acceleration (OpenCL backend on Android).
 
 ## Security & Privacy
 

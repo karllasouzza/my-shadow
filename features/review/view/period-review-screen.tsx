@@ -113,6 +113,19 @@ export const PeriodReviewScreen: React.FC = () => {
         </View>
       )}
 
+      {/* Empty State - no reflections in period */}
+      {state.isEmptyPeriod && (
+        <View className="mx-4 my-8 p-6 bg-card border border-border rounded-lg items-center">
+          <Text variant="h3" className="text-muted-foreground mb-2">
+            Período vazio
+          </Text>
+          <Text className="text-muted-foreground text-center text-sm leading-5">
+            Nenhuma reflexão foi registrada neste período. Registre reflexões
+            primeiro e tente novamente para gerar uma análise.
+          </Text>
+        </View>
+      )}
+
       {/* Review Display */}
       {state.review && (
         <View className="p-4">

@@ -29,18 +29,23 @@ We adopt three architectural decisions:
 - **Cost**: No per-token billing at scale
 - **Control**: Full model behavior customization
 - **Compliance**: No data residency concerns
+- **GGUF Support**: llama.rn loads standard GGUF files directly (ExecuTorch did not)
 
 **Trade-offs**:
 
 - Model runs on user device (slower than cloud, model quality depends on device)
 - Fallback to template prompts when inference unavailable
 - Larger app bundle (+30-50MB for model)
+- Requires development build (cannot use Expo Go)
 
 **Mitigations**:
 
 - Fallback Portuguese templates (fallback-prompts-ptbr.ts)
 - Retry queue with exponential backoff for generation failures
 - Local prompt tuning for Jungian perspective
+- GPU acceleration via OpenCL (enabled by default)
+
+> **Migration Note**: The original implementation used `react-native-executorch`, but it was migrated to `llama.rn` due to ExecuTorch's lack of stable GGUF support (error code 35). See [ADR-0002](./0002-migrate-executorch-to-llama-rn.md) for details.
 
 ### 2. Bun Native Test Runner (No Jest)
 
@@ -139,6 +144,7 @@ We adopt three architectural decisions:
 - **Portuguese pt-BR requirement**: At model validation layer (not view layer)
 - **Jungian content principles**: At service layer (AI prompts), not separate layer
 - **Encrypted MMKV storage**: Hidden behind repository abstraction
+- **Migrate to llama.rn**: [ADR-0002](./0002-migrate-executorch-to-llama-rn.md) documents the migration from ExecuTorch to llama.rn for GGUF model support
 
 ## Implementation Checkpoints
 

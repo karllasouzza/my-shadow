@@ -10,15 +10,31 @@ import { getLocalAIRuntime } from "../../../shared/ai/local-ai-runtime";
 import { getPtBRJungianGuard } from "../../../shared/ai/ptbr-tone-guard";
 import { getGenerationJobStore } from "../../../shared/storage/generation-job-store";
 import { Result, createError, err, ok } from "../../../shared/utils/app-error";
+import { getModelRepository } from "../../onboarding/repository/model-repository";
 import { getReflectionRepository } from "../../reflection/repository/reflection-repository";
 import { FinalReview } from "../model/final-review";
 import { getReviewRepository } from "../repository/review-repository";
+
+/** T053: Performance budget thresholds */
+const PERF_BUDGET = {
+  loadReflectionsMs: 200,
+  aiCompletionMs: 30_000,
+  totalMs: 35_000,
+};
 
 interface ParsedReviewOutput {
   summary: string;
   patterns: string[];
   triggers: string[];
   prompts: string[];
+}
+
+interface GenerationTimings {
+  loadReflectionsMs: number;
+  aiCompletionMs: number;
+  totalMs: number;
+  withinBudget: boolean;
+  violations: string[];
 }
 
 export class ReviewService {
@@ -44,23 +60,35 @@ export class ReviewService {
       prompts: string[];
     }>
   > {
+    const totalStart = performance.now();
+    const timings: GenerationTimings = {
+      loadReflectionsMs: 0,
+      aiCompletionMs: 0,
+      totalMs: 0,
+      withinBudget: true,
+      violations: [],
+    };
+
     try {
       if (reflectionIds.length === 0) {
         return err(
           createError(
             "VALIDATION_ERROR",
-            "Cannot generate review without reflections",
+            "Nenhuma reflexao encontrada no periodo selecionado para gerar revisao.",
           ),
         );
       }
 
+      const loadStart = performance.now();
       const reflectionContents =
         await this.loadReflectionContents(reflectionIds);
+      timings.loadReflectionsMs = Math.round(performance.now() - loadStart);
+
       if (reflectionContents.length === 0) {
         return err(
           createError(
             "NOT_FOUND",
-            "No reflection content available for selected period",
+            "Nenhum conteudo de reflexao disponivel para o periodo selecionado",
             { periodStart, periodEnd },
           ),
         );
@@ -72,13 +100,26 @@ export class ReviewService {
       let parsedOutput: ParsedReviewOutput | null = null;
       if (runtimeInit.success) {
         await runtime.waitReady();
-        await runtime.loadModel("qwen2.5-0.5b-quantized", "");
 
+        // T022: Load model with valid path from model repository if available
+        const modelRepo = getModelRepository();
+        const activeModel = modelRepo.getActiveModel();
+        const modelPath = activeModel?.filePath || activeModel?.customFolderUri;
+
+        if (modelPath) {
+          await runtime.loadModel(
+            activeModel?.id || "qwen2.5-0.5b-quantized",
+            modelPath,
+          );
+        }
+        // If no modelPath available, ensureDefaultModelLoaded() will return proper error
+
+        const aiStart = performance.now();
         const completionResult = await runtime.generateCompletion([
           {
             role: "system",
             content:
-              "Voce sintetiza reflexoes em portugues do Brasil com tom junguiano, acolhedor e nao diretivo.",
+              "Voce e um sintetizador de sombras junguiano em portugues do Brasil. Sua tarefa e integrar os conteudos inconscientes emergidos nas reflexoes, identificando padroes recorrentes, projecoes da sombra, compensacoes psiquicas e sinais de individuacao. Mantenha tom acolhedor, nao-diretivo e respeitoso. Nao patologize, nao diagnose, nao imponha interpretacoes. Honre a autonomia do sujeito. Responda exclusivamente em pt-BR.",
           },
           {
             role: "user",
@@ -89,6 +130,7 @@ export class ReviewService {
             ),
           },
         ]);
+        timings.aiCompletionMs = Math.round(performance.now() - aiStart);
 
         if (completionResult.success) {
           parsedOutput = this.parseReviewOutput(completionResult.data.text);
@@ -102,6 +144,9 @@ export class ReviewService {
           }
         }
       }
+
+      timings.totalMs = Math.round(performance.now() - totalStart);
+      this.checkPerformanceBudget(timings);
 
       const modelId = runtime.getCurrentModel()?.id ?? "qwen2.5-0.5b-quantized";
 
@@ -125,7 +170,7 @@ export class ReviewService {
         finalOutput.prompts,
         generationMode,
         modelId,
-        "executorch-0.8",
+        "llama.rn-0.10",
       );
 
       if (!result.success) {
@@ -150,7 +195,7 @@ export class ReviewService {
       return err(
         createError(
           "STORAGE_ERROR",
-          `Failed to generate review: ${error instanceof Error ? error.message : String(error)}`,
+          `Falha ao gerar revisao: ${error instanceof Error ? error.message : String(error)}`,
         ),
       );
     }
@@ -186,11 +231,13 @@ export class ReviewService {
 
     return [
       `Periodo: ${periodStart} ate ${periodEnd}`,
-      "Tarefa: sintetizar padroes recorrentes, gatilhos emocionais e proximas investigacoes.",
+      "Tarefa: sintetizar padroes recorrentes, gatilhos emocionais e proximas investigacoes a partir do trabalho de sombra junguiano.",
       "Regras:",
       "- Responder somente em pt-BR.",
       "- Nao inventar fatos alem das reflexoes fornecidas.",
       "- Manter tom introspectivo, acolhedor e nao-diretivo.",
+      "- Identificar padroes recorrentes sem patologizar.",
+      "- Respeitar a autonomia e o ritmo de individuacao do sujeito.",
       "Formato obrigatorio:",
       "RESUMO:",
       "texto",
@@ -282,6 +329,39 @@ export class ReviewService {
       .filter((line) => line.length > 0)
       .map((line) => line.replace(/^(\d+[).:-]|[-*])\s*/, "").trim())
       .filter((line) => line.length > 0);
+  }
+
+  /**
+   * T053: Check performance budget and log violations.
+   * Non-blocking: does not throw, only records violations.
+   */
+  private checkPerformanceBudget(timings: GenerationTimings): void {
+    const violations: string[] = [];
+
+    if (timings.loadReflectionsMs > PERF_BUDGET.loadReflectionsMs) {
+      violations.push(
+        `loadReflections ${timings.loadReflectionsMs}ms > ${PERF_BUDGET.loadReflectionsMs}ms`,
+      );
+    }
+    if (timings.aiCompletionMs > PERF_BUDGET.aiCompletionMs) {
+      violations.push(
+        `aiCompletion ${timings.aiCompletionMs}ms > ${PERF_BUDGET.aiCompletionMs}ms`,
+      );
+    }
+    if (timings.totalMs > PERF_BUDGET.totalMs) {
+      violations.push(`total ${timings.totalMs}ms > ${PERF_BUDGET.totalMs}ms`);
+    }
+
+    timings.violations = violations;
+    timings.withinBudget = violations.length === 0;
+
+    if (!timings.withinBudget) {
+      console.warn(
+        "[ReviewService] Performance budget exceeded:",
+        violations.join("; "),
+        JSON.stringify(timings),
+      );
+    }
   }
 
   /**

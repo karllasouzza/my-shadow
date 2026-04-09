@@ -8,7 +8,6 @@
  * - Verify response includes required sections
  */
 
-import { beforeEach, describe, expect, it } from "bun:test";
 import type { ReflectionRecord } from "../../../shared/storage/encrypted-reflection-store";
 
 interface FinalReviewGenerationRequest {

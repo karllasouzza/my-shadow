@@ -30,12 +30,14 @@ export class ModelManager {
    * Download a model from a URL to a local path with progress callback.
    * @param url - The URL to download the model from
    * @param path - Optional local file path. Defaults to documentDirectory/models/<filename>
+   * @param expectedSize - Optional expected file size in bytes for validation
    * @param onProgress - Optional callback receiving progress (0-100)
    * @returns Result with the local file path on success
    */
   async downloadModel(
     url: string,
     path?: string,
+    expectedSize?: number,
     onProgress?: (progress: number) => void,
   ): Promise<Result<string>> {
     try {
@@ -61,6 +63,15 @@ export class ModelManager {
 
       const fileName = this.extractFileName(url);
       const filePath = path || `${modelsDir}${fileName}`;
+
+      console.log("[ModelManager] Starting download:", {
+        url,
+        filePath,
+        expectedSizeBytes: expectedSize,
+        expectedSizeMB: expectedSize
+          ? (expectedSize / 1024 / 1024).toFixed(2)
+          : "unknown",
+      });
 
       // Create resumable download with progress callback
       const resumable = FileSystem.createDownloadResumable(
@@ -93,6 +104,60 @@ export class ModelManager {
           createError(
             "STORAGE_ERROR",
             "Falha ao baixar o modelo. Verifique sua conexão.",
+          ),
+        );
+      }
+
+      // Validate downloaded file size
+      const fileInfo = await FileSystem.getInfoAsync(result.uri);
+      const downloadedSize =
+        fileInfo.exists && !fileInfo.isDirectory ? (fileInfo as any).size : 0;
+
+      console.log("[ModelManager] Download completed, verifying file:", {
+        filePath: result.uri,
+        downloadedSizeBytes: downloadedSize,
+        downloadedSizeMB: downloadedSize
+          ? (downloadedSize / 1024 / 1024).toFixed(2)
+          : 0,
+        expectedSizeBytes: expectedSize,
+        expectedSizeMB: expectedSize
+          ? (expectedSize / 1024 / 1024).toFixed(2)
+          : "unknown",
+        matches: expectedSize
+          ? downloadedSize === expectedSize
+          : "not_validated",
+      });
+
+      // Check if downloaded size is significantly different from expected
+      if (
+        expectedSize &&
+        downloadedSize &&
+        downloadedSize < expectedSize * 0.95
+      ) {
+        console.error("[ModelManager] Downloaded file is incomplete:", {
+          filePath: result.uri,
+          downloadedBytes: downloadedSize,
+          expectedBytes: expectedSize,
+          percentageOfExpected:
+            ((downloadedSize / expectedSize) * 100).toFixed(2) + "%",
+        });
+
+        // Delete incomplete file
+        try {
+          await FileSystem.deleteAsync(result.uri, { idempotent: true });
+        } catch {
+          // Ignore deletion errors
+        }
+
+        return err(
+          createError(
+            "STORAGE_ERROR",
+            `Download incompleto. Baixado: ${(downloadedSize / 1024 / 1024).toFixed(2)}MB, Esperado: ${(expectedSize / 1024 / 1024).toFixed(2)}MB. Tente novamente.`,
+            {
+              filePath: result.uri,
+              downloadedBytes: downloadedSize,
+              expectedBytes: expectedSize,
+            },
           ),
         );
       }

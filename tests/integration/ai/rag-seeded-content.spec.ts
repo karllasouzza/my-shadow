@@ -5,10 +5,9 @@
  */
 
 import {
-  JUNGIAN_SEED_CONTENT,
-  generateSeedId,
+    JUNGIAN_SEED_CONTENT,
+    generateSeedId,
 } from "@/shared/ai/rag-content-seed";
-import { describe, expect, it } from "bun:test";
 
 const VALID_CATEGORIES = [
   "shadow",
@@ -101,6 +100,7 @@ describe("Seed ID Generation", () => {
 
   it("should generate IDs with correct format", () => {
     const id = generateSeedId();
-    expect(id).toMatch(/^seed_[a-z0-9]{8}$/);
+    // Format: seed-{timestamp base36}-{8 random chars}
+    expect(id).toMatch(/^seed-[a-z0-9]+-[a-z0-9]{8}$/);
   });
 });

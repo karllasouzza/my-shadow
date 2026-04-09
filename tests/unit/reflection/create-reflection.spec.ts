@@ -2,7 +2,6 @@
  * T019: Unit tests for reflection validation and language guard
  */
 
-import { describe, expect, it } from "bun:test";
 import {
     getPtBRJungianGuard,
     getPtBRLanguageGuard,
