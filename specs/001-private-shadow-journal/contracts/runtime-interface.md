@@ -14,17 +14,17 @@ interface LocalAIRuntimeService {
    * Initialize the AI runtime. Must be called before any generation.
    * Safe to call multiple times (idempotent).
    */
-  initialize(): Promise<Result<void>>
+  initialize(): Promise<Result<void>>;
 
   /**
    * Wait for runtime to be ready.
    */
-  waitReady(): Promise<void>
+  waitReady(): Promise<void>;
 
   /**
    * Check if runtime is available.
    */
-  isAvailable(): boolean
+  isAvailable(): boolean;
 }
 ```
 
@@ -61,9 +61,19 @@ interface LocalAIRuntimeService {
   /**
    * Generate a text completion from the loaded model.
    * @param messages - Chat messages array (system, user, assistant roles)
+   * @param options - Optional streaming callback and timeout configuration
    * @returns Generated text with token counts
+   *
+   * Guarantees:
+   * - Streams tokens via options.onToken callback as they are generated
+   * - Times out after options.timeoutMs (default 60s) with LOCAL_GENERATION_UNAVAILABLE error
+   * - Enforces Brazilian Portuguese output via system prompt
+   * - Validates prompt length does not exceed contextLength - RESERVED_RESPONSE_TOKENS
    */
-  generateCompletion(messages: ChatMessage[]): Promise<Result<CompletionOutput>>
+  generateCompletion(
+    messages: ChatMessage[],
+    options?: CompletionOptions,
+  ): Promise<Result<CompletionOutput>>
 
   /**
    * Tokenize text using loaded model's tokenizer.
@@ -75,6 +85,29 @@ interface LocalAIRuntimeService {
    * High-level method that wraps generateCompletion with Jungian pt-BR prompts.
    */
   generateGuidedQuestions(prompt: string, numQuestions?: number): Promise<Result<string[]>>
+```
+
+### Generation Options
+
+```typescript
+interface CompletionOptions {
+  /**
+   * Called for each token as it is generated (streaming).
+   */
+  onToken?: (token: string) => void;
+
+  /**
+   * Maximum time in milliseconds before generation is aborted.
+   * Defaults to 60000 (60 seconds).
+   */
+  timeoutMs?: number;
+
+  /**
+   * Maximum number of tokens to generate.
+   * Defaults to 512.
+   */
+  maxTokens?: number;
+}
 ```
 
 ### Status
@@ -93,8 +126,8 @@ interface LocalAIRuntimeService {
 
 ```typescript
 interface ChatMessage {
-  role: 'system' | 'user' | 'assistant'
-  content: string
+  role: "system" | "user" | "assistant";
+  content: string;
 }
 ```
 
@@ -102,12 +135,12 @@ interface ChatMessage {
 
 ```typescript
 interface LlamaModel {
-  id: string              // Model identifier
-  name: string            // Human-readable name
-  path: string            // File path to .gguf
-  sizeBytes: number       // Model file size
-  contextLength: number   // Context window (e.g., 4096)
-  isLoaded: boolean       // Whether model is in memory
+  id: string; // Model identifier
+  name: string; // Human-readable name
+  path: string; // File path to .gguf
+  sizeBytes: number; // Model file size
+  contextLength: number; // Context window (e.g., 4096)
+  isLoaded: boolean; // Whether model is in memory
 }
 ```
 
@@ -115,10 +148,10 @@ interface LlamaModel {
 
 ```typescript
 interface CompletionOutput {
-  text: string            // Generated text
-  promptTokens: number    // Tokens in input
-  completionTokens: number // Tokens in output
-  totalTokens: number     // Total tokens processed
+  text: string; // Generated text
+  promptTokens: number; // Tokens in input
+  completionTokens: number; // Tokens in output
+  totalTokens: number; // Total tokens processed
 }
 ```
 
@@ -126,38 +159,38 @@ interface CompletionOutput {
 
 ```typescript
 interface LocalAIRuntimeStatus {
-  initialized: boolean
-  modelLoaded: boolean
-  currentModel?: LlamaModel
-  availableMemory?: number
-  totalMemory?: number
-  tokenizerVocabSize?: number
+  initialized: boolean;
+  modelLoaded: boolean;
+  currentModel?: LlamaModel;
+  availableMemory?: number;
+  totalMemory?: number;
+  tokenizerVocabSize?: number;
 }
 ```
 
 ### Result Type
 
 ```typescript
-type Result<T> = 
+type Result<T> =
   | { success: true; data: T }
-  | { success: false; error: AppError }
+  | { success: false; error: AppError };
 
 interface AppError {
-  code: AppErrorCode
-  message: string
-  details?: Record<string, unknown>
-  cause?: Error
+  code: AppErrorCode;
+  message: string;
+  details?: Record<string, unknown>;
+  cause?: Error;
 }
 
 type AppErrorCode =
-  | 'NOT_READY'
-  | 'VALIDATION_ERROR'
-  | 'LOCAL_GENERATION_UNAVAILABLE'
-  | 'RETRY_QUEUE_ERROR'
-  | 'SECURITY_LOCK_REQUIRED'
-  | 'NOT_FOUND'
-  | 'STORAGE_ERROR'
-  | 'UNKNOWN_ERROR'
+  | "NOT_READY"
+  | "VALIDATION_ERROR"
+  | "LOCAL_GENERATION_UNAVAILABLE"
+  | "RETRY_QUEUE_ERROR"
+  | "SECURITY_LOCK_REQUIRED"
+  | "NOT_FOUND"
+  | "STORAGE_ERROR"
+  | "UNKNOWN_ERROR";
 ```
 
 ## Behavioral Contracts
@@ -188,15 +221,15 @@ type AppErrorCode =
 
 ```typescript
 // llama.rn internal:
-import { initLlama } from 'llama.rn'
+import { initLlama } from "llama.rn";
 
 const context = await initLlama({
-  model: modelPath,           // file:// URI to .gguf
-  use_mlock: true,            // Lock memory (prevents swap)
-  n_ctx: contextLength,       // From model config (default 4096)
-  n_gpu_layers: 99,           // GPU offload (Android: OpenCL)
-  embedding: false,           // LLM mode (not embedding)
-})
+  model: modelPath, // file:// URI to .gguf
+  use_mlock: true, // Lock memory (prevents swap)
+  n_ctx: contextLength, // From model config (default 4096)
+  n_gpu_layers: 99, // GPU offload (Android: OpenCL)
+  embedding: false, // LLM mode (not embedding)
+});
 ```
 
 ### Completion Mapping
@@ -205,12 +238,12 @@ const context = await initLlama({
 // llama.rn internal:
 const result = await context.completion(
   {
-    messages,                 // ChatMessage[]
-    n_predict: 256,          // Max output tokens
-    stop: ['</s>', '<|end|>'], // Stop sequences
+    messages, // ChatMessage[]
+    n_predict: 256, // Max output tokens
+    stop: ["</s>", "<|end|>"], // Stop sequences
   },
-  ({ token }) => streamCallback(token)
-)
+  ({ token }) => streamCallback(token),
+);
 
 // Convert to CompletionOutput:
 return {
@@ -218,7 +251,7 @@ return {
   promptTokens: result.promptTokens,
   completionTokens: result.completionTokens,
   totalTokens: result.promptTokens + result.completionTokens,
-}
+};
 ```
 
 ## RAG Integration Contract
@@ -231,7 +264,7 @@ interface EmbeddingService {
    * Generate embedding vector for text.
    * @returns Float32Array of embedding dimensions (typically 384)
    */
-  generateEmbedding(text: string): Promise<Result<Float32Array>>
+  generateEmbedding(text: string): Promise<Result<Float32Array>>;
 }
 ```
 
@@ -239,13 +272,14 @@ interface EmbeddingService {
 **Future Migration**: Can use llama.rn with GGUF embedding model (`multi-qa-minilm-l6.gguf`)
 
 **Vector Compatibility**:
+
 - rag-content.db contains embeddings generated by `multi-qa-minilm-l6-cos-v1`
 - Any replacement embedding model MUST produce compatible vector dimensions (384)
 - Cosine similarity MUST work between old and new embeddings (verify during migration)
 
 ## Version History
 
-| Version | Date | Change |
-|---------|------|--------|
-| 1.0 | 2026-04-07 | Initial contract (ExecuTorch) |
-| 2.0 | 2026-04-08 | Updated for llama.rn migration (GGUF format) |
+| Version | Date       | Change                                       |
+| ------- | ---------- | -------------------------------------------- |
+| 1.0     | 2026-04-07 | Initial contract (ExecuTorch)                |
+| 2.0     | 2026-04-08 | Updated for llama.rn migration (GGUF format) |

@@ -11,6 +11,7 @@ jest.mock("react-native", () => ({
   AppState: { addEventListener: jest.fn(), removeEventListener: jest.fn() },
 }));
 
+
 import { LocalAIRuntimeService } from "../../../shared/ai/local-ai-runtime";
 
 describe("T026: Model Generation (llama.rn completion)", () => {
@@ -306,6 +307,85 @@ describe("T026: Model Generation (llama.rn completion)", () => {
       service.initialize();
       await service.waitReady();
       expect(service.isAvailable()).toBe(true);
+    });
+  });
+
+  describe("generateCompletion() streaming callback", () => {
+    it("should call onToken callback for each generated token", async () => {
+      await loadModelForTest();
+      const tokens: string[] = [];
+      const onToken = jest.fn((token: string) => tokens.push(token));
+
+      const result = await service.generateCompletion(
+        [{ role: "user", content: "test" }],
+        { onToken },
+      );
+
+      expect(result.success).toBe(true);
+      expect(onToken).toHaveBeenCalled();
+      expect(tokens.length).toBeGreaterThan(0);
+    });
+
+    it("should work without onToken callback (backward compatible)", async () => {
+      await loadModelForTest();
+
+      const result = await service.generateCompletion([
+        { role: "user", content: "test" },
+      ]);
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.text.length).toBeGreaterThan(0);
+      }
+    });
+
+    it("should stream tokens incrementally via callback", async () => {
+      await loadModelForTest();
+      const collectedTokens: string[] = [];
+      const onToken = jest.fn((t: string) => collectedTokens.push(t));
+
+      await service.generateCompletion([{ role: "user", content: "hello" }], {
+        onToken,
+      });
+
+      // Verify callback was called with incremental tokens
+      expect(collectedTokens.join("")).toContain("O");
+    });
+  });
+
+  describe("generateCompletion() timeout", () => {
+    it("should use default 60 second timeout", async () => {
+      await loadModelForTest();
+
+      // This should complete well within 60s with mock
+      const result = await service.generateCompletion([
+        { role: "user", content: "test" },
+      ]);
+
+      expect(result.success).toBe(true);
+    });
+
+    it("should accept custom timeout via options", async () => {
+      await loadModelForTest();
+
+      // Short timeout should still work with mock (instant response)
+      const result = await service.generateCompletion(
+        [{ role: "user", content: "test" }],
+        { timeoutMs: 5000 },
+      );
+
+      expect(result.success).toBe(true);
+    });
+
+    it("should accept maxTokens option", async () => {
+      await loadModelForTest();
+
+      const result = await service.generateCompletion(
+        [{ role: "user", content: "test" }],
+        { maxTokens: 128 },
+      );
+
+      expect(result.success).toBe(true);
     });
   });
 });

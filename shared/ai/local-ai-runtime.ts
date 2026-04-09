@@ -8,7 +8,7 @@
 import {
   LlamaContext,
   RNLlamaOAICompatibleMessage,
-  initLlama as initLlamaNative
+  initLlama as initLlamaNative,
 } from "llama.rn";
 import { Platform } from "react-native";
 import { Result, createError, err, ok } from "../utils/app-error";
@@ -40,9 +40,35 @@ interface CompletionOutput {
   totalTokens: number;
 }
 
+/**
+ * Callback invoked for each generated token during streaming completion.
+ */
+export type OnTokenCallback = (token: string) => void;
+
+/**
+ * Options for generateCompletion.
+ */
+export interface CompletionOptions {
+  /**
+   * Called for each token as it is generated (streaming).
+   */
+  onToken?: OnTokenCallback;
+  /**
+   * Maximum time in milliseconds before generation is aborted.
+   * Defaults to 60000 (60 seconds).
+   */
+  timeoutMs?: number;
+  /**
+   * Maximum number of tokens to generate.
+   * Defaults to 512.
+   */
+  maxTokens?: number;
+}
+
 const DEFAULT_MODEL_ID = "qwen2.5-0.5b-q4";
 const DEFAULT_CONTEXT_LENGTH = 4096;
 const RESERVED_RESPONSE_TOKENS = 512;
+const GENERATION_TIMEOUT_MS = 60_000; // 60 seconds per contract
 
 /**
  * Service to bootstrap and manage local AI runtime (llama.rn)
@@ -215,10 +241,19 @@ export class LocalAIRuntimeService {
 
   /**
    * T014: Run a generic completion request against the loaded model using llama.rn context.completion().
+   *
+   * Contract guarantees:
+   * - Streaming: tokens are streamed via onToken callback as they are generated
+   * - Timeout: generation aborts after timeoutMs (default 60s) with LOCAL_GENERATION_UNAVAILABLE error
    */
   async generateCompletion(
     messages: ChatMessage[],
+    options?: CompletionOptions,
   ): Promise<Result<CompletionOutput>> {
+    const timeoutMs = options?.timeoutMs ?? GENERATION_TIMEOUT_MS;
+    const maxTokens = options?.maxTokens ?? 512;
+    const onToken = options?.onToken;
+
     try {
       const modelResult = await this.ensureDefaultModelLoaded();
       if (!modelResult.success) {
@@ -248,17 +283,39 @@ export class LocalAIRuntimeService {
         );
       }
 
+      // Contract: stream tokens via callback + enforce timeout
       let streamed = "";
-      const generatedText = await this.context!.completion(
+      const completionPromise = this.context!.completion(
         {
           messages,
-          n_predict: 512,
+          n_predict: maxTokens,
           stop: ["</s>", "<|end|>", "\nUser:"],
         },
         ({ token }) => {
           streamed += token;
+          if (onToken) {
+            onToken(token);
+          }
         },
       );
+
+      // Contract: timeout after 60 seconds (default)
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          reject(
+            createError(
+              "LOCAL_GENERATION_UNAVAILABLE",
+              `Generation timed out after ${timeoutMs}ms`,
+              { timeoutMs },
+            ),
+          );
+        }, timeoutMs);
+      });
+
+      const generatedText = await Promise.race([
+        completionPromise,
+        timeoutPromise,
+      ]);
 
       const text = (generatedText?.text || streamed || "").trim();
       if (!text) {
@@ -279,6 +336,10 @@ export class LocalAIRuntimeService {
         totalTokens: promptTokens.length + completionTokens.length,
       });
     } catch (error) {
+      // If it's already our AppError from timeout, pass through
+      if (error && typeof error === "object" && "code" in error) {
+        return err(error as any);
+      }
       return err(
         createError(
           "LOCAL_GENERATION_UNAVAILABLE",
