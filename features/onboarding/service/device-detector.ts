@@ -5,7 +5,7 @@
  * compatible models based on available resources.
  */
 
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import * as LocalAuthentication from "expo-local-authentication";
 import DeviceInfo from "react-native-device-info";
 import { AvailableModel } from "../model/model-configuration";

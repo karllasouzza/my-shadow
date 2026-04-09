@@ -9,16 +9,9 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint",
+    "ci": "bun install --frozen-lockfile",
     "test": "jest --passWithNoTests",
-    "test:watch": "jest --watch",
-    "bun:install": "bun install",
-    "bun:ci": "bun install --frozen-lockfile",
-    "bun:start": "bun run start",
-    "bun:dev": "bun run start",
-    "bun:android": "bun run android",
-    "bun:ios": "bun run ios",
-    "bun:web": "bun run web",
-    "bun:lint": "bun run lint"
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
@@ -29,6 +22,7 @@
     "@react-navigation/elements": "^2.6.3",
     "@react-navigation/native": "^7.1.8",
     "@rn-primitives/portal": "^1.4.0",
+    "@rn-primitives/select": "^1.4.0",
     "@rn-primitives/slot": "^1.4.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -70,9 +64,11 @@
     "react-native-svg": "^15.15.4",
     "react-native-web": "~0.21.0",
     "react-native-worklets": "0.5.1",
+    "sonner-native": "^0.24.0",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^3.4.1",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "zod": "^4.3.6"
   },
   "op-sqlite": {
     "libsql": true
