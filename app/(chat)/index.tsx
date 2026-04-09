@@ -28,8 +28,8 @@ import {
   ModelPicker,
   type ModelCatalogEntry,
 } from "@/features/onboarding/view/model-picker";
-import { useFocusEffect } from "expo-router";
-import { Square } from "lucide-react-native";
+import { router, useFocusEffect } from "expo-router";
+import { Clock, Square } from "lucide-react-native";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   FlatList,
@@ -164,7 +164,17 @@ export default function ChatScreen() {
     >
       {/* Header */}
       <View className="flex-row items-center justify-between px-4 py-3 border-b border-border bg-card">
-        <Text className="text-foreground text-lg font-bold">Shadow Chat</Text>
+        <View className="flex-row items-center gap-3">
+          <TouchableOpacity
+            onPress={() => router.push("/(chat)/history")}
+            accessible
+            accessibilityLabel="Ver histórico de conversas"
+            accessibilityRole="button"
+          >
+            <Clock size={22} color="#6B7280" />
+          </TouchableOpacity>
+          <Text className="text-foreground text-lg font-bold">Shadow Chat</Text>
+        </View>
         <ModelSelector
           modelName={loadedModelName}
           isModelLoaded={isModelReady}
