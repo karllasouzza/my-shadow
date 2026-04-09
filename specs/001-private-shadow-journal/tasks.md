@@ -25,7 +25,7 @@ regressions.
 **Purpose**: Replace ExecuTorch dependencies with llama.rn and configure build system
 
 - [x] T001 Add llama.rn dependency to package.json and remove react-native-executorch, @react-native-rag/executorch, react-native-executorch-expo-resource-fetcher (keep @react-native-rag/executorch temporarily for embeddings)
-- [x] T002 [P] Add llama.rn Expo plugin configuration to app.json with enableEntitlements, forceCxx20, enableOpenCL options
+- [x] T002 [P] Add llama.rn Expo plugin configuration to app.json with enableEntitlements, forceCxx20, enableOpenCLAndHexagon options
 - [x] T003 [P] Add expo-build-properties plugin to app.json with Android ProGuard rules: `-keep class com.rnllama.** { *; }`
 - [x] T004 Download llama.rn native artifacts: `node ./node_modules/llama.rn/install/download-native-artifacts.js`
 - [x] T005 [P] Run `bun install` and verify no dependency conflicts

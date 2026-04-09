@@ -105,7 +105,7 @@ const embedding = await embeddingContext.embedding(text);
 
 **Rationale**:
 
-- llama.rn provides Expo config plugin: `[['llama.rn', { enableEntitlements: true, forceCxx20: true, enableOpenCL: true }]]`
+- llama.rn provides Expo config plugin: `[['llama.rn', { enableEntitlements: true, forceCxx20: true, enableOpenCLAndHexagon: true }]]`
 - Requires New Architecture (already enabled in React Native 0.81.5)
 - Android ProGuard rules needed: `-keep class com.rnllama.** { *; }`
 - Expo build properties plugin can inject ProGuard rules via `android.proguardRules` in app.json
@@ -121,7 +121,7 @@ const embedding = await embeddingContext.embedding(text);
         {
           "enableEntitlements": true,
           "forceCxx20": true,
-          "enableOpenCL": true
+          "enableOpenCLAndHexagon": true
         }
       ],
       [
@@ -236,7 +236,7 @@ await this.llm.completion(
 | GGUF format compatibility         | ✅ llama.rn natively supports GGUF (core purpose)                                                                  |
 | Embedding model support           | ✅ llama.rn supports embeddings via `context.embedding()` with `embedding: true` flag                              |
 | RAG vector database integration   | ⚠️ llama.rn does NOT integrate with vector DBs — only generates vectors. Keep @react-native-rag/executorch for now |
-| Expo plugin availability          | ✅ Official plugin: `['llama.rn', { enableEntitlements: true, forceCxx20: true, enableOpenCL: true }]`             |
+| Expo plugin availability          | ✅ Official plugin: `['llama.rn', { enableEntitlements: true, forceCxx20: true, enableOpenCLAndHexagon: true }]`   |
 | Android ProGuard rules            | ✅ Add via expo-build-properties: `-keep class com.rnllama.** { *; }`                                              |
 | Model preset migration            | ✅ Replace executorch presets with direct GGUF file paths                                                          |
 | Tokenizer handling                | ✅ Built-in to llama.rn context: `tokenize()` / `detokenize()`                                                     |

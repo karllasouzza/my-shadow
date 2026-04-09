@@ -23,6 +23,7 @@ This blocked the core feature: local GGUF model inference on Android.
 ### Requirements
 
 We need a runtime that:
+
 - Loads standard GGUF model files directly
 - Works on Android with React Native 0.81+ and New Architecture
 - Supports streaming token generation with callbacks
@@ -34,6 +35,7 @@ We need a runtime that:
 **Migrate from ExecuTorch to llama.rn for text generation.**
 
 Replace:
+
 ```json
 {
   "react-native-executorch": "^0.8.1",
@@ -42,6 +44,7 @@ Replace:
 ```
 
 With:
+
 ```json
 {
   "llama.rn": "^0.10.0"
@@ -49,36 +52,39 @@ With:
 ```
 
 Keep (temporary):
+
 ```json
 {
   "@react-native-rag/executorch": "^0.8.0"
 }
 ```
+
 For RAG vector embeddings only, until llama.rn provides a stable embedding API.
 
 ### llama.rn Integration
 
-- **Plugin**: `llama.rn` Expo plugin with `enableEntitlements`, `forceCxx20`, `enableOpenCL`
+- **Plugin**: `llama.rn` Expo plugin with `enableEntitlements`, `forceCxx20`, `enableOpenCLAndHexagon`
 - **ProGuard**: `-keep class com.rnllama.** { *; }` via `expo-build-properties`
 - **API**: `initLlama()` for model loading, `context.completion()` for generation, `context.tokenize()` for tokenization
 - **Model loading**: Direct file paths (`file:///path/to/model.gguf`) instead of resource bundles
 
 ### Migration Changes
 
-| Area | ExecuTorch | llama.rn |
-|------|-----------|----------|
-| Initialization | `initExecutorch()` + `ExpoResourceFetcher` | No init needed (native module auto-loads) |
-| Model loading | `ExecuTorchLLM` with model/tokenizer sources | `initLlama({ model: "file://...", n_ctx, n_gpu_layers })` |
-| Generation | `llm.generate(messages, callback)` | `context.completion({ messages, n_predict, stop }, callback)` |
-| Tokenization | `TokenizerModule.encode()` | `context.tokenize()` (built-in) |
-| Model unload | `llm.unload()` | `context.release()` |
-| GPU acceleration | Not available | `n_gpu_layers: 99` (OpenCL on Android) |
+| Area             | ExecuTorch                                   | llama.rn                                                      |
+| ---------------- | -------------------------------------------- | ------------------------------------------------------------- |
+| Initialization   | `initExecutorch()` + `ExpoResourceFetcher`   | No init needed (native module auto-loads)                     |
+| Model loading    | `ExecuTorchLLM` with model/tokenizer sources | `initLlama({ model: "file://...", n_ctx, n_gpu_layers })`     |
+| Generation       | `llm.generate(messages, callback)`           | `context.completion({ messages, n_predict, stop }, callback)` |
+| Tokenization     | `TokenizerModule.encode()`                   | `context.tokenize()` (built-in)                               |
+| Model unload     | `llm.unload()`                               | `context.release()`                                           |
+| GPU acceleration | Not available                                | `n_gpu_layers: 99` (OpenCL on Android)                        |
 
 ## Alternatives Considered
 
 ### 1. Fix ExecuTorch GGUF Support
 
 **Rejected because:**
+
 - ExecuTorch GGUF support is not stable on React Native
 - Error code 35 has no documented resolution path
 - Would require forking and maintaining ExecuTorch RN bindings
@@ -87,6 +93,7 @@ For RAG vector embeddings only, until llama.rn provides a stable embedding API.
 ### 2. Use MLX (Apple Silicon only)
 
 **Rejected because:**
+
 - iOS/macOS only — v1 targets Android
 - Would require separate Android backend anyway
 - Adds complexity of dual-runtime maintenance
@@ -94,6 +101,7 @@ For RAG vector embeddings only, until llama.rn provides a stable embedding API.
 ### 3. Use WebLLM (WASM in WebView)
 
 **Rejected because:**
+
 - Performance penalty of WASM in WebView (~3-5x slower)
 - No GPU acceleration in WebView context
 - Memory limits in WebView environment
@@ -102,6 +110,7 @@ For RAG vector embeddings only, until llama.rn provides a stable embedding API.
 ### 4. Use MLC LLM
 
 **Rejected because:**
+
 - More complex build pipeline (requires TVM compilation)
 - Larger binary size (+100MB vs llama.rn's ~30MB)
 - Less active community support for React Native

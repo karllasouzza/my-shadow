@@ -42,7 +42,7 @@ Add the llama.rn plugin to your Expo config:
         {
           "enableEntitlements": true,
           "forceCxx20": true,
-          "enableOpenCL": true
+          "enableOpenCLAndHexagon": true
         }
       ]
     ]
