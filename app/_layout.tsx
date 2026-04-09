@@ -1,7 +1,5 @@
 import { Icon } from "@/components/ui/icon";
 import { ThemeProvider } from "@/context/themes";
-import { initCredentialRepository } from "@/features/onboarding";
-import { initReflectionStore } from "@/shared/storage/encrypted-reflection-store";
 import { PortalHost } from "@rn-primitives/portal";
 import { Stack } from "expo-router";
 import { Loader2 } from "lucide-react-native";
@@ -15,20 +13,8 @@ import "../global.css";
 export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
 
-  // Initialize encrypted stores before rendering any routes
   useEffect(() => {
-    const initializeStores = async () => {
-      try {
-        await initCredentialRepository();
-        await initReflectionStore();
-      } catch {
-        // Initialization failed — will still mark as ready
-      } finally {
-        setIsReady(true);
-      }
-    };
-
-    initializeStores();
+    setIsReady(true);
   }, []);
 
   if (!isReady) {
@@ -51,10 +37,7 @@ export default function RootLayout() {
               headerShown: false,
             }}
           >
-            <Stack.Screen name="index" />
-            <Stack.Screen name="review" />
-            <Stack.Screen name="export" />
-            <Stack.Screen name="onboarding" />
+            <Stack.Screen name="(chat)" />
           </Stack>
         </ThemeProvider>
         <PortalHost />
