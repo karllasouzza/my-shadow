@@ -204,8 +204,8 @@ export class ReflectionService {
           fallbackQuestions,
           "fallback_template",
           retrievalContextReflectionIds,
-          runtime.getCurrentModel()?.id ?? "qwen2.5-0.5b-quantized",
-          "executorch-0.8",
+          runtime.getCurrentModel()?.id ?? "qwen2.5-0.5b-q4",
+          "llama.rn-0.10",
         );
 
         if (!qSetResult.success) {
@@ -250,8 +250,8 @@ export class ReflectionService {
         generatedQuestions,
         "normal",
         retrievalContextReflectionIds,
-        runtime.getCurrentModel()?.id ?? "qwen2.5-0.5b-quantized",
-        "executorch-0.8",
+        runtime.getCurrentModel()?.id ?? "qwen2.5-0.5b-q4",
+        "llama.rn-0.10",
       );
 
       if (!qSetResult.success) {

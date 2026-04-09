@@ -308,8 +308,8 @@ export class RetryQueueWorker {
       validatedQuestions.slice(0, 8),
       "retry_result",
       retrievalContextIds,
-      this.runtime.getCurrentModel()?.id ?? "qwen2.5-0.5b-quantized",
-      "executorch-0.8",
+      this.runtime.getCurrentModel()?.id ?? "qwen2.5-0.5b-q4",
+      "llama.rn-0.10",
     );
     if (!questionSetResult.success) {
       return err(questionSetResult.error);
@@ -412,7 +412,7 @@ export class RetryQueueWorker {
       nextInquiryPrompts: parsed.prompts,
       generationMode: "retry_result",
       modelId: this.runtime.getCurrentModel()?.id ?? review.modelId,
-      modelVersion: "executorch-0.8",
+      modelVersion: "llama.rn-0.10",
       updatedAt: new Date().toISOString(),
     });
 

@@ -125,7 +125,7 @@ export class ReviewService {
         finalOutput.prompts,
         generationMode,
         modelId,
-        "executorch-0.8",
+        "llama.rn-0.10",
       );
 
       if (!result.success) {

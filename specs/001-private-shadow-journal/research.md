@@ -1,188 +1,262 @@
-# Research: Onboarding Flow & Local AI Infrastructure
+# Research: Migrate AI Runtime from ExecuTorch to llama.rn
 
-## 1. Biometric Authentication on Android
+## Decision 1: Replace ExecuTorch with llama.rn for LLM Inference
 
-**Decision**: Use `expo-local-authentication` with biometric strong level and optional PIN fallback.
+**Decision**: Migrate from `react-native-executorch` to `llama.rn` (npm package: `llama.rn`)
 
-**Rationale**: Already available in the Expo ecosystem, no native module needed. Supports fingerprint and facial recognition on Android via BiometricPrompt API (Class 2/3).
+**Rationale**:
 
-**Implementation pattern**:
+- ExecuTorch requires models in `.pte` format, but our download flow provides `.gguf` files
+- llama.rn is a direct wrapper of `llama.cpp` for React Native, with native GGUF support
+- llama.rn is the most mature and widely-used option for GGUF models in React Native ecosystem
+- Enables use of any GGUF model from HuggingFace without format conversion
+- Already aligned with project's ADR-001 which mentioned "llama.rn" as target runtime
 
-- Check `hasHardwareAsync()` and `isEnrolledAsync()` on security gate
-- For first-time users: prompt to create app password (stored in MMKV encrypted instance), optionally enroll biometric
-- For returning users: `authenticateAsync()` with `biometricsSecurityLevel: 'strong'`
-- `disableDeviceFallback: false` allows PIN/pattern as fallback
+**Implementation Pattern**:
 
-**Alternatives considered**: Custom native module with Android BiometricPrompt directly — rejected because expo-local-authentication covers all needed functionality and is already in the dependency tree.
+```typescript
+import { initLlama } from "llama.rn";
 
-## 2. Password Storage Strategy
-
-**Decision**: App password stored as salted hash in encrypted MMKV instance (`reflection_encrypted` or dedicated `app_lock` instance). Biometric enrollment flag stored as boolean in same instance.
-
-**Rationale**: MMKV encryption (AES-256 via C++ JSI bindings) provides sufficient security for password hashes. expo-secure-store has ~2KB size limit and is better suited for small tokens (PIN hash), but MMKV is already used for the app_lock instance and is synchronous — ideal for first-launch checks.
-
-**Implementation pattern**:
-
-```ts
-// Encrypted MMKV instance
-const authStorage = createMMKV({
-  id: "auth_credentials",
-  encryptionKey: "...",
+// Initialize context with GGUF model
+const context = await initLlama({
+  model: "file:///path/to/model.gguf",
+  use_mlock: true, // Lock memory to prevent swap
+  n_ctx: 4096, // Context window size
+  n_gpu_layers: 99, // Offload to GPU (Metal/OpenCL)
+  embedding: false, // false for LLM, true for embedding model
 });
 
-// Store salted password hash
-authStorage.set("password_hash", hashedPassword);
-authStorage.set("biometric_enabled", true);
-authStorage.set("first_launch", false);
+// Chat completion with streaming
+const result = await context.completion(
+  {
+    messages: [
+      { role: "system", content: "Você é um assistente de reflexão em pt-BR." },
+      { role: "user", content: "Minha reflexão de hoje..." },
+    ],
+    n_predict: 256,
+    stop: ["</s>", "<|end|>"],
+  },
+  ({ token }) => console.log(token), // Streaming callback
+);
+
+// Tokenizer (built-in)
+const { tokens } = await context.tokenize("Texto para tokenizar");
+const text = await context.detokenize(tokens);
 ```
 
-**Alternatives considered**: expo-secure-store — rejected because it's async (would complicate routing guards) and has size limitations. MMKV encrypted is sync and already the project pattern.
+**Alternatives Considered**:
 
-## 3. Model Download & Storage Location
+1. **Keep ExecuTorch + convert GGUF→PTE**: Rejected — conversion is complex, slow, and defeats the purpose of downloading GGUF files
+2. **react-native-llama**: Rejected — less mature, smaller community, llama.rn is the standard
+3. **MLC LLM**: Rejected — requires custom model compilation, less flexible than GGUF
 
-**Decision**: Default to `Paths.document` for model storage. Offer Android Storage Access Framework (SAF) as optional advanced choice for users who want explicit folder control.
+---
 
-**Rationale**: DocumentDirectory persists across restarts and isn't purged by the OS. SAF provides native Android folder picker but adds complexity (file must exist before writing via `createFileAsync`).
+## Decision 2: RAG Embeddings Strategy — Keep @react-native-rag/executorch Temporarily
 
-**Implementation pattern**:
+**Decision**: Retain `@react-native-rag/executorch` for embedding generation until dedicated embedding model is added to llama.rn stack
 
-- Default path: `Paths.document.uri + 'models/'`
-- Optional: `StorageAccessFramework.requestDirectoryPermissionsAsync()` for custom folder
-- Track selected path in ModelConfiguration stored in MMKV
-- Download via `File.downloadFileAsync` (expo-file-system v54 API) with progress monitoring
+**Rationale**:
 
-**Alternatives considered**: CacheDirectory — rejected because OS can purge it. External storage — rejected because it's unreliable and requires additional permissions.
+- llama.rn supports embeddings via `context.embedding()` BUT requires loading a separate embedding model with `embedding: true`
+- Existing rag-content.db uses `multi-qa-minilm-l6-cos-v1` embeddings generated by ExecuTorch
+- llama.rn does NOT have native integration with vector databases — it only generates embedding vectors
+- GGUF version of embedding model exists: `Felladrin/gguf-multi-qa-MiniLM-L6-cos-v1` on HuggingFace
+- Dual-context approach (one for LLM, one for embeddings) is feasible but adds complexity
+- **Short-term**: Keep executorch for embeddings only (minimal dependency footprint)
+- **Long-term**: Migrate to llama.rn with GGUF embedding model once stability is proven
 
-## 4. Device RAM Detection & Model Filtering
+**Implementation Pattern** (Dual Context):
 
-**Decision**: Use `react-native-device-info` for total RAM detection. Use `Paths.availableDiskSpace` from expo-file-system for storage check.
+```typescript
+// LLM context (llama.rn)
+const llmContext = await initLlama({
+  model: "file:///path/to/qwen2.5-0.5b.gguf",
+  use_mlock: true,
+  n_ctx: 4096,
+  n_gpu_layers: 99,
+  embedding: false,
+});
 
-**Rationale**: No Expo-native package provides RAM detection. react-native-device-info is the standard, well-maintained solution. Requires EAS build (not Expo Go compatible) — acceptable since project uses dev client.
+// Embedding context (@react-native-rag/executorch or llama.rn with GGUF embedding model)
+// Option A: Keep executorch for embeddings
+const embeddings = await executorchEmbeddings.encode(text);
 
-**Model filtering logic**:
-
-```
-totalRAM * 0.6 = budget60
-For each available model:
-  if estimatedRAM < budget60 → include as compatible
-  if estimatedRAM > budget60 → exclude
-Sort by quality (larger model = better output within budget)
-```
-
-**Model RAM estimates at runtime**:
-| Model | Quantization | File Size | Runtime RAM |
-|-------|-------------|-----------|-------------|
-| Qwen 0.5B | Q4_K_M | ~350MB | ~500MB |
-| Qwen 0.5B | Q8_0 | ~580MB | ~800MB |
-| Qwen 1.5B | Q4_K_M | ~1GB | ~1.5GB |
-| Qwen 1.5B | Q8_0 | ~1.6GB | ~2.2GB |
-| Qwen 3B | Q4_K_M | ~1.8GB | ~2.5GB |
-| Qwen 3B | Q8_0 | ~3.2GB | ~4.0GB |
-
-**Recommendation by device tier**:
-
-- ≤4GB RAM devices: Qwen 0.5B Q4 only
-- 6GB RAM: Qwen 1.5B Q4 (comfortable), 3B Q4 possible
-- ≥8GB RAM: Qwen 3B Q4/Q8 comfortable
-
-**Alternatives considered**: Reading `/proc/meminfo` via native module — rejected as too complex for marginal benefit over react-native-device-info.
-
-## 5. Back Button Prevention During Loading
-
-**Decision**: Use `usePreventRemove` from React Navigation for blocking back during model loading. Combine with `BackHandler` for confirmation dialog on cancel.
-
-**Rationale**: `usePreventRemove` is the React Navigation recommended approach and works with Expo Router. Conditional on `isLoading` state — automatically removed when loading completes or user cancels.
-
-**Alternatives considered**: Custom overlay blocking navigation stack — rejected as more complex and fragile compared to built-in prevention.
-
-## 6. Onboarding State Persistence
-
-**Decision**: MMKV with versioned onboarding flag. Three keys: `onboarding.completed`, `onboarding.version`, `model.downloaded`.
-
-**Rationale**: MMKV is synchronous, already used throughout the project, and ideal for routing guards. Version flag allows detecting when onboarding flow changes and re-running setup.
-
-**Routing guard pattern**:
-
-```ts
-// In _layout.tsx or root guard
-const completed = appStorage.getBoolean('onboarding.completed') ?? false;
-const hasModel = appStorage.getBoolean('model.downloaded') ?? false;
-
-if (!completed) → navigate to Security Gate
-if (!hasModel) → navigate to Model Selection
-else → navigate to Model Loading
+// Option B: Use llama.rn with GGUF embedding model
+const embeddingContext = await initLlama({
+  model: "file:///path/to/multi-qa-minilm-l6.gguf",
+  embedding: true,
+  n_ctx: 512,
+});
+const embedding = await embeddingContext.embedding(text);
 ```
 
-## 7. rag-content.db Bundling
+**Alternatives Considered**:
 
-**Decision**: Bundle as Expo asset, copy to document directory on first run if not present. Register `.db` extension in Metro resolver.
+1. **Immediate full migration to llama.rn embeddings**: Rejected — requires adding GGUF embedding model to download flow and validating vector compatibility with rag-content.db
+2. **Use external embedding API**: Rejected — violates offline-first requirement
+3. **Rebuild rag-content.db with different embeddings**: Rejected — massive effort, breaks existing data
 
-**Rationale**: Simplest distribution method. File is copied once and then accessed locally by OPSQLite vector store. No network dependency.
+---
 
-**Implementation pattern**:
+## Decision 3: Expo Plugin Configuration for llama.rn
 
-```ts
-import { Asset } from "expo-asset";
-const asset = Asset.fromModule(require("@/assets/rag-content.db"));
-await asset.downloadAsync();
-// Copy asset.localUri to documentDirectory + 'rag-content.db'
-```
+**Decision**: Use llama.rn Expo plugin with `expo-build-properties` for Android ProGuard rules
 
-**Size considerations**: If rag-content.db exceeds ~50MB, app bundle size increases significantly. For larger databases, consider downloading on first launch instead. For v1, bundling is acceptable if the embedding database is reasonably sized.
+**Rationale**:
 
-**Alternatives considered**: Download on first launch — rejected because it adds network dependency to an offline-first product. Empty schema + seed via API — rejected because it changes the product from offline-capable to online-setup-required.
+- llama.rn provides Expo config plugin: `[['llama.rn', { enableEntitlements: true, forceCxx20: true, enableOpenCL: true }]]`
+- Requires New Architecture (already enabled in React Native 0.81.5)
+- Android ProGuard rules needed: `-keep class com.rnllama.** { *; }`
+- Expo build properties plugin can inject ProGuard rules via `android.proguardRules` in app.json
 
-## 8. ReviewRepository Migration (Map → MMKV)
+**Implementation in app.json**:
 
-**Decision**: Replace in-memory Map with encrypted MMKV instance (`review_encrypted`), following the same pattern as `EncryptedReflectionStore`.
-
-**Rationale**: Current in-memory Map loses all reviews on app restart, making period review unusable and violating SC-003 (100% offline flow completion). This is a critical bug fix, not a feature addition.
-
-**Implementation pattern**: Mirror `EncryptedReflectionStore` pattern — serialize `FinalReview` to JSON, store with period key, deserialize on read. Add migration function that preserves any in-memory reviews currently held if app hasn't restarted yet.
-
-## 9. ThemeProvider Mounting
-
-**Decision**: Wrap the root Stack in `_layout.tsx` with `ThemeProvider` from the context module.
-
-**Rationale**: ThemeProvider is already built but not mounted. Without it, theme-dependent components and NativeWind `vars()` may not resolve correctly. This is a one-line fix that enables proper theming across all screens.
-
-**Implementation**:
-
-```tsx
-// app/_layout.tsx
-import { ThemeProvider } from "@/context/themes";
-
-export default function RootLayout() {
-  return (
-    <GestureHandlerRootView>
-      <SafeAreaProvider>
-        <ThemeProvider>
-          {" "}
-          {/* ADD THIS */}
-          <Stack>...</Stack>
-        </ThemeProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
-  );
+```json
+{
+  "expo": {
+    "plugins": [
+      [
+        "llama.rn",
+        {
+          "enableEntitlements": true,
+          "forceCxx20": true,
+          "enableOpenCL": true
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "proguardRules": "-keep class com.rnllama.** { *; }\n-keep class org.apache.commons.** { *; }"
+          }
+        }
+      ]
+    ]
+  }
 }
 ```
 
-## 10. Existing Code Leverage Analysis
+**Alternatives Considered**:
 
-**Already built and reusable**:
+1. **Custom Expo config plugin**: Rejected — llama.rn provides official plugin
+2. **EAS build hook**: Rejected — plugin approach is cleaner and already supported
 
-- `features/reflection/` — complete (CRUD, IA generation, RAG, fallback, retry, cascade delete)
-- `features/review/` — service, view-model, view implemented; **only repository needs MMKV migration**
-- `features/export/` — complete
-- `shared/ai/` — LocalAIRuntimeService, ReflectionRAGRepository, FallbackPromptProvider, PtBRJungianGuard, RetryQueueWorker — all implemented
-- `shared/security/app-lock.ts` — AppLockGateway implemented with PIN; **needs extension for first-time password creation flow**
-- `shared/storage/` — EncryptedReflectionStore, GenerationJobStore — patterns to reuse
-- `components/ui/` — Button (6 variants), Text (typography variants) — to be used in onboarding screens
-- `shared/components/state-view.tsx` — loading/empty/error/success states — to be reused in model loading screen
+---
 
-**Needs to be built from scratch**:
+## Decision 4: Model Resource Resolution — Direct File Paths
 
-- `features/onboarding/` — entire module (3 screens + services + repositories)
-- rag-content.db asset bundling
-- ThemeProvider mounting in \_layout.tsx
-- Route wiring for review.tsx and export.tsx
+**Decision**: Replace `ExpoResourceFetcher` + asset-based model loading with direct file paths
+
+**Rationale**:
+
+- llama.rn accepts `file://` URIs directly — no need for custom resource fetcher
+- Bundled models (if any) can be copied from assets to documentDirectory on first launch (same pattern as rag-content.db)
+- Downloaded models already use file paths from ModelManager
+- Simplifies architecture: no need for model presets like `QWEN2_5_0_5B` from executorch
+
+**Implementation Pattern**:
+
+```typescript
+// Old (ExecuTorch):
+const modelSource = this.modules.QWEN2_5_0_5B.modelSource
+
+// New (llama.rn):
+const modelPath = 'file:///data/user/0/com.myapp/files/models/qwen2.5-0.5b.gguf'
+const context = await initLlama({ model: modelPath, ... })
+```
+
+**Bundled Models Strategy** (if needed):
+
+1. Ship GGUF files as Expo assets
+2. Copy to documentDirectory on first launch (same as rag-content.db pattern)
+3. Use file path directly with llama.rn
+
+---
+
+## Decision 5: Completion API Mapping
+
+**Decision**: Map existing `generateCompletion()` interface to llama.rn's `context.completion()`
+
+**Rationale**:
+
+- llama.rn supports both `messages` (chat format) and `prompt` (text completion)
+- Streaming via callback is identical pattern to current implementation
+- Stop words, token limits, and timing are all supported
+
+**Mapping**:
+
+```typescript
+// Current (ExecuTorch):
+await this.llm.generate(messages, (token) => {
+  streamed += token;
+});
+
+// New (llama.rn):
+await this.llm.completion(
+  {
+    messages,
+    n_predict: 256,
+    stop: ["</s>", "<|end|>", "\nUser:"],
+  },
+  ({ token }) => {
+    streamed += token;
+  },
+);
+```
+
+---
+
+## Decision 6: RAM Budget Enforcement Remains Unchanged
+
+**Decision**: Keep existing 60% RAM budget calculation and model filtering logic
+
+**Rationale**:
+
+- llama.rn's memory usage is comparable to llama.cpp (well-documented)
+- Q4_K_M quantization ~1.5x model file size in RAM (existing estimates valid)
+- `use_mlock: true` prevents OS from swapping model memory
+- `n_gpu_layers: 99` offloads to GPU (reduces RAM pressure on Android)
+- Existing model catalog RAM estimates remain accurate
+
+**Validation**:
+
+- Qwen 0.5B Q4_K_M (~350MB file) → ~600MB RAM ✅
+- Qwen 1.5B Q4_K_M (~1GB file) → ~1.8GB RAM ✅
+- Qwen 3B Q4_K_M (~1.8GB file) → ~3.5GB RAM ✅
+
+---
+
+## Research Findings Summary
+
+### Resolved Unknowns
+
+| Unknown                           | Resolution                                                                                                         |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| GGUF format compatibility         | ✅ llama.rn natively supports GGUF (core purpose)                                                                  |
+| Embedding model support           | ✅ llama.rn supports embeddings via `context.embedding()` with `embedding: true` flag                              |
+| RAG vector database integration   | ⚠️ llama.rn does NOT integrate with vector DBs — only generates vectors. Keep @react-native-rag/executorch for now |
+| Expo plugin availability          | ✅ Official plugin: `['llama.rn', { enableEntitlements: true, forceCxx20: true, enableOpenCL: true }]`             |
+| Android ProGuard rules            | ✅ Add via expo-build-properties: `-keep class com.rnllama.** { *; }`                                              |
+| Model preset migration            | ✅ Replace executorch presets with direct GGUF file paths                                                          |
+| Tokenizer handling                | ✅ Built-in to llama.rn context: `tokenize()` / `detokenize()`                                                     |
+| Streaming completions             | ✅ Supported via callback in `context.completion()`                                                                |
+| Embedding model GGUF availability | ✅ `Felladrin/gguf-multi-qa-MiniLM-L6-cos-v1` exists on HuggingFace                                                |
+
+### Migration Complexity: **Medium**
+
+- **Core changes**: `shared/ai/local-ai-runtime.ts` (complete rewrite of internals)
+- **Public API**: Preserved — all callers (`loadModel`, `generateCompletion`, etc.) remain unchanged
+- **Dependencies**: Replace 3 executorch packages with 1 llama.rn (+ keep executorch for embeddings temporarily)
+- **Build config**: Add Expo plugin, ProGuard rules
+- **Testing**: All existing tests should pass after migration (mock runtime in tests)
+
+### Risks & Mitigations
+
+| Risk                                   | Likelihood | Impact | Mitigation                                                            |
+| -------------------------------------- | ---------- | ------ | --------------------------------------------------------------------- |
+| llama.rn native build fails on Android | Low        | High   | Test in dev build early; fallback to prebuilt binaries                |
+| Embedding compatibility broken         | Medium     | Medium | Keep executorch for embeddings; validate rag-content.db vectors match |
+| Performance regression                 | Low        | High   | Benchmark before/after on same device class                           |
+| Memory usage exceeds 60% budget        | Low        | High   | Test with largest model (3B Q4) on 8GB device                         |
+| Expo plugin incompatibility            | Low        | Medium | Manual config plugin if official one fails                            |

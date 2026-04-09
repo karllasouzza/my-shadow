@@ -1,403 +1,305 @@
-# Tasks: Private Shadow Reflection Journal
+# Tasks: Migrate AI Runtime from ExecuTorch to llama.rn
 
-**Instructions**:
+**Input**: Design documents from `/specs/001-private-shadow-journal/`
+**Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/runtime-interface.md
 
-- Tasks are ordered by dependency. Complete in sequence within each slice.
-- Each task is independently testable.
-- Mark tasks as `[x]` when complete.
-- Run tests after each task or logical group.
+**Tests**: Test tasks are REQUIRED for each user story and for cross-cutting risk areas. Every
+implementation plan MUST include the automated tests needed to validate behavior and prevent
+regressions.
 
----
+**Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 
-## Slice 0: Foundation & Fixes (Blocking Prerequisites)
+## Format: `[ID] [P?] [Story] Description`
 
-_These tasks unblock all other work. Complete first._
+- **[P]**: Can run in parallel (different files, no dependencies)
+- **[Story]**: Which user story this task belongs to (e.g., US0, US1, US2, US3)
+- Include exact file paths in descriptions
 
-- [ ] **T001** — Mount ThemeProvider in `_layout.tsx`
-  - Wrap `<Stack>` with `<ThemeProvider>` in `app/_layout.tsx`
-  - Verify theme tokens resolve correctly in existing screens
-  - **Validation**: `bun run lint` passes, existing screens render with correct theme
-  - **Depends on**: nothing
+## Path Conventions
 
-- [ ] **T002** — Add `expo-sqlite` dependency
-  - `npx expo install expo-sqlite`
-  - Verify TypeScript types are available
-  - **Validation**: `import * as SQLite from 'expo-sqlite'` compiles without error
-  - **Depends on**: nothing
+- **Mobile app**: Repository root with `shared/`, `features/`, `app/` structure
+- Paths shown below assume single project - adjust based on plan.md structure
 
-- [ ] **T003** — Migrate ReviewRepository from in-memory Map to expo-sqlite
-  - Replace Map-based storage with SQLite table (`final_reviews`)
-  - Schema: id (PK), period_start, period_end, summary (TEXT), recurring_patterns (JSON), trigger_themes (JSON), next_inquiry_prompts (JSON), reflection_ids (JSON), source, generated_at
-  - Implement `initReviewRepository()` to create table on first use
-  - Keep same public API (`getById`, `getByPeriod`, `getByReflectionId`, `save`, `delete`, `listAll`, `clear`)
-  - **Validation**: Existing review tests pass; manual test: create review → restart app → review persists
-  - **Depends on**: T002
+## Phase 1: Setup (Dependencies & Build Configuration)
 
-- [ ] **T004** — Initialize ReviewRepository on app startup
-  - Call `initReviewRepository()` in app initialization (e.g., `_layout.tsx` or review feature entry)
-  - Ensure table exists before any review operation
-  - **Validation**: No "table not found" errors when using review feature
-  - **Depends on**: T003
+**Purpose**: Replace ExecuTorch dependencies with llama.rn and configure build system
 
-- [ ] **T005** — Wire `app/review.tsx` to review feature screen
-  - Replace placeholder `<Text>Period Review (placeholder)</Text>` with import of `PeriodReviewScreen` from `features/review`
-  - **Validation**: Navigate to `/review` → full period review screen renders
-  - **Depends on**: T001 (theme consistency)
+- [ ] T001 Add llama.rn dependency to package.json and remove react-native-executorch, @react-native-rag/executorch, react-native-executorch-expo-resource-fetcher (keep @react-native-rag/executorch temporarily for embeddings)
+- [ ] T002 [P] Add llama.rn Expo plugin configuration to app.json with enableEntitlements, forceCxx20, enableOpenCL options
+- [ ] T003 [P] Add expo-build-properties plugin to app.json with Android ProGuard rules: `-keep class com.rnllama.** { *; }`
+- [ ] T004 Download llama.rn native artifacts: `node ./node_modules/llama.rn/install/download-native-artifacts.js`
+- [ ] T005 [P] Run `bun install` and verify no dependency conflicts
+- [ ] T006 Verify TypeScript compilation passes: `npx tsc --noEmit`
+- [ ] T007 Verify lint passes: `npm run lint`
 
-- [ ] **T006** — Wire `app/export.tsx` to export feature screen
-  - Replace placeholder `<Text>Export Reflections (placeholder)</Text>` with import of `ExportScreen` from `features/export`
-  - **Validation**: Navigate to `/export` → full export screen renders
-  - **Depends on**: T001 (theme consistency)
-
-**Slice 0 checkpoint**: All existing features (reflection, review, export) are functional with proper persistence and theming.
+**Checkpoint**: Build system configured, llama.rn installed, no type errors
 
 ---
 
-## Slice 1: Onboarding — Security Gate (US-0, Screen 1)
+## Phase 2: Foundational (Runtime Core Migration)
 
-_Implements the authentication gate. All users pass through here first._
+**Purpose**: Migrate LocalAIRuntimeService internals from ExecuTorch to llama.rn while preserving public API
 
-- [ ] **T007** — Create `UserCredential` model
-  - File: `features/onboarding/model/user-credential.ts`
-  - Define `UserCredential` interface (passwordHash, passwordSalt, biometricEnabled, isFirstLaunch, createdAt, lastAuthenticatedAt)
-  - Add validation functions (`validatePassword`, `hashPassword`)
-  - **Validation**: Unit tests for password validation (min 6 chars, hash is deterministic)
-  - **Depends on**: nothing
+**⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] **T008** — Create CredentialRepository
-  - File: `features/onboarding/repository/credential-repository.ts`
-  - MMKV encrypted instance (`auth_credentials` with AES-256)
-  - Methods: `save`, `get`, `isFirstLaunch`, `setFirstLaunchComplete`, `isBiometricEnabled`, `setBiometricEnabled`, `verifyPassword`
-  - **Validation**: Integration test — save credential → restart (simulate) → retrieve and verify
-  - **Depends on**: T007
+- [ ] T008 [P] Replace native module loading in shared/ai/local-ai-runtime.ts: remove initExecutorch, TokenizerModule, ExecuTorchLLM imports and replace with llama.rn initLlama import
+- [ ] T009 [P] Update RuntimeNativeModules interface in shared/ai/local-ai-runtime.ts to reflect llama.rn types (LlamaContext instead of ExecuTorchLLM, remove model presets)
+- [ ] T010 [P] Update DownloadState interface in shared/ai/local-ai-runtime.ts if needed for llama.rn context tracking
+- [ ] T011 Rewrite initialize() method in shared/ai/local-ai-runtime.ts: remove initExecutorch call, simplify to just verify llama.rn is available
+- [ ] T012 Rewrite loadModel() method in shared/ai/local-ai-runtime.ts: replace ExecuTorchLLM instantiation with initLlama({ model: 'file://<path>.gguf', use_mlock: true, n_ctx: 4096, n_gpu_layers: 99 })
+- [ ] T013 Rewrite resolveModelResource() method in shared/ai/local-ai-runtime.ts: replace model preset mapping with direct file path resolution (remove QWEN2*5*\* preset references)
+- [ ] T014 Rewrite generateCompletion() method in shared/ai/local-ai-runtime.ts: replace llm.generate() with context.completion({ messages, n_predict, stop }, streamCallback)
+- [ ] T015 Rewrite tokenize() method in shared/ai/local-ai-runtime.ts: replace TokenizerModule.encode() with context.tokenize()
+- [ ] T016 Update unloadModel() method in shared/ai/local-ai-runtime.ts: replace llm.unload() with context.release() if needed
+- [ ] T017 Update isModelLoaded() and getCurrentModel() methods to work with llama.rn context state
+- [ ] T018 Update getStatus() method to return llama.rn runtime metrics
+- [ ] T019 Update modelVersion string from "executorch-0.8" to "llama.rn-0.10" in features/reflection/service/reflection-service.ts
+- [ ] T020 Update modelVersion string from "executorch-0.8" to "llama.rn-0.10" in features/review/service/review-service.ts
+- [ ] T021 Update modelVersion string from "executorch-0.8" to "llama.rn-0.10" in shared/ai/retry-queue-worker.ts
+- [ ] T022 Remove ExpoResourceFetcher references from shared/ai/local-ai-runtime.ts (no longer needed with llama.rn file paths)
+- [ ] T023 Verify TypeScript compilation passes: `npx tsc --noEmit`
+- [ ] T024 Verify lint passes: `npm run lint`
 
-- [ ] **T009** — Create Security Gate ViewModel
-  - File: `features/onboarding/view-model/use-security-gate-vm.ts`
-  - State: mode (firstTime/returning), password input, confirm password, biometric toggle, loading, error
-  - Actions: `createPassword`, `authenticatePassword`, `authenticateBiometric`, `enableBiometric`, `clearError`
-  - Uses `expo-local-authentication` for biometric
-  - **Validation**: Unit tests for state transitions and error handling
-  - **Depends on**: T008
-
-- [ ] **T010** — Create Security Gate Screen
-  - File: `features/onboarding/view/security-gate-screen.tsx`
-  - First-time: password input + confirm + optional biometric enrollment toggle
-  - Returning: password input OR biometric prompt (if enrolled)
-  - Uses existing `Button`, `Text`, `StateView` components with NativeWind className
-  - All text in Brazilian Portuguese
-  - **Validation**: Manual test on Android — create password → authenticate → success callback fires
-  - **Depends on**: T009
-
-- [ ] **T011** — Add `react-native-device-info` dependency
-  - `npx expo install react-native-device-info` (requires prebuild for native module)
-  - Used for total RAM detection in device detection service
-  - **Validation**: `DeviceInfo.getTotalMemory()` returns valid number on Android
-  - **Depends on**: nothing
-
-- [ ] **T012** — Create DeviceDetector service
-  - File: `features/onboarding/service/device-detector.ts`
-  - Detect total RAM via `react-native-device-info`
-  - Detect available storage via `expo-file-system` `Paths.availableDiskSpace`
-  - Detect biometric capabilities via `expo-local-authentication`
-  - Compute `DeviceInfo` object with `ramBudget60`
-  - **Validation**: Unit tests with mocked device info; manual test on Android device
-  - **Depends on**: T011
-
-**Slice 1 checkpoint**: Security Gate screen is functional. User can create password on first launch or authenticate on returning. Device detection works.
+**Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
 ---
 
-## Slice 2: Onboarding — Model Selection & Download (US-0, Screen 2)
+## Phase 3: User Story 0 - Secure Onboarding & Model Loading Flow (Priority: P0) 🎯 MVP
 
-_Shown only when no model is downloaded. Allows browsing, selecting, and downloading LLM models._
+**Goal**: User can download a GGUF model, load it with llama.rn, and pass through the onboarding flow without errors
 
-- [ ] **T013** — Create `ModelConfiguration` and `AvailableModel` models
-  - Files: `features/onboarding/model/model-configuration.ts`, `features/onboarding/model/available-model.ts`
-  - Define `ModelConfiguration` interface (id, displayName, modelKey, filePath, fileSizeBytes, estimatedRamBytes, downloadStatus, downloadProgress, isLoaded, lastUsedAt, customFolderUri)
-  - Define `AvailableModel` catalog (3 Qwen 2.5 models with URLs, sizes, RAM estimates)
-  - Add `isCompatible(ramBudget60)` and `isRecommended` computation
-  - **Validation**: Unit tests for compatibility filtering
-  - **Depends on**: T012 (device detector for ramBudget60)
+**Independent Test**: Launch app as first-time user, complete security gate, download model, verify model loads without error code 35, reach main reflection interface
 
-- [ ] **T014** — Create ModelRepository
-  - File: `features/onboarding/repository/model-repository.ts`
-  - MMKV instance (`model_config`) — no encryption needed (paths only, no PII)
-  - Methods: `saveActiveModel`, `getActiveModel`, `hasDownloadedModel`, `clearActiveModel`
-  - **Validation**: Integration test — save model config → retrieve → fields match
-  - **Depends on**: T013
+### Tests for User Story 0 (REQUIRED) ⚠️
 
-- [ ] **T015** — Create ModelManager service
-  - File: `features/onboarding/service/model-manager.ts`
-  - Methods: `downloadModel(url, path, onProgress)`, `verifyModel(filePath)`, `loadModel(modelKey, filePath)`, `getModelList()`, `cancelDownload()`
-  - Uses `expo-file-system` `File.downloadFileAsync` for downloads
-  - Progress callback for UI updates
-  - Default storage path: `Paths.document + 'models/'`
-  - Optional: SAF folder selection via `StorageAccessFramework.requestDirectoryPermissionsAsync()`
-  - **Validation**: Unit tests with mocked filesystem; manual test: download small file with progress
-  - **Depends on**: T013, T012
+> **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] **T016** — Create Model Selection ViewModel
-  - File: `features/onboarding/view-model/use-model-selection-vm.ts`
-  - State: compatible models list, selected model, download progress, loading, error
-  - Actions: `selectModel`, `startDownload`, `cancelDownload`, `retryDownload`, `selectCustomFolder`
-  - Filters `AvailableModel` catalog by `DeviceInfo.ramBudget60`
-  - **Validation**: Unit tests for filtering logic and download state machine
-  - **Depends on**: T014, T015
+- [ ] T025 [P] [US0] Unit test for llama.rn model loading with mock .gguf file path in tests/unit/onboarding/model-loading.spec.ts
+- [ ] T026 [P] [US0] Unit test for llama.rn completion generation with mock context in tests/unit/onboarding/model-generation.spec.ts
+- [ ] T027 [P] [US0] Integration test for model download → load → generate flow in tests/integration/onboarding/model-flow.spec.ts
 
-- [ ] **T017** — Create Model Selection Screen
-  - File: `features/onboarding/view/model-selection-screen.tsx`
-  - Lists compatible models with name, description, size, RAM estimate
-  - Recommended model highlighted
-  - Incompatible models shown disabled with reason
-  - Download progress bar with cancel button
-  - Optional: "Choose custom folder" button (SAF)
-  - All text in Brazilian Portuguese
-  - Uses `usePreventRemove` during active download to block back button
-  - **Validation**: Manual test — select model → download → progress updates → completion callback fires
-  - **Depends on**: T016
+### Implementation for User Story 0
 
-**Slice 2 checkpoint**: User can browse compatible models, download one, and have it persisted. Download can be cancelled and retried.
+- [ ] T028 [US0] Verify model-manager.ts downloadModel() already downloads .gguf files correctly (no changes needed - GGUF is the correct format for llama.rn)
+- [ ] T029 [US0] Update use-model-loading-vm.ts to handle llama.rn context loading (verify loadModel() call passes correct file:// URI)
+- [ ] T030 [US0] Add llama.rn-specific error handling in use-model-loading-vm.ts (catch llama.rn load errors and show user-friendly pt-BR messages)
+- [ ] T031 [US0] Update model-loading-screen.tsx to display llama.rn loading progress (verify progress bar reflects llama.rn load state)
+- [ ] T032 [US0] Test model loading with actual .gguf file on target device (Android) - verify no error code 35
+- [ ] T033 [US0] Validate UX states: loading (spinner + progress), success (checkmark + auto-navigate), error (message + retry/cancel buttons)
+- [ ] T034 [US0] Verify performance budget: model load <30s for 0.5B Q4 model on mid-tier Android device
+
+**Checkpoint**: At this point, User Story 0 should be fully functional and testable independently
 
 ---
 
-## Slice 3: Onboarding — Model Loading (US-0, Screen 3)
+## Phase 4: User Story 1 - Daily Reflection with Guided Questions (Priority: P1)
 
-_Mandatory screen that loads the model into memory. Blocks access to app until successful._
+**Goal**: User can create reflections and receive AI-generated guided questions in Brazilian Portuguese with Jungian tone using llama.rn
 
-- [ ] **T018** — Create Model Loading ViewModel
-  - File: `features/onboarding/view-model/use-model-loading-vm.ts`
-  - State: loadStatus ('loading' | 'success' | 'failed'), loadProgress, errorMessage
-  - Actions: `loadModel`, `retryLoad`, `cancel`
-  - Integrates with existing `LocalAIRuntimeService` from `shared/ai/local-ai-runtime.ts`
-  - Validates model fits within 60% RAM budget before loading
-  - **Validation**: Unit tests for load state machine and budget validation
-  - **Depends on**: T014, T015
+**Independent Test**: Create reflection entry, request guided questions, verify pt-BR output with introspective tone is generated
 
-- [ ] **T019** — Create Model Loading Screen
-  - File: `features/onboarding/view/model-loading-screen.tsx`
-  - Shows progress indicator during load
-  - `usePreventRemove` blocks back button during loading
-  - On failure: error message + retry button + cancel button (with confirmation dialog)
-  - On success: brief success state → auto-navigate to main app
-  - Uses existing `StateView` for loading/error states
-  - All text in Brazilian Portuguese
-  - **Validation**: Manual test — load model → success → navigates to reflection screen; simulate failure → retry works
-  - **Depends on**: T018
+### Tests for User Story 1 (REQUIRED) ⚠️
 
-- [ ] **T020** — Create onboarding routing guard
-  - File: `features/onboarding/service/onboarding-guard.ts` or in `_layout.tsx`
-  - On app launch: check `CredentialRepository.isFirstLaunch()` and `ModelRepository.hasDownloadedModel()`
-  - Route logic:
-    - First launch → Security Gate
-    - Returning, no model → Model Selection
-    - Returning, has model → Model Loading
-    - Both complete → Main app
-  - Use `router.replace()` to prevent back navigation to onboarding
-  - **Validation**: E2E test — kill app mid-onboarding → reopen → resumes at correct screen
-  - **Depends on**: T010, T017, T019
+- [ ] T035 [P] [US1] Unit test for generateGuidedQuestions() with llama.rn mock in tests/unit/reflection/guided-questions.spec.ts
+- [ ] T036 [P] [US1] Unit test for Brazilian Portuguese language enforcement in completion output in tests/unit/reflection/language-check.spec.ts
+- [ ] T037 [P] [US1] Unit test for Jungian tone validation in generated questions in tests/unit/reflection/tone-check.spec.ts
+- [ ] T038 [P] [US1] Integration test for reflection → guided questions generation flow in tests/integration/reflection/reflection-flow.spec.ts
 
-**Slice 3 checkpoint**: Complete onboarding flow works: Security Gate → Model Selection → Model Loading → Main App. Back button is properly blocked during loading.
+### Implementation for User Story 1
+
+- [ ] T039 [US1] Verify reflection-service.ts generateGuidedQuestions() works with llama.rn context.completion() (update if needed)
+- [ ] T040 [US1] Verify system prompt enforces Brazilian Portuguese + Jungian tone (update if needed)
+- [ ] T041 [US1] Verify stop words are appropriate for pt-BR completions (add '</s>', '<|end|>', '\nUser:')
+- [ ] T042 [US1] Test guided questions generation with llama.rn on target device - verify output is in pt-BR with introspective tone
+- [ ] T043 [US1] Validate UX states: loading (spinner), success (questions displayed), error (fallback prompts + retry queue)
+- [ ] T044 [US1] Verify performance budget: guided question generation <8s p95 for 500-word reflection on 8GB device
+- [ ] T045 [US1] Add regression test for language leakage (ensure no English output in guided questions)
+
+**Checkpoint**: At this point, User Stories 0 AND 1 should both work independently
 
 ---
 
-## Slice 4: RAG Database Seed (FR-003)
+## Phase 5: User Story 2 - Period Review and Shadow Pattern Synthesis (Priority: P2)
 
-_Sets up rag-content.db using expo-sqlite with seed data on first launch._
+**Goal**: User can generate period-based review synthesizing reflections and identifying shadow patterns using llama.rn
 
-- [ ] **T021** — Create rag-content.db seed service
-  - File: `shared/ai/rag-content-seed.ts`
-  - Use `expo-sqlite` to create vector store schema
-  - Define seed data structure: Jungian shadow work philosophy excerpts with pre-computed embeddings
-  - Seed data format: `{ id, text, embedding: number[], category }`
-  - Methods: `initRagDatabase()`, `seedContent(content[])`, `verifySeed()`
-  - **Validation**: Integration test — seed → query → verify embeddings exist
-  - **Depends on**: T002 (expo-sqlite)
+**Independent Test**: Load multiple reflections for a date range, generate final review, verify structured pt-BR summary with recurring themes
 
-- [ ] **T022** — Integrate rag-content.db with existing ReflectionRAGRepository
-  - Update `shared/ai/reflection-rag-repository.ts` to use the seeded SQLite database instead of OPSQLite vector store (or configure OPSQLite to use the seeded data)
-  - Ensure `searchByText()` queries the seeded content
-  - **Validation**: Integration test — search with reflection text → returns relevant Jungian content
-  - **Depends on**: T021, existing ReflectionRAGRepository
+### Tests for User Story 2 (REQUIRED) ⚠️
 
-- [ ] **T023** — Add rag-content.db initialization to app startup
-  - Call `initRagDatabase()` and verify seed on app startup (lazy — only if not already seeded)
-  - Handle missing/corrupted seed gracefully (re-seed or fallback)
-  - **Validation**: App starts without errors; RAG queries return results
-  - **Depends on**: T022
+- [ ] T046 [P] [US2] Unit test for review generation with llama.rn mock in tests/unit/review/period-review.spec.ts
+- [ ] T047 [P] [US2] Integration test for review generation flow with multiple reflections in tests/integration/review/review-flow.spec.ts
+- [ ] T048 [P] [US2] Unit test for empty period handling (insufficient material) in tests/unit/review/period-validation.spec.ts
 
-**Slice 4 checkpoint**: RAG retrieval works using seeded Jungian content. Guided question generation uses rag-content.db, not user reflections.
+### Implementation for User Story 2
+
+- [ ] T049 [US2] Verify review-service.ts generatePeriodReview() works with llama.rn context.completion() (update if needed)
+- [ ] T050 [US2] Verify review system prompt enforces pt-BR + Jungian shadow-work synthesis tone
+- [ ] T051 [US2] Test review generation with llama.rn on target device - verify structured pt-BR output with themes/patterns
+- [ ] T052 [US2] Validate UX states: loading (spinner + progress), success (review displayed), empty (concise message), error (retry option)
+- [ ] T053 [US2] Verify performance budget: review generation <20s p95 for 30 entries on 8GB device
+
+**Checkpoint**: All user stories 0, 1, AND 2 should now be independently functional
 
 ---
 
-## Slice 5: Integration & Wiring
+## Phase 6: User Story 3 - Markdown Export of Reflection History (Priority: P3)
 
-_Connects onboarding flow with existing features and ensures all routes work._
+**Goal**: User can export reflections, guided questions, and reviews to markdown file using content generated by llama.rn
 
-- [ ] **T024** — Update `app/index.tsx` to respect onboarding guard
-  - Instead of directly rendering `DailyReflectionScreen`, check onboarding state
-  - If onboarding incomplete → redirect to onboarding flow
-  - If onboarding complete → render reflection screen
-  - **Validation**: First launch shows onboarding; subsequent launches go to reflection
-  - **Depends on**: T020
+**Independent Test**: Select date range with reflections, generate markdown export, verify file contains timestamps, reflections, questions, and reviews in readable format
 
-- [ ] **T025** — Update existing reflection feature to use rag-content.db RAG
-  - Verify `features/reflection/service/reflection-service.ts` uses `ReflectionRAGRepository` with seeded content
-  - Ensure RAG retrieval does NOT use user reflections (v1 constraint)
-  - **Validation**: Integration test — create reflection → generate questions → questions reference Jungian concepts, not prior reflections
-  - **Depends on**: T023
+### Tests for User Story 3 (REQUIRED) ⚠️
 
-- [ ] **T026** — Add RAM cap to LocalAIRuntimeService
-  - Update `shared/ai/local-ai-runtime.ts` to accept and respect `ramBudget60` parameter
-  - Refuse to initialize if model estimated RAM > budget
-  - **Validation**: Unit test — model exceeding budget → init fails with clear error
-  - **Depends on**: T012
+- [ ] T054 [P] [US3] Unit test for markdown formatting with llama.rn-generated content in tests/unit/export/markdown-formatter.spec.ts
+- [ ] T055 [P] [US3] Integration test for full export flow with llama.rn content in tests/integration/export/export-flow.spec.ts
+- [ ] T056 [P] [US3] Unit test for empty period export handling in tests/unit/export/empty-period.spec.ts
 
-- [ ] **T027** — Create barrel exports for onboarding feature
-  - File: `features/onboarding/index.ts`
-  - Export all public APIs: models, repositories, services, view-models, screens
-  - **Validation**: `bun run lint` passes, no unused exports
-  - **Depends on**: T010, T017, T019
+### Implementation for User Story 3
 
-**Slice 5 checkpoint**: Full app flow works end-to-end. Onboarding gates access, reflection uses RAG correctly, all screens themed.
+- [ ] T057 [US3] Verify export pipeline handles llama.rn-generated content correctly (no format changes expected)
+- [ ] T058 [US3] Test markdown export with llama.rn-generated reflections and questions on target device
+- [ ] T059 [US3] Validate UX states: loading (spinner + progress), success (file saved), empty (no-content message), error (retry option)
+- [ ] T060 [US3] Verify performance budget: markdown export <10s p95 for 365 entries
+
+**Checkpoint**: All user stories 0, 1, 2, AND 3 should now be independently functional
 
 ---
 
-## Slice 6: Testing & Quality Gates
+## Phase 7: RAG Embeddings (Cross-Cutting Infrastructure)
 
-_Automated tests for all new functionality. Regression tests for existing features._
+**Purpose**: Ensure RAG retrieval continues to work with @react-native-rag/executorch embeddings alongside llama.rn LLM
 
-### Unit Tests
+**Note**: This phase ensures rag-content.db vector retrieval works during the transition period
 
-- [ ] **T028** — Unit tests: DeviceDetector
-  - File: `tests/unit/onboarding/device-detector.spec.ts`
-  - Test RAM detection, storage detection, biometric detection with mocked values
-  - Test `ramBudget60` calculation accuracy
-  - **Depends on**: T012
+- [ ] T061 [P] Verify ReflectionRAGRepository still works with @react-native-rag/executorch embeddings alongside llama.rn LLM in shared/ai/reflection-rag-repository.ts
+- [ ] T062 [P] Test RAG retrieval + llama.rn generation integration in tests/integration/rag/rag-retrieval.spec.ts
+- [ ] T063 Verify rag-content.db embeddings are compatible with @react-native-rag/executorch (validate vector dimensions match 384)
+- [ ] T064 Document future migration path for embeddings from executorch to llama.rn in shared/ai/reflection-rag-repository.ts comments
+- [ ] T065 Add regression test for RAG retrieval quality before/after llama.rn migration
 
-- [ ] **T029** — Unit tests: Model filtering
-  - File: `tests/unit/onboarding/model-filtering.spec.ts`
-  - Test compatibility filtering with various RAM budgets
-  - Test recommendation logic
-  - **Depends on**: T013
-
-- [ ] **T030** — Unit tests: Security Gate state machine
-  - File: `tests/unit/onboarding/security-gate-state.spec.ts`
-  - Test password creation, validation, authentication flows
-  - Test biometric enable/disable flows
-  - Test error states and recovery
-  - **Depends on**: T009
-
-### Integration Tests
-
-- [ ] **T031** — Integration test: Credential persistence
-  - File: `tests/integration/onboarding/credential-persistence.spec.ts`
-  - Test save → retrieve → verify password hash
-  - Test first-launch flag transitions
-  - **Depends on**: T008
-
-- [ ] **T032** — Integration test: Model config persistence
-  - File: `tests/integration/onboarding/model-config-persistence.spec.ts`
-  - Test save → retrieve model configuration
-  - Test download state transitions
-  - **Depends on**: T014
-
-- [ ] **T033** — Integration test: Review persistence (regression fix)
-  - File: `tests/integration/review/review-persistence.spec.ts`
-  - Test save → restart app → retrieve (verifies SQLite persistence)
-  - **Depends on**: T003
-
-- [ ] **T034** — Integration test: RAG with seeded content
-  - File: `tests/integration/ai/rag-seeded-content.spec.ts`
-  - Test that RAG retrieval returns Jungian content, not user reflections
-  - Test search relevance with sample reflection text
-  - **Depends on**: T025
-
-### E2E Tests
-
-- [ ] **T035** — E2E test: Onboarding flow (first-time user)
-  - File: `tests/e2e/onboarding-flow.spec.ts`
-  - Full flow: create password → enable biometric → select model → download → load model → enter app
-  - **Depends on**: T020, T024
-
-- [ ] **T036** — E2E test: Returning user flow
-  - Same file as T035
-  - Flow: authenticate (password or biometric) → model loads → enter app
-  - **Depends on**: T020, T024
-
-- [ ] **T037** — E2E test: Full user journey (regression)
-  - File: `tests/e2e/full-journey.spec.ts`
-  - Complete journey: onboarding → create reflection → generate questions → generate review → export markdown
-  - **Depends on**: T025, existing features
-
-### Regression Tests
-
-- [ ] **T038** — Regression test: Privacy & language isolation
-  - File: `tests/integration/regression/privacy-language.spec.ts`
-  - Verify no reflection content is transmitted externally
-  - Verify all generated output is in Brazilian Portuguese
-  - Verify RAG does NOT use user reflections in v1
-  - **Depends on**: T025
-
-- [ ] **T039** — Update existing test for guided questions RAG source
-  - Update `tests/integration/reflection/guided-questions-normal.spec.ts`
-  - Assert that RAG context comes from seeded Jungian content, not prior reflections
-  - **Depends on**: T025
+**Checkpoint**: RAG system verified working with llama.rn LLM + executorch embeddings
 
 ---
 
-## Task Dependency Graph
+## Phase 8: Polish & Cross-Cutting Concerns
 
-```
-Slice 0 (Foundation):
-  T001 ─┬─→ T005
-        └─→ T006
-  T002 → T003 → T004
-  T011 → T012 ─┬─→ T013 → T014 ─┬─→ T018 → T019
-               │                 ├─→ T016 → T017
-               │                 └─→ T020 → T024
-               ├─→ T015 ─┬─→ T016
-               │         └─→ T018
-               └─→ T026
+**Purpose**: Improvements that affect multiple user stories
 
-Slice 1 (Security Gate):
-  T007 → T008 → T009 → T010 ──→ T020
+- [ ] T066 [P] Documentation updates: Update README.md with llama.rn setup instructions
+- [ ] T067 [P] Update docs/architecture/private-shadow-journal.md to reflect llama.rn runtime
+- [ ] T068 [P] Update docs/decisions/0001-local-ai-mvvm-bun.md to document migration from ExecuTorch to llama.rn
+- [ ] T069 Run full test suite and verify all 107 tests pass: `bun test`
+- [ ] T070 Run full TypeScript check and verify no errors: `npx tsc --noEmit`
+- [ ] T071 Run lint and verify no errors: `npm run lint`
+- [ ] T072 [P] Add integration tests for retry queue worker with llama.rn in tests/integration/ai/retry-queue.spec.ts
+- [ ] T073 Performance benchmark: Document model loading and generation times for each device tier (4GB, 6GB, 8GB RAM)
+- [ ] T074 [P] Security review: Verify no reflection or generated content is transmitted to external services
+- [ ] T075 Run quickstart.md validation on clean install
 
-Slice 2 (Model Selection):
-  T012 → T013 → T014 ─┬─→ T016 → T017 ──→ T020
-                      └─→ T015 ─┬─→ T016
-                                └─→ T018
+---
 
-Slice 3 (Model Loading):
-  T014 + T015 → T018 → T019 ──→ T020
+## Dependencies & Execution Order
 
-Slice 4 (RAG Seed):
-  T002 → T021 → T022 → T023 ──→ T025
-  T025 → T034, T038, T039
+### Phase Dependencies
 
-Slice 5 (Integration):
-  T020 + T024 + T025 + T026 + T027
+- **Setup (Phase 1)**: No dependencies - can start immediately
+- **Foundational (Phase 2)**: Depends on Setup completion - BLOCKS all user stories
+- **User Stories (Phase 3-6)**: All depend on Foundational phase completion
+  - User stories can then proceed in parallel (if staffed)
+  - Or sequentially in priority order (US0 → US1 → US2 → US3)
+- **RAG Embeddings (Phase 7)**: Depends on Foundational + US1 completion
+- **Polish (Phase 8)**: Depends on all desired user stories being complete
 
-Slice 6 (Testing):
-  T012 → T028
-  T013 → T029
-  T009 → T030
-  T008 → T031
-  T014 → T032
-  T003 → T033
-  T025 → T034, T038, T039
-  T020 + T024 → T035, T036
-  T025 + existing → T037
+### User Story Dependencies
+
+- **User Story 0 (P0)**: Can start after Foundational (Phase 2) - No dependencies on other stories
+- **User Story 1 (P1)**: Can start after Foundational (Phase 2) - Depends on US0 model loading
+- **User Story 2 (P2)**: Can start after Foundational (Phase 2) - Depends on US1 reflection data
+- **User Story 3 (P3)**: Can start after Foundational (Phase 2) - Depends on US1 + US2 generated content
+
+### Within Each User Story
+
+- Tests MUST be written and FAIL before implementation
+- Models/services before UI integration
+- Core implementation before UX validation
+- Story complete before moving to next priority
+
+### Parallel Opportunities
+
+- All Setup tasks marked [P] can run in parallel (T002, T003, T005)
+- All Foundational native module replacements can run in parallel (T008, T009, T010)
+- All tests for a user story marked [P] can run in parallel
+- Different user stories can be worked on in parallel by different team members (after Phase 2)
+- Documentation updates can run in parallel (T066, T067, T068)
+
+---
+
+## Parallel Example: User Story 0
+
+```bash
+# Launch all tests for User Story 0 together:
+Task: "Unit test for llama.rn model loading in tests/unit/onboarding/model-loading.spec.ts"
+Task: "Unit test for llama.rn completion generation in tests/unit/onboarding/model-generation.spec.ts"
+Task: "Integration test for model download → load → generate flow in tests/integration/onboarding/model-flow.spec.ts"
 ```
 
-## Execution Order (Recommended)
+---
 
-1. **T001** → T002 → T003 → T004 → T005 → T006 (Slice 0: unblock everything)
-2. **T007** → T008 → T011 → T012 (Slice 1 start: auth + device detection)
-3. **T009** → T010 (Security Gate complete)
-4. **T013** → T014 → T015 (Slice 2 start: model data + services)
-5. **T016** → T017 (Model Selection complete)
-6. **T018** → T019 (Model Loading complete)
-7. **T020** → T024 (Routing guard + app entry)
-8. **T021** → T022 → T023 → T025 (RAG seed + integrate)
-9. **T026** → T027 (RAM cap + barrel exports)
-10. **T028** → T039 (All tests)
+## Parallel Example: User Story 1
+
+```bash
+# Launch all tests for User Story 1 together:
+Task: "Unit test for generateGuidedQuestions() in tests/unit/reflection/guided-questions.spec.ts"
+Task: "Unit test for pt-BR language enforcement in tests/unit/reflection/language-check.spec.ts"
+Task: "Unit test for Jungian tone validation in tests/unit/reflection/tone-check.spec.ts"
+Task: "Integration test for reflection flow in tests/integration/reflection/reflection-flow.spec.ts"
+```
+
+---
+
+## Implementation Strategy
+
+### MVP First (User Story 0 Only)
+
+1. Complete Phase 1: Setup
+2. Complete Phase 2: Foundational (CRITICAL - blocks all stories)
+3. Complete Phase 3: User Story 0
+4. **STOP and VALIDATE**: Test model download → load → verify no error code 35
+5. Deploy/demo if ready
+
+### Incremental Delivery
+
+1. Complete Setup + Foundational → Foundation ready
+2. Add User Story 0 → Test independently → Model loading works! (MVP!)
+3. Add User Story 1 → Test independently → Guided questions generated!
+4. Add User Story 2 → Test independently → Period reviews work!
+5. Add User Story 3 → Test independently → Export pipeline complete!
+6. Each story adds value without breaking previous stories
+
+### Parallel Team Strategy
+
+With multiple developers:
+
+1. Team completes Setup + Foundational together
+2. Once Foundational is done:
+   - Developer A: User Story 0 (onboarding)
+   - Developer B: User Story 1 (reflection)
+   - Developer C: User Story 2 (review)
+   - Developer D: User Story 3 (export)
+3. Stories complete and integrate independently
+
+---
+
+## Notes
+
+- [P] tasks = different files, no dependencies
+- [Story] label maps task to specific user story for traceability
+- Each user story should be independently completable and testable
+- Verify tests fail before implementing
+- Include UX consistency checks and performance verification for each story
+- Commit after each task or logical group
+- Stop at any checkpoint to validate story independently
+- Avoid: vague tasks, same file conflicts, cross-story dependencies that break independence
+- **Critical**: Verify llama.rn builds correctly on Android before starting Phase 2
+- **Critical**: Keep @react-native-rag/executorch for embeddings - do NOT remove until Phase 2 migration

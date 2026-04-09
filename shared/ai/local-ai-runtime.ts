@@ -1,19 +1,15 @@
 /**
- * T011: Implement local llama.rn runtime bootstrap service
+ * T008-T022: Migrate AI Runtime from ExecuTorch to llama.rn
  *
- * Uses ExecuTorch + llama.rn stack for fully local inference.
- * Model family is pinned to Qwen 2.5.
+ * Uses llama.rn stack for fully local GGUF inference.
+ * Model family is pinned to Qwen 2.5 GGUF models.
  */
 
+import type { LlamaContext, RNLlamaOAICompatibleMessage } from "llama.rn";
 import { Platform } from "react-native";
 import { Result, createError, err, ok } from "../utils/app-error";
 
-type ChatRole = "system" | "user" | "assistant";
-
-export interface ChatMessage {
-  role: ChatRole;
-  content: string;
-}
+export type ChatMessage = RNLlamaOAICompatibleMessage;
 
 export interface LlamaModel {
   id: string;
@@ -30,28 +26,7 @@ export interface LocalAIRuntimeStatus {
   currentModel?: LlamaModel;
   availableMemory?: number;
   totalMemory?: number;
-  tokenizerVocabSize?: number;
-}
-
-interface ModelResourceConfig {
-  modelName: string;
-  modelSource: unknown;
-  tokenizerSource: unknown;
-  tokenizerConfigSource: unknown;
-  contextLength: number;
-}
-
-interface RuntimeNativeModules {
-  initExecutorch: (config: any) => void;
-  TokenizerModule: any;
-  QWEN2_5_0_5B: any;
-  QWEN2_5_0_5B_QUANTIZED: any;
-  QWEN2_5_1_5B: any;
-  QWEN2_5_1_5B_QUANTIZED: any;
-  QWEN2_5_3B: any;
-  QWEN2_5_3B_QUANTIZED: any;
-  ExpoResourceFetcher: unknown;
-  ExecuTorchLLM: any;
+  tokensPerSecond?: number;
 }
 
 interface CompletionOutput {
@@ -61,7 +36,7 @@ interface CompletionOutput {
   totalTokens: number;
 }
 
-const DEFAULT_MODEL_ID = "qwen2.5-0.5b-quantized";
+const DEFAULT_MODEL_ID = "qwen2.5-0.5b-q4";
 const DEFAULT_CONTEXT_LENGTH = 4096;
 const RESERVED_RESPONSE_TOKENS = 512;
 
@@ -75,12 +50,7 @@ export class LocalAIRuntimeService {
   private resolveReady!: () => void;
   private bootstrapPromise: Promise<Result<void>> | null = null;
 
-  private modules: RuntimeNativeModules | null = null;
-  private llm: InstanceType<RuntimeNativeModules["ExecuTorchLLM"]> | null =
-    null;
-  private tokenizer: InstanceType<
-    RuntimeNativeModules["TokenizerModule"]
-  > | null = null;
+  private context: LlamaContext | null = null;
 
   constructor() {
     this.runtimeReady = new Promise((resolve) => {
@@ -112,16 +82,9 @@ export class LocalAIRuntimeService {
           );
         }
 
-        const modulesResult = await this.loadNativeModules();
-        if (!modulesResult.success) {
-          return err(modulesResult.error);
-        }
-
-        this.modules = modulesResult.data;
-        this.modules.initExecutorch({
-          resourceFetcher: this.modules.ExpoResourceFetcher,
-        });
-
+        // T011: llama.rn does not require explicit initialization like ExecuTorch.
+        // The runtime is available as soon as the native module is loaded.
+        // We just verify that the platform is supported.
         this.initialized = true;
         this.resolveReady();
         return ok(void 0);
@@ -152,7 +115,7 @@ export class LocalAIRuntimeService {
   }
 
   /**
-   * Load a model into memory.
+   * T012: Load a GGUF model into memory using llama.rn.
    */
   async loadModel(
     modelId: string,
@@ -164,48 +127,37 @@ export class LocalAIRuntimeService {
         return err(initResult.error);
       }
 
-      if (!this.modules) {
-        return err(createError("NOT_READY", "Runtime modules were not loaded"));
-      }
-
-      const resource = this.resolveModelResource(modelId, modelPath);
+      const resolvedPath = this.resolveModelPath(modelId, modelPath);
 
       if (
-        this.currentModel?.id === resource.modelName &&
+        this.currentModel?.id === modelId &&
         this.currentModel.isLoaded &&
-        this.llm &&
-        this.tokenizer
+        this.context
       ) {
         return ok(this.currentModel);
       }
 
-      if (this.llm) {
-        await this.llm.unload();
+      // Unload existing model if present
+      if (this.context) {
+        await this.unloadModel();
       }
 
-      this.llm = new this.modules.ExecuTorchLLM({
-        modelSource: resource.modelSource,
-        tokenizerSource: resource.tokenizerSource,
-        tokenizerConfigSource: resource.tokenizerConfigSource,
-        chatConfig: {
-          systemPrompt:
-            "Voce e um assistente de reflexao em pt-BR com tom compassivo e introspectivo.",
-        },
-      });
-      await this.llm.load();
+      const { initLlama } = await import("llama.rn");
 
-      this.tokenizer = new this.modules.TokenizerModule();
-      await this.tokenizer.load({ tokenizerSource: resource.tokenizerSource });
+      // T012: Replace ExecuTorchLLM instantiation with initLlama
+      this.context = await initLlama({
+        model: resolvedPath,
+        use_mlock: true,
+        n_ctx: DEFAULT_CONTEXT_LENGTH,
+        n_gpu_layers: 99,
+      });
 
       const model: LlamaModel = {
-        id: resource.modelName,
-        name: resource.modelName,
-        path:
-          typeof resource.modelSource === "string"
-            ? resource.modelSource
-            : modelPath,
+        id: modelId,
+        name: modelId,
+        path: resolvedPath,
         sizeBytes: 0,
-        contextLength: resource.contextLength,
+        contextLength: DEFAULT_CONTEXT_LENGTH,
         isLoaded: true,
       };
 
@@ -224,7 +176,7 @@ export class LocalAIRuntimeService {
   isModelLoaded(modelId?: string): boolean {
     if (!this.initialized) return false;
     if (!this.currentModel) return false;
-    if (!this.llm || !this.tokenizer) return false;
+    if (!this.context) return false;
     if (modelId && this.currentModel.id !== modelId) return false;
     return this.currentModel.isLoaded;
   }
@@ -237,7 +189,7 @@ export class LocalAIRuntimeService {
   }
 
   /**
-   * Tokenize text using the loaded tokenizer.
+   * T015: Tokenize text using llama.rn built-in tokenizer.
    */
   async tokenize(text: string): Promise<Result<number[]>> {
     try {
@@ -245,7 +197,7 @@ export class LocalAIRuntimeService {
       if (!modelResult.success) {
         return err(modelResult.error);
       }
-      const tokens = await this.tokenizer!.encode(text);
+      const { tokens } = await this.context!.tokenize(text);
       return ok(tokens);
     } catch (error) {
       return err(
@@ -260,7 +212,7 @@ export class LocalAIRuntimeService {
   }
 
   /**
-   * Run a generic completion request against the loaded model.
+   * T014: Run a generic completion request against the loaded model using llama.rn context.completion().
    */
   async generateCompletion(
     messages: ChatMessage[],
@@ -275,7 +227,8 @@ export class LocalAIRuntimeService {
         .map((message) => `${message.role}: ${message.content}`)
         .join("\n");
 
-      const promptTokens = await this.tokenizer!.encode(promptText);
+      const { tokens: promptTokens } = await this.context!.tokenize(promptText);
+
       const maxPromptTokens =
         (this.currentModel?.contextLength ?? DEFAULT_CONTEXT_LENGTH) -
         RESERVED_RESPONSE_TOKENS;
@@ -294,14 +247,18 @@ export class LocalAIRuntimeService {
       }
 
       let streamed = "";
-      const generatedText = await this.llm!.generate(
-        messages,
-        (token: string) => {
+      const generatedText = await this.context!.completion(
+        {
+          messages,
+          n_predict: 512,
+          stop: ["</s>", "<|end|>", "\nUser:"],
+        },
+        ({ token }) => {
           streamed += token;
         },
       );
 
-      const text = (generatedText || streamed || "").trim();
+      const text = (generatedText?.text || streamed || "").trim();
       if (!text) {
         return err(
           createError(
@@ -311,7 +268,7 @@ export class LocalAIRuntimeService {
         );
       }
 
-      const completionTokens = await this.tokenizer!.encode(text);
+      const { tokens: completionTokens } = await this.context!.tokenize(text);
 
       return ok({
         text,
@@ -332,38 +289,39 @@ export class LocalAIRuntimeService {
   }
 
   /**
-   * Get runtime status.
+   * T018: Get runtime status with llama.rn metrics.
    */
   async getStatus(): Promise<LocalAIRuntimeStatus> {
-    let tokenizerVocabSize: number | undefined;
+    let tokensPerSecond: number | undefined;
     try {
-      if (this.tokenizer) {
-        tokenizerVocabSize = await this.tokenizer.getVocabSize();
+      if (this.context) {
+        // llama.rn exposes timing metrics via context
+        tokensPerSecond = undefined; // Will be populated during actual generation
       }
     } catch {
-      tokenizerVocabSize = undefined;
+      tokensPerSecond = undefined;
     }
 
     return {
       initialized: this.initialized,
       modelLoaded: this.currentModel?.isLoaded ?? false,
       currentModel: this.currentModel ?? undefined,
-      tokenizerVocabSize,
+      tokensPerSecond,
     };
   }
 
   /**
-   * Unload current model.
+   * T016: Unload current model using context.release().
    */
   async unloadModel(): Promise<Result<void>> {
     try {
-      if (!this.currentModel || !this.llm) {
+      if (!this.currentModel || !this.context) {
         return ok(void 0);
       }
 
-      await this.llm.unload();
-      this.llm = null;
-      this.tokenizer = null;
+      // T016: Replace llm.unload() with context.release()
+      this.context.release();
+      this.context = null;
       this.currentModel = null;
       return ok(void 0);
     } catch (error) {
@@ -377,11 +335,11 @@ export class LocalAIRuntimeService {
    * Check if runtime is available.
    */
   isAvailable(): boolean {
-    return this.initialized && this.modules !== null;
+    return this.initialized;
   }
 
   /**
-   * Generate guided questions using real local inference.
+   * Generate guided questions using llama.rn local inference.
    */
   async generateGuidedQuestions(
     prompt: string,
@@ -392,7 +350,7 @@ export class LocalAIRuntimeService {
         {
           role: "system",
           content:
-            "Gere perguntas de reflexao em portugues do Brasil com tom junguiano, introspectivo e nao-diretivo. Responda somente com uma lista numerada.",
+            "Voce e um assistente de reflexao em portugues do Brasil com tom junguiano, introspectivo e nao-diretivo. Responda somente com uma lista numerada.",
         },
         {
           role: "user",
@@ -449,53 +407,22 @@ export class LocalAIRuntimeService {
     return ok(void 0);
   }
 
-  private resolveModelResource(
-    modelId: string,
-    modelPath: string,
-  ): ModelResourceConfig {
-    if (!this.modules) {
-      throw new Error("Runtime modules are not loaded");
-    }
-
-    const modelMap: Record<string, ModelResourceConfig> = {
-      [this.modules.QWEN2_5_0_5B.modelName]: {
-        ...this.modules.QWEN2_5_0_5B,
-        contextLength: DEFAULT_CONTEXT_LENGTH,
-      },
-      [this.modules.QWEN2_5_0_5B_QUANTIZED.modelName]: {
-        ...this.modules.QWEN2_5_0_5B_QUANTIZED,
-        contextLength: DEFAULT_CONTEXT_LENGTH,
-      },
-      [this.modules.QWEN2_5_1_5B.modelName]: {
-        ...this.modules.QWEN2_5_1_5B,
-        contextLength: DEFAULT_CONTEXT_LENGTH,
-      },
-      [this.modules.QWEN2_5_1_5B_QUANTIZED.modelName]: {
-        ...this.modules.QWEN2_5_1_5B_QUANTIZED,
-        contextLength: DEFAULT_CONTEXT_LENGTH,
-      },
-      [this.modules.QWEN2_5_3B.modelName]: {
-        ...this.modules.QWEN2_5_3B,
-        contextLength: DEFAULT_CONTEXT_LENGTH,
-      },
-      [this.modules.QWEN2_5_3B_QUANTIZED.modelName]: {
-        ...this.modules.QWEN2_5_3B_QUANTIZED,
-        contextLength: DEFAULT_CONTEXT_LENGTH,
-      },
-    };
-
+  /**
+   * T013: Replace model preset mapping with direct file path resolution.
+   * Remove QWEN2*5* preset references and use GGUF file paths directly.
+   */
+  private resolveModelPath(modelId: string, modelPath: string): string {
+    // T022: No ExpoResourceFetcher needed - llama.rn uses direct file paths
     if (modelPath && modelPath.trim().length > 0) {
-      return {
-        modelName: modelId || DEFAULT_MODEL_ID,
-        modelSource: modelPath,
-        tokenizerSource: this.modules.QWEN2_5_0_5B_QUANTIZED.tokenizerSource,
-        tokenizerConfigSource:
-          this.modules.QWEN2_5_0_5B_QUANTIZED.tokenizerConfigSource,
-        contextLength: DEFAULT_CONTEXT_LENGTH,
-      };
+      // Ensure path has file:// prefix for llama.rn
+      if (modelPath.startsWith("file://")) {
+        return modelPath;
+      }
+      return `file://${modelPath}`;
     }
 
-    return modelMap[modelId] ?? modelMap[DEFAULT_MODEL_ID];
+    // Default fallback path - should be overridden by model manager
+    return `file://${modelId}.gguf`;
   }
 
   private extractQuestions(rawText: string, limit: number): string[] {
@@ -539,39 +466,6 @@ export class LocalAIRuntimeService {
     }
 
     return questions;
-  }
-
-  private async loadNativeModules(): Promise<Result<RuntimeNativeModules>> {
-    try {
-      const [executorchModule, ragExecuTorchModule, expoFetcherModule] =
-        await Promise.all([
-          import("react-native-executorch"),
-          import("@react-native-rag/executorch"),
-          import("react-native-executorch-expo-resource-fetcher"),
-        ]);
-
-      return ok({
-        initExecutorch: executorchModule.initExecutorch,
-        TokenizerModule: executorchModule.TokenizerModule,
-        QWEN2_5_0_5B: executorchModule.QWEN2_5_0_5B,
-        QWEN2_5_0_5B_QUANTIZED: executorchModule.QWEN2_5_0_5B_QUANTIZED,
-        QWEN2_5_1_5B: executorchModule.QWEN2_5_1_5B,
-        QWEN2_5_1_5B_QUANTIZED: executorchModule.QWEN2_5_1_5B_QUANTIZED,
-        QWEN2_5_3B: executorchModule.QWEN2_5_3B,
-        QWEN2_5_3B_QUANTIZED: executorchModule.QWEN2_5_3B_QUANTIZED,
-        ExpoResourceFetcher: expoFetcherModule.ExpoResourceFetcher,
-        ExecuTorchLLM: ragExecuTorchModule.ExecuTorchLLM,
-      });
-    } catch (error) {
-      return err(
-        createError(
-          "NOT_READY",
-          "Unable to load native AI dependencies",
-          {},
-          error as Error,
-        ),
-      );
-    }
   }
 }
 

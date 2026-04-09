@@ -44,7 +44,23 @@
       ],
       "expo-sqlite",
       "react-native-edge-to-edge",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "llama.rn",
+        {
+          "enableEntitlements": true,
+          "forceCxx20": true,
+          "enableOpenCL": true
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "proguardRules": "-keep class com.rnllama.** { *; }\n-keep class org.apache.commons.** { *; }"
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

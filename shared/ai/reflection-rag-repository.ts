@@ -27,14 +27,13 @@ export interface RetrievalResult {
 }
 
 interface RAGNativeModules {
-  initExecutorch: (config: any) => void;
-  ExpoResourceFetcher: unknown;
-  ExecuTorchEmbeddings: any;
   OPSQLiteVectorStore: any;
   MULTI_QA_MINILM_L6_COS_V1: {
     modelSource: unknown;
     tokenizerSource: unknown;
   };
+  // T061: Keep @react-native-rag/executorch for embeddings temporarily
+  ExecuTorchEmbeddings: any;
 }
 
 /**
@@ -61,10 +60,9 @@ export class ReflectionRAGRepository {
       }
 
       this.modules = modulesResult.data;
-      this.modules.initExecutorch({
-        resourceFetcher: this.modules.ExpoResourceFetcher,
-      });
 
+      // T061: Embeddings are handled by @react-native-rag/executorch directly
+      // No need to call initExecutorch - just instantiate embeddings module
       const embeddings = new this.modules.ExecuTorchEmbeddings({
         modelSource: this.modules.MULTI_QA_MINILM_L6_COS_V1.modelSource,
         tokenizerSource: this.modules.MULTI_QA_MINILM_L6_COS_V1.tokenizerSource,
@@ -382,17 +380,16 @@ export class ReflectionRAGRepository {
 
   private async loadNativeModules(): Promise<Result<RAGNativeModules>> {
     try {
-      const [executorchModule, ragExecuTorchModule, opSqliteModule, fetcher] =
+      // T061: Keep @react-native-rag/executorch for embeddings temporarily
+      // react-native-executorch is still needed for MULTI_QA_MINILM_L6_COS_V1 model config
+      const [executorchModule, ragExecuTorchModule, opSqliteModule] =
         await Promise.all([
           import("react-native-executorch"),
           import("@react-native-rag/executorch"),
           import("@react-native-rag/op-sqlite"),
-          import("react-native-executorch-expo-resource-fetcher"),
         ]);
 
       return ok({
-        initExecutorch: executorchModule.initExecutorch,
-        ExpoResourceFetcher: fetcher.ExpoResourceFetcher,
         ExecuTorchEmbeddings: ragExecuTorchModule.ExecuTorchEmbeddings,
         OPSQLiteVectorStore: opSqliteModule.OPSQLiteVectorStore,
         MULTI_QA_MINILM_L6_COS_V1: executorchModule.MULTI_QA_MINILM_L6_COS_V1,

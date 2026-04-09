@@ -1,151 +1,309 @@
-# Quickstart: Private Shadow Reflection Journal
+# Quickstart: llama.rn Migration
+
+## Overview
+
+This guide covers migrating the AI runtime from ExecuTorch to llama.rn for native GGUF model support.
 
 ## Prerequisites
 
-- **Bun** (package manager)
-- **Android Studio** with Android SDK (for Android builds)
-- **EAS CLI** (`npm i -g eas-cli`) — for building dev client
-- Node.js 20+ (if Bun is not available for some commands)
+- React Native 0.81.5+ (with New Architecture enabled)
+- Expo SDK 54+
+- Bun package manager
+- Android development environment (v1 target)
 
-## Setup
+## Installation
 
 ```bash
+# Add llama.rn
+bun add llama.rn
+
+# Download native artifacts
+node ./node_modules/llama.rn/install/download-native-artifacts.js
+
 # Install dependencies
 bun install
 
-# Start Expo dev server
-bun run dev
-
-# Build Android dev client (first time or after native dependency changes)
-bun run android
-# Or with EAS:
-eas build --profile development --platform android
+# iOS only (deferred for v1):
+# npx pod-install
 ```
 
-## Development Workflow
+## Configuration
 
-```bash
-# Start development server
-bun run dev
+### app.json
 
-# Run on connected Android device
-bun run android
+Add the llama.rn plugin to your Expo config:
 
-# Run linting
-bun run lint
-
-# Run tests
-bun run test
-bun run test:watch
-
-# Clean and reinstall dependencies
-rm -rf node_modules && bun run bun:ci
+```json
+{
+  "expo": {
+    "plugins": [
+      [
+        "llama.rn",
+        {
+          "enableEntitlements": true,
+          "forceCxx20": true,
+          "enableOpenCL": true
+        }
+      ]
+    ]
+  }
+}
 ```
 
-## Feature Architecture
+### Android ProGuard (if enabled)
 
-This project follows a **MVVM + Repository + Service** pattern organized by feature modules:
+If using ProGuard/R8 minification, add rules via `expo-build-properties`:
 
+```json
+{
+  "expo": {
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "proguardRules": "-keep class com.rnllama.** { *; }\n-keep class org.apache.commons.** { *; }"
+          }
+        }
+      ]
+    ]
+  }
+}
 ```
-features/<feature-name>/
-├── model/           # Domain entities and validation
-├── repository/      # Data access layer (MMKV, SQLite, etc.)
-├── service/         # Business logic orchestration (AI, RAG, fallback)
-├── view/            # React Native screens
-├── view-model/      # ViewModel hooks (state + actions)
-└── index.ts         # Barrel exports
+
+## Migration Steps
+
+### 1. Update Dependencies
+
+**Remove** (from package.json):
+
+```json
+{
+  "react-native-executorch": "^0.8.1",
+  "@react-native-rag/executorch": "^0.8.0",
+  "react-native-executorch-expo-resource-fetcher": "^0.8.0"
+}
 ```
 
-### Existing Feature Status
+**Add**:
 
-| Feature    | CRUD | AI Generation                | Persistence             | UI              | Status                   |
-| ---------- | ---- | ---------------------------- | ----------------------- | --------------- | ------------------------ |
-| Reflection | ✅   | ✅ Local AI + RAG + Fallback | ✅ MMKV encrypted       | ✅ Full screen  | **Complete**             |
-| Review     | ❌   | ✅ Service ready             | ⚠️ In-memory (MUST fix) | ✅ Screen ready | **Needs MMKV migration** |
-| Export     | ✅   | N/A                          | N/A (on-demand)         | ✅ Screen ready | **Complete**             |
-| Onboarding | ❌   | ❌                           | ❌                      | ❌              | **Needs to be built**    |
+```json
+{
+  "llama.rn": "^0.10.0"
+}
+```
 
-## Key Directories
+**Keep** (for embeddings, temporary):
 
-| Path                 | Purpose                                                         |
-| -------------------- | --------------------------------------------------------------- |
-| `app/`               | Expo Router routes (navigation layer only)                      |
-| `features/`          | Feature modules (business logic + UI)                           |
-| `shared/ai/`         | Local AI runtime, RAG repository, fallback prompts, tone guards |
-| `shared/storage/`    | MMKV storage utilities and encrypted stores                     |
-| `shared/security/`   | App lock (PIN + biometric)                                      |
-| `shared/components/` | Reusable UI primitives (StateView)                              |
-| `components/ui/`     | shadcn-style UI components (Button, Text)                       |
-| `lib/`               | Utilities (MMKV wrapper, theme, color helpers)                  |
-| `context/`           | React context providers (ThemeProvider)                         |
+```json
+{
+  "@react-native-rag/executorch": "^0.8.0" // For RAG embeddings only
+}
+```
 
-## Storage Instances
+### 2. Update Runtime Initialization
 
-| Instance ID              | Encryption   | Purpose                                  |
-| ------------------------ | ------------ | ---------------------------------------- |
-| `reflection_encrypted`   | AES-256      | Reflections, questions, reviews          |
-| `generation_jobs`        | No           | Retry queue for failed AI generation     |
-| `app_lock`               | No           | Lock state, timeout tracking             |
-| `powerlists-storage`     | Configurable | Legend State persist plugin              |
-| `auth_credentials` (NEW) | AES-256      | User password hash, biometric flag       |
-| `model_config` (NEW)     | No           | Model path, download status, last used   |
-| `review_encrypted` (NEW) | AES-256      | Final reviews (migration from in-memory) |
+**Before** (ExecuTorch):
 
-## Local AI Stack
+```typescript
+import { initExecutorch, TokenizerModule } from "react-native-executorch";
+import { ExecuTorchLLM } from "@react-native-rag/executorch";
 
-- **Runtime**: `react-native-executorch` (ExecuTorch LLM runtime)
-- **Models**: Qwen 2.5 (0.5B, 1.5B, 3B with Q4/Q8 quantization)
-- **RAG**: `react-native-rag` + `@react-native-rag/op-sqlite` (OPSQLite vector store)
-- **Embeddings**: `multi-qa-minilm-l6` via ExecuTorch
-- **rag-content.db**: Pre-built SQLite database with Jungian philosophy embeddings (bundled as asset)
+initExecutorch({ resourceFetcher: ExpoResourceFetcher });
+const llm = new ExecuTorchLLM({ modelSource, tokenizerSource, chatConfig });
+await llm.load();
+```
 
-## Important Constraints
+**After** (llama.rn):
 
-- **Android only** for v1 (iOS deferred)
-- **100% offline** — no external transmission of reflections or generated content
-- **60% RAM budget** — model runtime must not exceed 60% of total device RAM
-- **NativeWind className-only** — no inline styles with @rn-primitives components
-- **Bun test runner** — tests import from `bun:test` (mapped to Jest)
+```typescript
+import { initLlama } from "llama.rn";
 
-## Common Tasks
-
-### Add a new screen to a feature
-
-1. Create screen in `features/<feature>/view/<screen>.tsx`
-2. Create view-model in `features/<feature>/view-model/use-<screen>-vm.ts`
-3. Wire route in `app/<route>.tsx` → import and render screen from feature
-4. Export from `features/<feature>/index.ts`
-
-### Add a new MMKV storage instance
-
-```ts
-import { createMMKV } from "react-native-mmkv";
-
-export const myStorage = createMMKV({
-  id: "my_storage_id",
-  encryptionKey: "optional-32-char-key-for-aes-256",
+const context = await initLlama({
+  model: "file:///path/to/model.gguf",
+  use_mlock: true,
+  n_ctx: 4096,
+  n_gpu_layers: 99,
+  embedding: false,
 });
 ```
 
-### Test a feature
+### 3. Update Model Loading
+
+Replace `resolveModelResource()` with direct file path resolution:
+
+```typescript
+// Old: Map modelId to preset (executorch-specific)
+const resource = this.resolveModelResource(modelId, modelPath);
+
+// New: Use file path directly
+const modelUri = modelPath.startsWith("file://")
+  ? modelPath
+  : `file://${modelPath}`;
+this.context = await initLlama({
+  model: modelUri,
+  use_mlock: true,
+  n_ctx: contextLength,
+  n_gpu_layers: 99,
+});
+```
+
+### 4. Update Completion Generation
+
+**Before**:
+
+```typescript
+await this.llm.generate(messages, (token) => {
+  streamed += token;
+});
+```
+
+**After**:
+
+```typescript
+await this.context.completion(
+  {
+    messages,
+    n_predict: 256,
+    stop: ["</s>", "<|end|>"],
+  },
+  ({ token }) => {
+    streamed += token;
+  },
+);
+```
+
+### 5. Update Tokenizer
+
+**Before**:
+
+```typescript
+const tokenizer = new TokenizerModule();
+await tokenizer.load({ tokenizerSource });
+const tokens = await tokenizer.encode(text);
+```
+
+**After** (built-in):
+
+```typescript
+const { tokens } = await this.context.tokenize(text);
+const text = await this.context.detokenize(tokens);
+```
+
+## Testing
+
+### Unit Tests
 
 ```bash
 # Run all tests
-bun run test
+bun test
 
-# Run specific test file
-bunx jest tests/unit/reflection/create-reflection.spec.ts
-
-# Watch mode
-bun run test:watch
+# Run specific test
+bun test tests/unit/onboarding/
 ```
 
-### Build for production
+### Manual Testing
+
+1. **Model Download**:
+
+   ```bash
+   # Start dev build
+   bun run start
+
+   # Select model in onboarding
+   # Verify .gguf download completes with progress
+   ```
+
+2. **Model Loading**:
+
+   ```
+   # After download, model should load without error code 35
+   # Check logs: "Model loaded successfully"
+   ```
+
+3. **Generation**:
+
+   ```
+   # Create reflection entry
+   # Request guided questions
+   # Verify pt-BR output with Jungian tone
+   # Check response time < 8s p95
+   ```
+
+4. **RAM Budget**:
+   ```
+   # Test on device with known RAM (e.g., 6GB)
+   # 60% budget = 3.6GB
+   # Load 1.5B Q4 model (~1.8GB RAM) ✅
+   # Load 3B Q4 model (~3.5GB RAM) ✅
+   # Verify no OOM crashes
+   ```
+
+## Troubleshooting
+
+### Build fails with "llama.rn native module not found"
 
 ```bash
-# Build Android APK/AAB
-eas build --profile production --platform android
-
-# Submit to Play Store
-eas submit --platform android
+# Reinstall and download artifacts
+rm -rf node_modules
+bun install
+node ./node_modules/llama.rn/install/download-native-artifacts.js
 ```
+
+### Model loading fails with code 35
+
+- Verify model file exists and is valid GGUF format
+- Check file path starts with `file://`
+- Ensure model file is not corrupted (re-download if needed)
+
+### Generation is slow
+
+- Increase `n_gpu_layers` to 99 (max GPU offload)
+- Reduce `n_ctx` if context window is too large
+- Verify `use_mlock: true` is set (prevents swap)
+
+### ProGuard strips llama.rn classes
+
+Add to `android/app/proguard-rules.pro`:
+
+```proguard
+-keep class com.rnllama.** { *; }
+```
+
+## Performance Benchmarks
+
+| Device RAM | Model        | Load Time | Generation (500 words) |
+| ---------- | ------------ | --------- | ---------------------- |
+| 4GB        | Qwen 0.5B Q4 | ~15s      | ~12s                   |
+| 6GB        | Qwen 1.5B Q4 | ~20s      | ~10s                   |
+| 8GB        | Qwen 3B Q4   | ~25s      | ~8s                    |
+
+**Target**: All within performance budgets (PF-001: <8s p95 for 500 words on 8GB)
+
+## Rollback Plan
+
+If migration fails catastrophically:
+
+1. Revert package.json to ExecuTorch deps
+2. Restore `shared/ai/local-ai-runtime.ts` from git
+3. Remove llama.rn plugin from app.json
+4. Rebuild: `bun install && bun run start`
+
+## Next Steps
+
+After successful migration:
+
+1. **Phase 2**: Migrate RAG embeddings from executorch to llama.rn
+   - Download GGUF embedding model (`multi-qa-minilm-l6.gguf`)
+   - Create separate embedding context
+   - Validate rag-content.db vector compatibility
+
+2. **Phase 3**: Remove executorch dependencies entirely
+   - Drop `@react-native-rag/executorch`
+   - Clean up all executorch imports
+   - Reduce bundle size
+
+3. **Phase 4**: Optimize for Android
+   - Fine-tune `n_gpu_layers` per device class
+   - Add OpenCL backend selection
+   - Benchmark across device tiers
