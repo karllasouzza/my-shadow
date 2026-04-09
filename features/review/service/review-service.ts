@@ -10,6 +10,7 @@ import { getLocalAIRuntime } from "../../../shared/ai/local-ai-runtime";
 import { getPtBRJungianGuard } from "../../../shared/ai/ptbr-tone-guard";
 import { getGenerationJobStore } from "../../../shared/storage/generation-job-store";
 import { Result, createError, err, ok } from "../../../shared/utils/app-error";
+import { getModelRepository } from "../../onboarding/repository/model-repository";
 import { getReflectionRepository } from "../../reflection/repository/reflection-repository";
 import { FinalReview } from "../model/final-review";
 import { getReviewRepository } from "../repository/review-repository";
@@ -99,7 +100,19 @@ export class ReviewService {
       let parsedOutput: ParsedReviewOutput | null = null;
       if (runtimeInit.success) {
         await runtime.waitReady();
-        await runtime.loadModel("qwen2.5-0.5b-quantized", "");
+
+        // T022: Load model with valid path from model repository if available
+        const modelRepo = getModelRepository();
+        const activeModel = modelRepo.getActiveModel();
+        const modelPath = activeModel?.filePath || activeModel?.customFolderUri;
+
+        if (modelPath) {
+          await runtime.loadModel(
+            activeModel?.id || "qwen2.5-0.5b-quantized",
+            modelPath,
+          );
+        }
+        // If no modelPath available, ensureDefaultModelLoaded() will return proper error
 
         const aiStart = performance.now();
         const completionResult = await runtime.generateCompletion([

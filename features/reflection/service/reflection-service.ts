@@ -12,6 +12,7 @@ import { getReflectionRAGRepository } from "../../../shared/ai/reflection-rag-re
 import { getGenerationJobStore } from "../../../shared/storage/generation-job-store";
 import { Result, createError, err, ok } from "../../../shared/utils/app-error";
 import { getPerformanceMetrics } from "../../../shared/utils/performance-metrics";
+import { getModelRepository } from "../../onboarding/repository/model-repository";
 import { GuidedQuestionSet } from "../model/guided-question-set";
 import { ReflectionEntry } from "../model/reflection-entry";
 import { getReflectionRepository } from "../repository/reflection-repository";
@@ -160,7 +161,18 @@ export class ReflectionService {
       if (runtimeInit.success) {
         await runtime.waitReady();
 
-        await runtime.loadModel("qwen2.5-0.5b-quantized", "");
+        // T022: Load model with valid path from model repository if available
+        const modelRepo = getModelRepository();
+        const activeModel = modelRepo.getActiveModel();
+        const modelPath = activeModel?.filePath || activeModel?.customFolderUri;
+
+        if (modelPath) {
+          await runtime.loadModel(
+            activeModel?.id || "qwen2.5-0.5b-quantized",
+            modelPath,
+          );
+        }
+        // If no modelPath available, ensureDefaultModelLoaded() will return proper error
 
         const promptParts: string[] = [];
         promptParts.push(
