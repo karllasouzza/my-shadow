@@ -50,16 +50,16 @@ description: "Task list for AI Chat App Restructure (feature 002)"
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T008 [P] Define `ChatConversation` type in `src/features/chat/model/chat-conversation.ts` (fields per data-model.md)
-- [ ] T009 [P] Define `ChatMessage` type in `src/features/chat/model/chat-message.ts` (fields per data-model.md)
-- [ ] T010 Create chat repository in `src/features/chat/service/chat-service.ts` with MMKV storage (create, load, list index, delete, rename)
-- [ ] T011 [P] Create `model-picker.tsx` component in `src/features/onboarding/view/model-picker.tsx` (modal sheet with catalog list, download progress, RAM warning)
-- [ ] T012 [P] Update `use-model-loading-vm.ts` in `src/features/onboarding/view-model/` for in-chat loading flow (no navigation, callback-based)
-- [ ] T013 Create `message-bubble.tsx` component in `src/components/chat/message-bubble.tsx` (user/assistant/system variants, NativeWind tokens)
-- [ ] T014 Create `chat-input.tsx` component in `src/components/chat/chat-input.tsx` (text input, send button, disabled state, accessibility label)
-- [ ] T015 [P] Create `model-selector.tsx` component in `src/components/chat/model-selector.tsx` (badge showing loaded model, tap opens picker)
-- [ ] T016 [P] Create `conversation-item.tsx` component in `src/components/history/conversation-item.tsx` (title, updatedAt, swipe actions for rename/delete)
-- [ ] T017 Define Legend State observables for chat messages in `src/features/chat/view-model/` (messages list, streaming pending message, loading state)
+- [x] T008 [P] Define `ChatConversation` type in `src/features/chat/model/chat-conversation.ts` (fields per data-model.md)
+- [x] T009 [P] Define `ChatMessage` type in `src/features/chat/model/chat-message.ts` (fields per data-model.md)
+- [x] T010 Create chat repository in `src/features/chat/service/chat-service.ts` with MMKV storage (create, load, list index, delete, rename)
+- [x] T011 [P] Create `model-picker.tsx` component in `src/features/onboarding/view/model-picker.tsx` (modal sheet with catalog list, download progress, RAM warning)
+- [x] T012 [P] Update `use-model-loading-vm.ts` in `src/features/onboarding/view-model/` for in-chat loading flow (no navigation, callback-based)
+- [x] T013 Create `message-bubble.tsx` component in `src/components/chat/message-bubble.tsx` (user/assistant/system variants, NativeWind tokens)
+- [x] T014 Create `chat-input.tsx` component in `src/components/chat/chat-input.tsx` (text input, send button, disabled state, accessibility label)
+- [x] T015 [P] Create `model-selector.tsx` component in `src/components/chat/model-selector.tsx` (badge showing loaded model, tap opens picker)
+- [x] T016 [P] Create `conversation-item.tsx` component in `src/components/history/conversation-item.tsx` (title, updatedAt, swipe actions for rename/delete)
+- [x] T017 Define Legend State observables for chat messages in `src/features/chat/view-model/` (messages list, streaming pending message, loading state)
 
 **Checkpoint**: Foundation ready — entities, storage, UI primitives, model picker all in place. User story implementation can now begin.
 
