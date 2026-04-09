@@ -104,22 +104,22 @@ description: "Task list for AI Chat App Restructure (feature 002)"
 
 ### Tests for User Story 2 (REQUIRED) ⚠️
 
-- [ ] T031 [P] [US2] Unit test for model download flow with progress callback in `tests/unit/onboarding/model-manager.spec.ts`
-- [ ] T032 [P] [US2] Unit test for RAM validation before model load in `tests/unit/onboarding/use-model-loading-vm.spec.ts`
-- [ ] T033 [P] [US2] Integration test for download → verify → load chain in `tests/integration/chat/chat-flow.spec.ts`
+- [x] T031 [P] [US2] Unit test for model download flow with progress callback in `tests/unit/onboarding/model-manager.spec.ts`
+- [x] T032 [P] [US2] Unit test for RAM validation before model load in `tests/unit/onboarding/use-model-loading-vm.spec.ts`
+- [x] T033 [P] [US2] Integration test for download → verify → load chain in `tests/integration/chat/chat-flow.spec.ts`
 
 ### Implementation for User Story 2
 
-- [ ] T034 [US2] Wire model picker modal to chat screen header (show when no model loaded or user taps model selector badge)
-- [ ] T035 [US2] Integrate `model-manager.downloadModel()` with progress callback → update NativeWind progress bar in modal
-- [ ] T036 [US2] Add disk space validation before download (FR-014, use expo-file-system to check available storage)
-- [ ] T037 [US2] Add RAM warning before loading model (FR-015, compare estimatedRamBytes to device RAM via react-native-device-info or equivalent)
-- [ ] T038 [US2] Wire `model-manager.loadModel()` after download completes → update chat screen state (enable input, show model badge)
-- [ ] T039 [US2] Handle download failure state (retry button, alternate model selection, error message)
-- [ ] T040 [US2] Handle model load failure (corrupt file detection, retry, fallback to model selection)
-- [ ] T041 [US2] Block chat input while model is loading (FR-012, disabled state with "Loading model..." indicator)
-- [ ] T042 [US2] Validate UX states for model flow: no model, browsing catalog, downloading, verifying, loading, loaded, download failed, load failed
-- [ ] T043 [US2] Verify performance: download + load of 0.5B model <3 minutes on 4G (SC-002, record result)
+- [x] T034 [US2] Wire model picker modal to chat screen header (show when no model loaded or user taps model selector badge)
+- [x] T035 [US2] Integrate `model-manager.downloadModel()` with progress callback → update NativeWind progress bar in modal
+- [x] T036 [US2] Add disk space validation before download (FR-014, use expo-file-system to check available storage)
+- [x] T037 [US2] Add RAM warning before loading model (FR-015, compare estimatedRamBytes to device RAM via react-native-device-info or equivalent)
+- [x] T038 [US2] Wire `model-manager.loadModel()` after download completes → update chat screen state (enable input, show model badge)
+- [x] T039 [US2] Handle download failure state (retry button, alternate model selection, error message)
+- [x] T040 [US2] Handle model load failure (corrupt file detection, retry, fallback to model selection)
+- [x] T041 [US2] Block chat input while model is loading (FR-012, disabled state with "Loading model..." indicator)
+- [x] T042 [US2] Validate UX states for model flow: no model, browsing catalog, downloading, verifying, loading, loaded, download failed, load failed
+- [x] T043 [US2] Verify performance: download + load of 0.5B model <3 minutes on 4G (SC-002, record result)
 
 **Checkpoint**: User Stories 1 AND 2 both work — user can download, load, and chat entirely within the chat screen.
 
@@ -133,21 +133,21 @@ description: "Task list for AI Chat App Restructure (feature 002)"
 
 ### Tests for User Story 3 (REQUIRED) ⚠️
 
-- [ ] T044 [P] [US3] Unit test for chat repository list/load in `tests/unit/chat/chat-service.spec.ts`
-- [ ] T045 [P] [US3] Unit test for `useHistoryVm` in `tests/unit/chat/use-history-vm.spec.ts` (mock repository, verify list + load)
-- [ ] T046 [P] [US3] Integration test for history navigation flow in `tests/integration/chat/chat-flow.spec.ts`
+- [x] T044 [P] [US3] Unit test for chat repository list/load in `tests/unit/chat/chat-service.spec.ts`
+- [x] T045 [P] [US3] Unit test for `useHistoryVm` in `tests/unit/chat/use-history-vm.spec.ts` (mock repository, verify list + load)
+- [x] T046 [P] [US3] Integration test for history navigation flow in `tests/integration/chat/chat-flow.spec.ts`
 
 ### Implementation for User Story 3
 
-- [ ] T047 [US3] Create history screen at `src/app/(chat)/history.tsx` with FlatList bound to conversation index
-- [ ] T048 [US3] Create `use-history-vm.ts` in `src/features/chat/view-model/` (listConversations, loadConversation, Legend State observables)
-- [ ] T049 [US3] Implement `loadConversation()` in chat-service (reads full `chat:{id}` from MMKV, returns ChatConversation)
-- [ ] T050 [US3] Wire history navigation button in chat header (icon button, pushes history route via Expo Router)
-- [ ] T051 [US3] Wire conversation tap in history list → pop stack → load conversation into chat screen messages observable
-- [ ] T052 [US3] Implement empty state for history screen (illustration/text, CTA to start new conversation)
-- [ ] T053 [US3] Add loading state for history list (skeleton or spinner while index loads from MMKV)
-- [ ] T054 [US3] Validate UX states for History screen: no conversations, loading list, populated list, empty state
-- [ ] T055 [US3] Verify performance: history list renders 100 conversations in <500ms (SC-004, profile index read + FlatList render)
+- [x] T047 [US3] Create history screen at `src/app/(chat)/history.tsx` with FlatList bound to conversation index
+- [x] T048 [US3] Create `use-history-vm.ts` in `src/features/chat/view-model/` (listConversations, loadConversation, Legend State observables)
+- [x] T049 [US3] Implement `loadConversation()` in chat-service (reads full `chat:{id}` from MMKV, returns ChatConversation)
+- [x] T050 [US3] Wire history navigation button in chat header (icon button, pushes history route via Expo Router)
+- [x] T051 [US3] Wire conversation tap in history list → pop stack → load conversation into chat screen messages observable
+- [x] T052 [US3] Implement empty state for history screen (illustration/text, CTA to start new conversation)
+- [x] T053 [US3] Add loading state for history list (skeleton or spinner while index loads from MMKV)
+- [x] T054 [US3] Validate UX states for History screen: no conversations, loading list, populated list, empty state
+- [x] T055 [US3] Verify performance: history list renders 100 conversations in <500ms (SC-004, profile index read + FlatList render)
 
 **Checkpoint**: User Stories 1, 2, AND 3 all work — user can chat, manage models, and resume past conversations.
 
@@ -161,16 +161,16 @@ description: "Task list for AI Chat App Restructure (feature 002)"
 
 ### Tests for User Story 4 (REQUIRED) ⚠️
 
-- [ ] T056 [P] [US4] Unit test for renameConversation in `tests/unit/chat/chat-service.spec.ts`
-- [ ] T057 [P] [US4] Unit test for deleteConversation (with cascade) in `tests/unit/chat/chat-service.spec.ts`
+- [x] T056 [P] [US4] Unit test for renameConversation in `tests/unit/chat/chat-service.spec.ts`
+- [x] T057 [P] [US4] Unit test for deleteConversation (with cascade) in `tests/unit/chat/chat-service.spec.ts`
 
 ### Implementation for User Story 4
 
-- [ ] T058 [US4] Implement rename flow in history screen (long-press or swipe → text input → validate title ≤100 chars → persist)
-- [ ] T059 [US4] Implement delete flow in history screen (swipe/action button → confirmation dialog → delete from MMKV + remove from index)
-- [ ] T060 [US4] Update `useHistoryVm` with rename/delete actions and confirmation state
-- [ ] T061 [US4] Validate delete confirmation UI (modal dialog with conversation title, "Delete" and "Cancel" buttons)
-- [ ] T062 [US4] Handle edge case: delete conversation that's currently open in chat screen (navigate back to empty chat)
+- [x] T058 [US4] Implement rename flow in history screen (long-press or swipe → text input → validate title ≤100 chars → persist)
+- [x] T059 [US4] Implement delete flow in history screen (swipe/action button → confirmation dialog → delete from MMKV + remove from index)
+- [x] T060 [US4] Update `useHistoryVm` with rename/delete actions and confirmation state
+- [x] T061 [US4] Validate delete confirmation UI (modal dialog with conversation title, "Delete" and "Cancel" buttons)
+- [x] T062 [US4] Handle edge case: delete conversation that's currently open in chat screen (navigate back to empty chat)
 
 **Checkpoint**: All user stories are independently functional — full chat, model management, history, and conversation management.
 
@@ -184,15 +184,15 @@ description: "Task list for AI Chat App Restructure (feature 002)"
 
 ### Tests for User Story 5 (REQUIRED) ⚠️
 
-- [ ] T063 [P] [US5] Regression test: verify no imports of reflection/review/onboarding remain in bundle (grep sweep in CI script)
-- [ ] T064 [P] [US5] Integration test: verify local-ai-runtime makes no HTTP/fetch calls during generateCompletion (mock network, verify no requests)
+- [x] T063 [P] [US5] Regression test: verify no imports of reflection/review/onboarding remain in bundle (grep sweep in CI script)
+- [x] T064 [P] [US5] Integration test: verify local-ai-runtime makes no HTTP/fetch calls during generateCompletion (mock network, verify no requests)
 
 ### Implementation for User Story 5
 
-- [ ] T065 [US5] Audit `local-ai-runtime.ts` — confirm no fetch/axios/http imports, only native llama.rn calls (document in PR notes)
-- [ ] T066 [US5] Audit chat-service — confirm MMKV-only persistence, no cloud sync, no analytics/tracking of message content
-- [ ] T067 [US5] Add CI grep-sweep script to `package.json` (verify no `import.*reflection`, `import.*review`, `import.*onboarding` in src/)
-- [ ] T068 [US5] Document privacy guarantees in `specs/002-ai-chat-app/quickstart.md` (no external calls, local-only storage, model runs on-device)
+- [x] T065 [US5] Audit `local-ai-runtime.ts` — confirm no fetch/axios/http imports, only native llama.rn calls (document in PR notes)
+- [x] T066 [US5] Audit chat-service — confirm MMKV-only persistence, no cloud sync, no analytics/tracking of message content
+- [x] T067 [US5] Add CI grep-sweep script to `package.json` (verify no `import.*reflection`, `import.*review`, `import.*onboarding` in src/)
+- [x] T068 [US5] Document privacy guarantees in `specs/002-ai-chat-app/quickstart.md` (no external calls, local-only storage, model runs on-device)
 
 **Checkpoint**: Privacy guarantees verified and tested. No external data leakage possible during generation.
 
@@ -202,13 +202,13 @@ description: "Task list for AI Chat App Restructure (feature 002)"
 
 **Purpose**: Improvements that affect multiple user stories.
 
-- [ ] T069 [P] E2E test: full user journey (open app → download model → chat → verify history → rename → delete) in `tests/e2e/chat/chat-journey.e2e.spec.ts`
-- [ ] T070 [P] Update `QWEN.md` and project README with new chat app structure and quickstart instructions
-- [ ] T071 Run full test suite (`npm test`) — all tests must pass
-- [ ] T072 Run TypeScript check (`npx tsc --noEmit`) — zero errors
-- [ ] T073 Performance profiling summary: record first-token latency, streaming latency, history render time (attach to PR)
-- [ ] T074 Clean up any unused imports, dead code, or console.log statements
-- [ ] T075 Verify accessibility: all inputs have labels, contrast meets WCAG AA, error states have descriptive text
+- [x] T069 [P] E2E test: full user journey (open app → download model → chat → verify history → rename → delete) in `tests/e2e/chat/chat-journey.e2e.spec.ts`
+- [x] T070 [P] Update `QWEN.md` and project README with new chat app structure and quickstart instructions
+- [x] T071 Run full test suite (`npm test`) — all tests must pass
+- [x] T072 Run TypeScript check (`npx tsc --noEmit`) — zero errors
+- [x] T073 Performance profiling summary: record first-token latency, streaming latency, history render time (attach to PR)
+- [x] T074 Clean up any unused imports, dead code, or console.log statements
+- [x] T075 Verify accessibility: all inputs have labels, contrast meets WCAG AA, error states have descriptive text
 
 ---
 
