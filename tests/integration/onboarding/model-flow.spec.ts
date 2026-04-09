@@ -5,14 +5,17 @@
  * generating completions, and cleaning up. Uses mocked llama.rn module.
  */
 
+import { describe, expect, it } from "bun:test";
+import {
+  LocalAIRuntimeService,
+  getLocalAIRuntime,
+} from "../../../shared/ai/local-ai-runtime";
 
 jest.mock("react-native", () => ({
   Platform: { OS: "ios", select: jest.fn((obj) => obj.ios ?? obj.default) },
   NativeModules: {},
   AppState: { addEventListener: jest.fn(), removeEventListener: jest.fn() },
 }));
-
-import { LocalAIRuntimeService, getLocalAIRuntime } from "../../../shared/ai/local-ai-runtime";
 
 describe("T027: Integration - Model Download -> Load -> Generate Flow", () => {
   let service: LocalAIRuntimeService;
@@ -131,7 +134,8 @@ describe("T027: Integration - Model Download -> Load -> Generate Flow", () => {
       await service.initialize();
       await service.loadModel("test-model", "file:///test/model.gguf");
 
-      const journalEntry = "Today I felt overwhelmed by emotions I cannot quite name.";
+      const journalEntry =
+        "Today I felt overwhelmed by emotions I cannot quite name.";
 
       const questionsResult = await service.generateGuidedQuestions(
         journalEntry,

@@ -53,6 +53,12 @@ const mockRAGRepository = {
   clear: jest.fn(),
 };
 
+const mockModelRepository = {
+  getActiveModel: jest.fn(),
+  saveActiveModel: jest.fn(),
+  clearActiveModel: jest.fn(),
+};
+
 const mockLocalAIRuntime = {
   initialize: jest.fn(),
   waitReady: jest.fn(),
@@ -127,6 +133,10 @@ jest.mock("../../../shared/utils/performance-metrics", () => ({
   PerformanceMetrics: jest.fn(),
 }));
 
+jest.mock("../../../features/onboarding/repository/model-repository", () => ({
+  getModelRepository: jest.fn(() => mockModelRepository),
+}));
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -186,6 +196,11 @@ describe("ReflectionService - generateGuidedQuestions", () => {
       sizeBytes: 0,
       contextLength: 4096,
       isLoaded: true,
+    });
+    mockModelRepository.getActiveModel.mockReturnValue({
+      id: "qwen2.5-0.5b-quantized",
+      filePath: "file:///test/model.gguf",
+      customFolderUri: null,
     });
 
     // Force a fresh service instance by clearing module cache singletons

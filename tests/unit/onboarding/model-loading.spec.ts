@@ -114,12 +114,22 @@ describe("T025: Model Loading (llama.rn)", () => {
       }
     });
 
-    it("should use fallback path when modelPath is empty", async () => {
+    it("should return VALIDATION_ERROR when modelPath is empty", async () => {
       const result = await service.loadModel("qwen2.5-0.5b-q4", "");
 
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.path).toBe("file://qwen2.5-0.5b-q4.gguf");
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.code).toBe("VALIDATION_ERROR");
+        expect(result.error.message).toContain("modelPath is required");
+      }
+    });
+
+    it("should return VALIDATION_ERROR when modelPath is only whitespace", async () => {
+      const result = await service.loadModel("qwen2.5-0.5b-q4", "   ");
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.code).toBe("VALIDATION_ERROR");
       }
     });
 

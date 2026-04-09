@@ -11,7 +11,6 @@ jest.mock("react-native", () => ({
   AppState: { addEventListener: jest.fn(), removeEventListener: jest.fn() },
 }));
 
-
 import { LocalAIRuntimeService } from "../../../shared/ai/local-ai-runtime";
 
 describe("T026: Model Generation (llama.rn completion)", () => {
@@ -58,16 +57,17 @@ describe("T026: Model Generation (llama.rn completion)", () => {
       }
     });
 
-    it("should auto-load a model if none is loaded", async () => {
+    it("should return error when no model is loaded and none is configured", async () => {
       expect(service.isModelLoaded()).toBe(false);
 
       const result = await service.generateCompletion([
         { role: "user", content: "Test" },
       ]);
 
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.text.length).toBeGreaterThan(0);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.code).toBe("NOT_READY");
+        expect(result.error.message).toContain("No model is currently loaded");
       }
     });
 
@@ -136,14 +136,15 @@ describe("T026: Model Generation (llama.rn completion)", () => {
       }
     });
 
-    it("should auto-load model if not loaded", async () => {
+    it("should return error when model not loaded for tokenize", async () => {
       expect(service.isModelLoaded()).toBe(false);
 
       const result = await service.tokenize("Test tokenization");
 
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.length).toBeGreaterThan(0);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.code).toBe("NOT_READY");
+        expect(result.error.message).toContain("No model is currently loaded");
       }
     });
 

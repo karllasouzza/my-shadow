@@ -81,7 +81,7 @@ Models are selected based on available device RAM (60% budget).
 
 ### Embedding Models
 
-The app currently uses `@react-native-rag/executorch` for vector embeddings (temporary dual-strategy). Future versions will migrate embeddings to llama.rn GGUF format.
+The app uses `llama.rn` for both LLM inference and vector embeddings (unified architecture). Embedding generation via GGUF model (multi-qa-MiniLM-L6-cos-v1).
 
 ## Learn more
 
@@ -104,13 +104,13 @@ This command will move the starter code to the **app-example** directory and cre
 
 ### Core
 
-| Dependency                   | Version | Purpose                       |
-| ---------------------------- | ------- | ----------------------------- |
-| llama.rn                     | ^0.10.0 | Local GGUF model inference    |
-| @react-native-rag/executorch | ^0.8.0  | Vector embeddings (temporary) |
-| react-native-mmkv            | ^4.3.1  | Encrypted key-value storage   |
-| expo-secure-store            | ~15.0.8 | Secure credential storage     |
-| expo-local-authentication    | ~17.0.8 | Biometric authentication      |
+| Dependency | Version | Purpose                    |
+| ---------- | ------- | -------------------------- |
+| llama.rn   | ^0.10.0 | Local GGUF model inference |
+
+| react-native-mmkv | ^4.3.1 | Encrypted key-value storage |
+| expo-secure-store | ~15.0.8 | Secure credential storage |
+| expo-local-authentication | ~17.0.8 | Biometric authentication |
 
 ### UI & Framework
 

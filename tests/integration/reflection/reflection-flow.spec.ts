@@ -53,6 +53,12 @@ const mockRAGRepository = {
   clear: jest.fn(),
 };
 
+const mockModelRepository = {
+  getActiveModel: jest.fn(),
+  saveActiveModel: jest.fn(),
+  clearActiveModel: jest.fn(),
+};
+
 const mockLocalAIRuntime = {
   initialize: jest.fn(),
   waitReady: jest.fn(),
@@ -125,6 +131,10 @@ jest.mock("../../../shared/storage/generation-job-store", () => ({
 jest.mock("../../../shared/utils/performance-metrics", () => ({
   getPerformanceMetrics: jest.fn(() => mockMetrics),
   PerformanceMetrics: jest.fn(),
+}));
+
+jest.mock("../../../features/onboarding/repository/model-repository", () => ({
+  getModelRepository: jest.fn(() => mockModelRepository),
 }));
 
 // ---------------------------------------------------------------------------
@@ -204,6 +214,11 @@ describe("Reflection -> Guided Questions Integration Flow", () => {
       mockLocalAIRuntime.initialize.mockResolvedValue(ok(undefined));
       mockLocalAIRuntime.waitReady.mockResolvedValue(undefined);
       mockLocalAIRuntime.loadModel.mockResolvedValue(ok(MOCK_MODEL));
+      mockModelRepository.getActiveModel.mockReturnValue({
+        id: "qwen2.5-0.5b-quantized",
+        filePath: "file:///test/model.gguf",
+        customFolderUri: null,
+      });
     });
 
     it("should complete full flow: create reflection -> generate questions -> validate output", async () => {
@@ -336,6 +351,11 @@ describe("Reflection -> Guided Questions Integration Flow", () => {
           updatedAt: new Date().toISOString(),
         } as GenerationJob),
       );
+      mockModelRepository.getActiveModel.mockReturnValue({
+        id: "qwen2.5-0.5b-quantized",
+        filePath: "file:///test/model.gguf",
+        customFolderUri: null,
+      });
     });
 
     it("should complete flow with fallback when AI init fails", async () => {
@@ -541,6 +561,11 @@ describe("Reflection -> Guided Questions Integration Flow", () => {
       mockLocalAIRuntime.initialize.mockResolvedValue(ok(undefined));
       mockLocalAIRuntime.waitReady.mockResolvedValue(undefined);
       mockLocalAIRuntime.loadModel.mockResolvedValue(ok(MOCK_MODEL));
+      mockModelRepository.getActiveModel.mockReturnValue({
+        id: "qwen2.5-0.5b-quantized",
+        filePath: "file:///test/model.gguf",
+        customFolderUri: null,
+      });
       mockLocalAIRuntime.generateGuidedQuestions.mockResolvedValue(
         ok([
           "O que curiosidade revela sobre sua jornada?",

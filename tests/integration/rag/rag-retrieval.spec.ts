@@ -196,6 +196,16 @@ class MockReflectionRAGRepository {
 }
 
 // Import the real ReflectionRAGRepository for type checking but use our mock
+jest.mock("../../../features/onboarding/repository/model-repository", () => ({
+  getModelRepository: jest.fn(() => ({
+    getActiveModel: jest.fn().mockReturnValue({
+      id: "qwen2.5-0.5b-quantized",
+      filePath: "file:///test/model.gguf",
+      customFolderUri: null,
+    }),
+  })),
+}));
+
 import { getLocalAIRuntime } from "@/shared/ai/local-ai-runtime";
 import { ReflectionRAGRepository as RealReflectionRAGRepository } from "@/shared/ai/reflection-rag-repository";
 
@@ -375,6 +385,12 @@ describe("RAG Retrieval + llama.rn Generation Integration (T062)", () => {
         const runtime = getLocalAIRuntime();
         const initResult = await runtime.initialize();
         expect(initResult.success).toBe(true);
+
+        // T022: Load model with valid path before generation
+        await runtime.loadModel(
+          "qwen2.5-0.5b-quantized",
+          "file:///test/model.gguf",
+        );
 
         const completionResult = await runtime.generateCompletion([
           {
