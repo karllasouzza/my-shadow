@@ -7,9 +7,10 @@
 import { EmptyHistoryState } from "@/components/history/conversation-item";
 import { ChatConversationIndex } from "@/features/chat/model/chat-conversation";
 import {
+    deleteConversation,
     getHistoryState,
     loadConversations,
-    renameConversation
+    renameConversation,
 } from "@/features/chat/view-model/use-history-vm";
 import { router, useFocusEffect } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
@@ -51,7 +52,6 @@ export default function HistoryScreen() {
 
   // T051: Tap conversation → pop stack → load into chat
   const handleConversationPress = useCallback(async (_id: string) => {
-    // Pop back to chat screen
     router.back();
   }, []);
 
@@ -76,10 +76,42 @@ export default function HistoryScreen() {
     );
   }, []);
 
-  // T059: Delete flow — implemented in Phase 6 (US4)
-  // const handleDelete = useCallback((conversation: ChatConversationIndex) => {
-  //   Alert.alert("Excluir Conversa", ...);
-  // }, []);
+  // T059: Delete flow with confirmation
+  const handleDelete = useCallback((conversation: ChatConversationIndex) => {
+    Alert.alert(
+      "Excluir Conversa",
+      `Tem certeza que deseja excluir "${conversation.title}"? Esta ação não pode ser desfeita.`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Excluir",
+          style: "destructive",
+          onPress: async () => {
+            const result = await deleteConversation(conversation.id);
+            if (!result.success) {
+              Alert.alert("Erro", result.error.message);
+            }
+          },
+        },
+      ],
+    );
+  }, []);
+
+  // T058/T061: Long press shows action sheet (rename/delete)
+  const handleLongPress = useCallback(
+    (conversation: ChatConversationIndex) => {
+      Alert.alert(conversation.title, "O que deseja fazer?", [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Renomear", onPress: () => handleRename(conversation) },
+        {
+          text: "Excluir",
+          style: "destructive",
+          onPress: () => handleDelete(conversation),
+        },
+      ]);
+    },
+    [handleRename, handleDelete],
+  );
 
   return (
     <View className="flex-1 bg-background">
@@ -119,7 +151,7 @@ export default function HistoryScreen() {
             <View>
               <TouchableOpacity
                 onPress={() => handleConversationPress(item.id)}
-                onLongPress={() => handleRename(item)}
+                onLongPress={() => handleLongPress(item)}
                 accessible
                 accessibilityLabel={`Conversa: ${item.title}`}
                 accessibilityHint={`Última atualização: ${item.updatedAt}`}
