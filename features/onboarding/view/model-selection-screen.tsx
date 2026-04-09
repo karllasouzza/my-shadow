@@ -19,8 +19,8 @@ import { Loader2 } from "lucide-react-native";
 import React, { useCallback, useEffect } from "react";
 import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 import {
-    useModelSelectionVm,
-    type ModelItem,
+  useModelSelectionVm,
+  type ModelItem,
 } from "../view-model/use-model-selection-vm";
 
 export const ModelSelectionScreen: React.FC = () => {
@@ -38,6 +38,7 @@ export const ModelSelectionScreen: React.FC = () => {
           event?.preventDefault?.();
           actions.cancelDownload();
         }
+        return void 0;
       },
       [actions.cancelDownload],
     ),

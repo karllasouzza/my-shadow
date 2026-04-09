@@ -207,10 +207,6 @@ jest.mock("../../../features/onboarding/repository/model-repository", () => ({
 }));
 
 import { getLocalAIRuntime } from "@/shared/ai/local-ai-runtime";
-import { ReflectionRAGRepository as RealReflectionRAGRepository } from "@/shared/ai/reflection-rag-repository";
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const _RealReflectionRAGRepository = RealReflectionRAGRepository;
 
 describe("RAG Retrieval + llama.rn Generation Integration (T062)", () => {
   let repository: MockReflectionRAGRepository;

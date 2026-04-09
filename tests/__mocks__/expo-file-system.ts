@@ -7,9 +7,14 @@ export const documentDirectory = "/mock/documents/";
 export const cacheDirectory = "/mock/cache/";
 
 export async function getInfoAsync(
-  _filepath: string,
-): Promise<{ exists: boolean; isDirectory: boolean }> {
-  // In tests, pretend files don't exist (embeddings will get null path)
+  filepath: string,
+): Promise<{ exists: boolean; isDirectory: boolean; size?: number }> {
+  // In tests, pretend common test model paths exist
+  const testPatterns = ["/test/", "/data/models/", ".gguf", "/models/"];
+  if (testPatterns.some((pattern) => filepath.includes(pattern))) {
+    return { exists: true, isDirectory: false, size: 500 * 1024 * 1024 }; // 500MB mock
+  }
+  // Other files don't exist (embeddings will get null path)
   return { exists: false, isDirectory: false };
 }
 

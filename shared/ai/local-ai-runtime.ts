@@ -1,10 +1,3 @@
-/**
- * T008-T022: Migrate AI Runtime from ExecuTorch to llama.rn
- *
- * Uses llama.rn stack for fully local GGUF inference.
- * Model family is pinned to Qwen 2.5 GGUF models.
- */
-
 import * as FileSystem from "expo-file-system/legacy";
 import {
   LlamaContext,
@@ -66,7 +59,6 @@ export interface CompletionOptions {
   maxTokens?: number;
 }
 
-const DEFAULT_MODEL_ID = "qwen2.5-0.5b-q4";
 const DEFAULT_CONTEXT_LENGTH = 4096;
 const RESERVED_RESPONSE_TOKENS = 512;
 const GENERATION_TIMEOUT_MS = 60_000; // 60 seconds per contract
@@ -558,7 +550,7 @@ export class LocalAIRuntimeService {
    * T013: Replace model preset mapping with direct file path resolution.
    * Remove QWEN2*5* preset references and use GGUF file paths directly.
    */
-  private resolveModelPath(modelId: string, modelPath: string): string {
+  private resolveModelPath(_modelId: string, modelPath: string): string {
     // T022: modelPath is guaranteed to be non-empty by loadModel() validation
     if (modelPath.startsWith("file://")) {
       return modelPath;
@@ -566,9 +558,7 @@ export class LocalAIRuntimeService {
     return `file://${modelPath}`;
   }
 
-  private async diagnoseModelFile(
-    filePath: string,
-  ): Promise<{
+  private async diagnoseModelFile(filePath: string): Promise<{
     isValid: boolean;
     errorMessage: string;
     details: Record<string, any>;

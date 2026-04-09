@@ -95,7 +95,6 @@ describe("Daily Reflection Flow - E2E", () => {
 
   it("should enforce Portuguese for content", async () => {
     const lockGateway = getAppLockGateway();
-    const reflectionStore = getReflectionStore();
     const toneGuard = getPtBRJungianGuard();
 
     // Unlock

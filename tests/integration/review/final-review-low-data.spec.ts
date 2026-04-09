@@ -31,9 +31,6 @@ class MockLowDataReviewService {
   ): Promise<LowDataReviewResponse> {
     const reflectionCount = reflectionIds.length;
 
-    // Check for low-data condition
-    const isLowData = reflectionCount < 3;
-
     if (reflectionCount === 0) {
       throw new Error("Cannot generate review without at least one reflection");
     }

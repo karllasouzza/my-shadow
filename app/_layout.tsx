@@ -22,7 +22,7 @@ export default function RootLayout() {
         await initCredentialRepository();
         await initReflectionStore();
       } catch {
-        return false;
+        // Initialization failed — will still mark as ready
       } finally {
         setIsReady(true);
       }

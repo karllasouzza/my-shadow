@@ -225,8 +225,6 @@ describe("Export Flow - End-to-End", () => {
     flow.toggleReflection("refl_001");
     await flow.generateExport();
 
-    const firstBundleId = flow.state.bundleId;
-
     // Clear and restart
     flow.clear();
     flow.selectPeriod("2026-04-01", "2026-04-30");

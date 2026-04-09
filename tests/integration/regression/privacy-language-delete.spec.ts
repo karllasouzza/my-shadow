@@ -91,8 +91,6 @@ describe("Regression Suite - Language Leakage (llama.rn pt-BR)", () => {
 
   it("should not leak system prompt artifacts into user-visible output", () => {
     // System prompt should never appear in output
-    const systemPrompt =
-      "Voce e um assistente de reflexao em Portugues (pt-BR)";
     const userOutput = "O que voce sente quando observa suas sombras internas?";
 
     expect(userOutput).not.toContain("Voce e um assistente");
@@ -123,7 +121,6 @@ describe("Regression Suite - Privacy & Language", () => {
 
 describe("Regression Suite - Deletion Cascade", () => {
   it("should delete all cascade artifacts when reflection is deleted", () => {
-    const reflectionId = "refl_001";
     const linkedArtifacts = {
       questionSets: ["qs_001", "qs_002"],
       generationJobs: ["job_001"],

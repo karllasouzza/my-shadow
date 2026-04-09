@@ -40,13 +40,7 @@ const resetTestState = () => {
 // Mock infrastructure
 // ============================================================
 
-// In-memory job store
-const getMockJobs = () => {
-  if (!(globalThis as any).__mockJobs) {
-    (globalThis as any).__mockJobs = new Map();
-  }
-  return (globalThis as any).__mockJobs;
-};
+// In-memory job store (used by mock factory below)
 
 jest.mock("../../../shared/storage/generation-job-store", () => {
   const { ok, err, createError } = require("../../../shared/utils/app-error");
@@ -366,7 +360,6 @@ async function simulateRetryJob(
   job: any,
   jobStore: any,
 ): Promise<{ success: boolean; error?: string }> {
-  const { ok, err, createError } = require("../../../shared/utils/app-error");
   const state = getTestState();
   const nextAttempt = job.attempts + 1;
 

@@ -97,7 +97,7 @@ export class ReflectionService {
    */
   async generateGuidedQuestions(
     reflectionId: string,
-    augmentedGeneration: boolean = true,
+    _augmentedGeneration: boolean = true,
     contextWindowDays: number = 30,
   ): Promise<
     Result<{

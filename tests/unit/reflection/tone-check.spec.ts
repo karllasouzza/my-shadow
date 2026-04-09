@@ -521,7 +521,7 @@ describe("Jungian Tone Validation", () => {
       const directiveText = "Pare de se sentir vitima e mude agora.";
       const reflectiveText = "O que significa sentir-se vitima para voce?";
 
-      const directiveResult = toneGuard.validateTone(directiveText);
+      toneGuard.validateTone(directiveText);
       const reflectiveResult = toneGuard.validateTone(reflectiveText);
 
       // Both might be valid, but reflective should score higher

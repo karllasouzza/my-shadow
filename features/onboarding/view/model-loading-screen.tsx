@@ -12,18 +12,15 @@
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { Text } from "@/components/ui/text";
-import { useNavigation, usePreventRemove } from "@react-navigation/native";
+import { usePreventRemove } from "@react-navigation/native";
 import { router } from "expo-router";
 import { Loader2 } from "lucide-react-native";
 import React, { useCallback, useEffect } from "react";
 import { View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useModelLoadingVm } from "../view-model/use-model-loading-vm";
 
 export const ModelLoadingScreen: React.FC = () => {
   const { state, actions } = useModelLoadingVm();
-  const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
 
   // Block back button during loading
   usePreventRemove(
@@ -36,6 +33,7 @@ export const ModelLoadingScreen: React.FC = () => {
           event?.preventDefault?.();
           actions.cancel();
         }
+        return void 0;
       },
       [actions.cancel],
     ),

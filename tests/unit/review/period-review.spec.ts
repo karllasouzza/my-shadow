@@ -107,20 +107,6 @@ PROMPTS:
 - Qual padrao recorrente voce nota em suas interacoes?`;
 }
 
-function buildMinimalAIResponse(): string {
-  return `RESUMO:
-Periodo com reflexoes basicas sobre o dia a dia sem padroes significativos.
-
-PADROES:
-- Padrao simples
-
-GATILHOS:
-- Gatilho basico
-
-PROMPTS:
-- O que voce acha disso?`;
-}
-
 // Create a ReviewService and inject mocked dependencies
 function createReviewService(deps: {
   reflectionRepository: any;

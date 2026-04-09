@@ -7,7 +7,54 @@
     "paths": {
       "@/*": ["./*"],
       "bun:test": ["types/bun-test.d.ts"]
-    }
+    },
+
+    // ============================================================
+    // Clean Code & Quality Enforcement
+    // ============================================================
+
+    // Prevent unused variables/parameters (reduces noise, forces intent)
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+
+    // Force consistent casing across platforms (avoids case-sensitivity bugs)
+    "forceConsistentCasingInFileNames": true,
+
+    // Disallow implicit 'any' — forces explicit types for clarity
+    "noImplicitAny": true,
+
+    // Require explicit return types on functions (readability & API contracts)
+    "noImplicitReturns": false,
+
+    // Prevent fallthrough in switch statements (unintentional bugs)
+    "noFallthroughCasesInSwitch": true,
+
+    // Disallow unreachable code (dead code detection)
+    "allowUnreachableCode": false,
+
+    // Disallow unused labels
+    "allowUnusedLabels": false,
+
+    // Precise function binding checks
+    "strictBindCallApply": true,
+    "strictFunctionTypes": true,
+    "strictPropertyInitialization": true,
+
+    // Better interop with CommonJS modules
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+
+    // Use modern module resolution
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+
+    // Skip type checking declaration files (speed)
+    "skipLibCheck": true,
+
+    // Allow unused locals/params in test files (test scaffolding)
+    // Handled via overrides below
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
   },
   "include": [
     "**/*.ts",
@@ -17,5 +64,37 @@
     ".expo/types/**/*.ts",
     "expo-env.d.ts",
     "nativewind-env.d.ts"
+  ],
+  "exclude": ["node_modules", "dist", ".expo", "android", "ios"],
+
+  // ============================================================
+  // Overrides: Relax rules for test files
+  // ============================================================
+  "overrides": [
+    {
+      "files": [
+        "tests/**/*.ts",
+        "tests/**/*.tsx",
+        "test/**/*.ts",
+        "test/**/*.tsx",
+        "**/*.spec.ts",
+        "**/*.test.ts",
+        "**/*.e2e.ts",
+        "**/*.e2e.spec.ts"
+      ],
+      "compilerOptions": {
+        "noUnusedLocals": false,
+        "noUnusedParameters": false,
+        "noImplicitReturns": false
+      }
+    },
+    {
+      "files": ["features/**/*.tsx", "app/**/*.tsx", "components/**/*.tsx"],
+      "compilerOptions": {
+        "noUnusedLocals": false,
+        "noUnusedParameters": false,
+        "noImplicitReturns": false
+      }
+    }
   ]
 }
