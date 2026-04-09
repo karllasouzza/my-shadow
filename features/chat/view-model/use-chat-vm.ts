@@ -4,9 +4,7 @@
  * Manages chat screen state: messages, model readiness, generation status.
  * Wires sendMessage() to local-ai-runtime.generateCompletion() with onToken.
  */
-import {
-    ChatConversation
-} from "@/features/chat/model/chat-conversation";
+import { ChatConversation } from "@/features/chat/model/chat-conversation";
 import { validateChatMessage } from "@/features/chat/model/chat-message";
 import * as ChatService from "@/features/chat/service/chat-service";
 import { getLocalAIRuntime } from "@/shared/ai/local-ai-runtime";
@@ -201,4 +199,30 @@ export function resetChatState(): void {
   state.streamingText.set("");
   state.errorMessage.set(null);
   state.showCancelOption.set(false);
+}
+
+/**
+ * T034-T041: Model loading integration for chat screen
+ *
+ * Loads a model into the runtime and updates chat state.
+ * Called from model picker after download completes.
+ */
+export async function loadModelForChat(
+  modelId: string,
+  filePath: string,
+): Promise<void> {
+  const state = getChatState();
+  state.errorMessage.set(null);
+  state.isModelReady.set(false);
+
+  const runtime = getLocalAIRuntime();
+  const result = await runtime.loadModel(modelId, filePath);
+
+  if (result.success) {
+    state.isModelReady.set(true);
+    state.loadedModelName.set(modelId);
+  } else {
+    state.errorMessage.set(result.error.message);
+    state.isModelReady.set(false);
+  }
 }
