@@ -9,9 +9,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-    MODEL_CATALOG,
-    type AvailableModel,
-    type ModelConfiguration,
+  MODEL_CATALOG,
+  type AvailableModel,
+  type ModelConfiguration,
 } from "../model/model-configuration";
 import { getModelRepository } from "../repository/model-repository";
 import { getDeviceInfo } from "../service/device-detector";
@@ -105,7 +105,7 @@ export const useModelSelectionVm = (): UseModelSelectionVm => {
           ...s,
           isLoading: false,
           error:
-            "Nao foi possivel detectar as capacidades do dispositivo. Tente novamente.",
+            "Nao foi possível detectar as capacidades do dispositivo. Tente novamente.",
         }));
       }
     };
@@ -217,8 +217,8 @@ export const useModelSelectionVm = (): UseModelSelectionVm => {
     }
   }, [state.selectedModel, state.isDownloading]);
 
-  const cancelDownload = useCallback(() => {
-    modelManager.cancelDownload();
+  const cancelDownload = useCallback(async () => {
+    await modelManager.cancelDownload();
     setState((s) => ({
       ...s,
       isDownloading: false,

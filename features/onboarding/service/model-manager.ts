@@ -2,20 +2,21 @@
  * Onboarding: Model Manager Service
  *
  * Handles downloading, verifying, and loading AI models on device.
- * Uses expo-file-system v54 API (File, Paths) for downloads with progress tracking.
+ * Uses expo-file-system legacy API for downloads with progress tracking.
  * Integrates with LocalAIRuntimeService for model loading.
  */
 
-import { File, Paths } from 'expo-file-system';
-import { getLocalAIRuntime } from '@/shared/ai/local-ai-runtime';
-import { Result, createError, err, ok } from '@/shared/utils/app-error';
+import { getLocalAIRuntime } from "@/shared/ai/local-ai-runtime";
+import { Result, createError, err, ok } from "@/shared/utils/app-error";
+import * as FileSystem from "expo-file-system/legacy";
 
-const MODELS_SUBDIRECTORY = 'models';
+const MODELS_SUBDIRECTORY = "models";
 
 interface DownloadState {
   active: boolean;
   progress: number;
   cancelled: boolean;
+  resumable?: FileSystem.DownloadResumable;
 }
 
 export class ModelManager {
@@ -28,7 +29,7 @@ export class ModelManager {
   /**
    * Download a model from a URL to a local path with progress callback.
    * @param url - The URL to download the model from
-   * @param path - Optional local file path. Defaults to Paths.document/models/<filename>
+   * @param path - Optional local file path. Defaults to documentDirectory/models/<filename>
    * @param onProgress - Optional callback receiving progress (0-100)
    * @returns Result with the local file path on success
    */
@@ -40,53 +41,73 @@ export class ModelManager {
     try {
       this.downloadState = { active: true, progress: 0, cancelled: false };
 
-      const modelsDirectory = new File(Paths.document, MODELS_SUBDIRECTORY);
-      if (!modelsDirectory.exists) {
-        const dir = new (require('expo-file-system').Directory)(
-          Paths.document,
-          MODELS_SUBDIRECTORY,
+      const documentDirectory = FileSystem.documentDirectory;
+      if (!documentDirectory) {
+        return err(
+          createError(
+            "STORAGE_ERROR",
+            "Diretório de armazenamento nao disponível.",
+          ),
         );
-        dir.create({ intermediates: true });
       }
 
-      const targetFile = path
-        ? new File(path)
-        : new File(Paths.document, MODELS_SUBDIRECTORY, this.extractFileName(url));
+      const modelsDir = `${documentDirectory}${MODELS_SUBDIRECTORY}/`;
 
-      const downloadOptions = {
-        idempotent: true,
-      };
+      // Ensure models directory exists
+      const dirInfo = await FileSystem.getInfoAsync(modelsDir);
+      if (!dirInfo.exists) {
+        await FileSystem.makeDirectoryAsync(modelsDir, { intermediates: true });
+      }
 
-      const downloadedFile = await File.downloadFileAsync(
+      const fileName = this.extractFileName(url);
+      const filePath = path || `${modelsDir}${fileName}`;
+
+      // Create resumable download with progress callback
+      const resumable = FileSystem.createDownloadResumable(
         url,
-        path
-          ? targetFile.parentDirectory
-          : new (require('expo-file-system').Directory)(
-              Paths.document,
-              MODELS_SUBDIRECTORY,
-            ),
-        downloadOptions,
+        filePath,
+        {},
+        (downloadProgress) => {
+          const progress =
+            (downloadProgress.totalBytesWritten /
+              downloadProgress.totalBytesExpectedToWrite) *
+            100;
+          this.downloadState.progress = progress;
+          onProgress?.(progress);
+        },
       );
 
+      this.downloadState.resumable = resumable;
+
+      const result = await resumable.downloadAsync();
+
       if (this.downloadState.cancelled) {
-        this.downloadState = { active: false, progress: 0, cancelled: false };
+        await this.cancelDownload();
         return err(
-          createError('UNKNOWN_ERROR', 'Download foi cancelado pelo usuario.'),
+          createError("UNKNOWN_ERROR", "Download foi cancelado pelo usuário."),
+        );
+      }
+
+      if (!result) {
+        return err(
+          createError(
+            "STORAGE_ERROR",
+            "Falha ao baixar o modelo. Verifique sua conexão.",
+          ),
         );
       }
 
       this.downloadState.progress = 100;
       onProgress?.(100);
-
       this.downloadState = { active: false, progress: 100, cancelled: false };
 
-      return ok(downloadedFile.uri);
+      return ok(result.uri);
     } catch (error) {
       this.downloadState = { active: false, progress: 0, cancelled: false };
       return err(
         createError(
-          'STORAGE_ERROR',
-          'Falha ao baixar o modelo. Verifique sua conexao com a internet.',
+          "STORAGE_ERROR",
+          "Falha ao baixar o modelo. Verifique sua conexão com a internet.",
           {},
           error as Error,
         ),
@@ -101,20 +122,25 @@ export class ModelManager {
    */
   async verifyModel(filePath: string): Promise<Result<boolean>> {
     try {
-      const file = new File(filePath);
-      if (!file.exists) {
+      const fileInfo = await FileSystem.getInfoAsync(filePath);
+
+      if (!fileInfo.exists) {
         return err(
-          createError('NOT_FOUND', 'Arquivo do modelo nao encontrado.', {
+          createError("NOT_FOUND", "Arquivo do modelo não encontrado.", {
             filePath,
           }),
         );
       }
 
-      if (file.size <= 0) {
+      if (fileInfo.size === undefined || fileInfo.size <= 0) {
         return err(
-          createError('VALIDATION_ERROR', 'Arquivo do modelo esta vazio ou corrompido.', {
-            filePath,
-          }),
+          createError(
+            "VALIDATION_ERROR",
+            "Arquivo do modelo está vazio ou corrompido.",
+            {
+              filePath,
+            },
+          ),
         );
       }
 
@@ -122,8 +148,8 @@ export class ModelManager {
     } catch (error) {
       return err(
         createError(
-          'STORAGE_ERROR',
-          'Erro ao verificar o arquivo do modelo.',
+          "STORAGE_ERROR",
+          "Erro ao verificar o arquivo do modelo.",
           {},
           error as Error,
         ),
@@ -150,8 +176,8 @@ export class ModelManager {
     } catch (error) {
       return err(
         createError(
-          'NOT_READY',
-          'Falha ao carregar o modelo na memoria.',
+          "NOT_READY",
+          "Falha ao carregar o modelo na memoria.",
           {},
           error as Error,
         ),
@@ -162,9 +188,17 @@ export class ModelManager {
   /**
    * Cancel an active download.
    */
-  cancelDownload(): void {
+  async cancelDownload(): Promise<void> {
     if (this.downloadState.active) {
       this.downloadState.cancelled = true;
+      if (this.downloadState.resumable) {
+        try {
+          await this.downloadState.resumable.cancelAsync();
+        } catch {
+          // Ignore cancel errors
+        }
+      }
+      this.downloadState = { active: false, progress: 0, cancelled: false };
     }
   }
 
@@ -186,10 +220,10 @@ export class ModelManager {
     try {
       const urlObj = new URL(url);
       const pathname = urlObj.pathname;
-      const fileName = pathname.substring(pathname.lastIndexOf('/') + 1);
-      return fileName || 'model.bin';
+      const fileName = pathname.substring(pathname.lastIndexOf("/") + 1);
+      return fileName || "model.bin";
     } catch {
-      return 'model.bin';
+      return "model.bin";
     }
   }
 }

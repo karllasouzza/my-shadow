@@ -1,7 +1,6 @@
 /**
  * Onboarding: Model Loading Screen
  *
- * Shadow Jung themed model loading interface.
  * Full-screen centered layout with activity indicator.
  * Shows model name being loaded.
  * usePreventRemove blocks back button during loading.
@@ -11,11 +10,13 @@
  */
 
 import { Button } from "@/components/ui/button";
+import { Icon } from "@/components/ui/icon";
 import { Text } from "@/components/ui/text";
 import { useNavigation, usePreventRemove } from "@react-navigation/native";
 import { router } from "expo-router";
+import { Loader2 } from "lucide-react-native";
 import React, { useCallback, useEffect } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useModelLoadingVm } from "../view-model/use-model-loading-vm";
 
@@ -71,7 +72,7 @@ export const ModelLoadingScreen: React.FC = () => {
       {/* Loading State */}
       {state.loadStatus === "loading" && (
         <View className="items-center">
-          <ActivityIndicator size="large" color="hsl(277, 70%, 48%)" />
+          <Icon as={Loader2} className="text-primary size-6" />
 
           {state.modelName && (
             <Text variant="h4" className="text-foreground mt-8 text-center">
@@ -122,7 +123,7 @@ export const ModelLoadingScreen: React.FC = () => {
           </Text>
 
           <Text variant="muted" className="mt-3 text-center">
-            Seu modelo de IA esta pronto para uso. Iniciando a experiencia My
+            Seu modelo de IA está pronto para uso. Iniciando a experiência My
             Shadow...
           </Text>
         </View>
@@ -166,7 +167,7 @@ export const ModelLoadingScreen: React.FC = () => {
               className="border-border"
             >
               <Text className="text-foreground text-base">
-                Voltar para Selecao
+                Voltar para Seleção
               </Text>
             </Button>
           </View>

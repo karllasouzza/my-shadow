@@ -10,13 +10,14 @@
  */
 
 import { Button } from "@/components/ui/button";
+import { Icon } from "@/components/ui/icon";
 import { Text } from "@/components/ui/text";
 import { usePreventRemove } from "@react-navigation/native";
 import type { RelativePathString } from "expo-router";
 import { useRouter } from "expo-router";
+import { Loader2 } from "lucide-react-native";
 import React, { useCallback, useEffect } from "react";
 import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   useModelSelectionVm,
   type ModelItem,
@@ -24,7 +25,6 @@ import {
 
 export const ModelSelectionScreen: React.FC = () => {
   const { state, actions } = useModelSelectionVm();
-  const insets = useSafeAreaInsets();
   const router = useRouter();
 
   // Block back button during active download
@@ -68,19 +68,13 @@ export const ModelSelectionScreen: React.FC = () => {
   if (state.isLoading) {
     return (
       <View className="flex-1 bg-background items-center justify-center">
-        <ActivityIndicator size="large" color="hsl(277, 70%, 48%)" />
+        <Icon as={Loader2} className="text-primary size-6" />
       </View>
     );
   }
 
   return (
-    <View
-      className="flex-1 bg-background"
-      style={{
-        paddingTop: insets.top,
-        paddingBottom: insets.bottom,
-      }}
-    >
+    <View className="flex-1 bg-background">
       {/* Header */}
       <View className="px-6 pt-6 pb-4">
         <Text variant="h3" className="text-accent tracking-wide">

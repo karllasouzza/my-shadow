@@ -1,3 +1,13 @@
+/**
+ * Onboarding: Security Gate Screen
+ *
+ * First screen in onboarding flow. Handles both first-time password setup and returning user authentication.
+ * State machine manages modes: 'firstTime' vs 'returning', loading states, errors, and biometric options.
+ * UI includes password inputs with visibility toggles, biometric toggle, and error display.
+ * On success: navigates to next onboarding step.
+ * All text in Brazilian Portuguese.
+ */
+
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { Text } from "@/components/ui/text";
