@@ -1,13 +1,20 @@
 /**
  * T052: Export Screen
- * UI for markdown export feature with date range selection and artifact filtering
+ * T059: UI for markdown export feature with date range selection, artifact filtering,
+ * and explicit empty/loading/success/error states
  * Theme: Shadow Jung (dark purple/gold)
  */
 
 import { Button } from "@/components/ui/button";
 import { Text } from "@/components/ui/text";
 import React, { useState } from "react";
-import { Pressable, ScrollView, TextInput, View } from "react-native";
+import {
+    ActivityIndicator,
+    Pressable,
+    ScrollView,
+    TextInput,
+    View,
+} from "react-native";
 import { useExportViewModel } from "../view-model/use-export-vm";
 
 export function ExportScreen() {
@@ -32,6 +39,10 @@ export function ExportScreen() {
   };
 
   const isPeriodSelected = !!state.periodStart && !!state.periodEnd;
+  const hasNoSelections =
+    state.selectedReflectionIds.length === 0 &&
+    state.selectedQuestionSetIds.length === 0 &&
+    state.selectedReviewIds.length === 0;
 
   return (
     <ScrollView className="flex-1 bg-background">
@@ -46,8 +57,21 @@ export function ExportScreen() {
           </Text>
         </View>
 
-        {/* Error Banner */}
-        {state.error && (
+        {/* Loading State - T059 */}
+        {state.isExporting && (
+          <View className="bg-secondary/50 border border-border/30 rounded-lg p-6 gap-3 items-center">
+            <ActivityIndicator size="large" color="hsl(277 65% 50%)" />
+            <Text variant="h4" className="text-foreground">
+              Gerando exportação...
+            </Text>
+            <Text className="text-sm text-muted-foreground text-center">
+              Coletando reflexões, questões e análises do período selecionado.
+            </Text>
+          </View>
+        )}
+
+        {/* Error Banner - T059 */}
+        {state.error && !state.isExporting && (
           <View className="bg-destructive/10 border border-destructive/30 rounded-lg p-4 gap-2">
             <Text className="text-destructive font-semibold">
               Erro na Exportação
@@ -66,7 +90,24 @@ export function ExportScreen() {
           </View>
         )}
 
-        {/* Successful Export Display */}
+        {/* Empty State - T059: When period selected but no content types chosen */}
+        {isPeriodSelected &&
+          hasNoSelections &&
+          !state.isExporting &&
+          !state.bundle &&
+          !state.error && (
+            <View className="bg-secondary/50 border border-border/30 rounded-lg p-6 gap-3 items-center">
+              <Text variant="h4" className="text-muted-foreground">
+                Nenhum conteúdo selecionado
+              </Text>
+              <Text className="text-sm text-muted-foreground text-center">
+                Selecione reflexões, questões ou análises para incluir na
+                exportação.
+              </Text>
+            </View>
+          )}
+
+        {/* Successful Export Display - T059 */}
         {state.bundle && !state.isExporting && (
           <View className="bg-success/10 border border-success/30 rounded-lg p-4 gap-3">
             <Text variant="h3" className="text-success">
@@ -245,7 +286,7 @@ export function ExportScreen() {
           </View>
         )}
 
-        {/* Generate Button */}
+        {/* Generate Button - T059: Disabled when loading */}
         {isPeriodSelected && !state.bundle && (
           <Button
             onPress={generateExport}

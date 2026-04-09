@@ -5,7 +5,11 @@
  * Model family is pinned to Qwen 2.5 GGUF models.
  */
 
-import type { LlamaContext, RNLlamaOAICompatibleMessage } from "llama.rn";
+import {
+  LlamaContext,
+  RNLlamaOAICompatibleMessage,
+  initLlama as initLlamaNative
+} from "llama.rn";
 import { Platform } from "react-native";
 import { Result, createError, err, ok } from "../utils/app-error";
 
@@ -142,10 +146,8 @@ export class LocalAIRuntimeService {
         await this.unloadModel();
       }
 
-      const { initLlama } = await import("llama.rn");
-
       // T012: Replace ExecuTorchLLM instantiation with initLlama
-      this.context = await initLlama({
+      this.context = await initLlamaNative({
         model: resolvedPath,
         use_mlock: true,
         n_ctx: DEFAULT_CONTEXT_LENGTH,

@@ -10,6 +10,7 @@ interface ReviewState {
   periodEnd?: string;
   reflectionIds: string[];
   reflectionCount: number;
+  isEmptyPeriod: boolean;
   review?: {
     id: string;
     summary: string;
@@ -28,6 +29,7 @@ export function usePeriodReviewViewModel() {
     isGenerating: false,
     reflectionIds: [],
     reflectionCount: 0,
+    isEmptyPeriod: false,
   });
 
   const selectPeriod = useCallback(
@@ -58,6 +60,7 @@ export function usePeriodReviewViewModel() {
           periodEnd: end,
           reflectionIds,
           reflectionCount: reflectionIds.length,
+          isEmptyPeriod: reflectionIds.length === 0,
           review: undefined,
           error: undefined,
           isLoading: false,
@@ -88,16 +91,18 @@ export function usePeriodReviewViewModel() {
     if (state.reflectionIds.length === 0) {
       setState((s) => ({
         ...s,
-        error: {
-          code: "NOT_FOUND",
-          message:
-            "Nenhuma reflexão encontrada no período selecionado para gerar revisão.",
-        },
+        isEmptyPeriod: true,
+        error: undefined,
       }));
       return;
     }
 
-    setState((s) => ({ ...s, isGenerating: true, error: undefined }));
+    setState((s) => ({
+      ...s,
+      isGenerating: true,
+      error: undefined,
+      isEmptyPeriod: false,
+    }));
     try {
       const result = await service.generateFinalReview(
         state.periodStart,
@@ -112,6 +117,7 @@ export function usePeriodReviewViewModel() {
           ...s,
           review: result.data,
           isGenerating: false,
+          isEmptyPeriod: false,
         }));
       }
     } catch (error) {

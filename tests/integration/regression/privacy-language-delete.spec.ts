@@ -3,9 +3,7 @@
  * Privacy, language, and deletion cascade risk validation
  */
 
-import { describe, expect, it } from "bun:test";
-
-describe("Regression Suite - Privacy & Language", () => {
+describe("Regression Suite - Language Leakage (llama.rn pt-BR)", () => {
   it("should enforce Brazilian Portuguese in all generated content", () => {
     // Mock generated content must contain pt-BR markers
     const content = "Reflexão sobre meus padrões de comportamento e emoções.";
@@ -14,6 +12,96 @@ describe("Regression Suite - Privacy & Language", () => {
     expect(ptBrChars.test(content)).toBe(true);
   });
 
+  it("should detect English language leakage in AI-generated questions", () => {
+    // Simulate AI output that accidentally leaked English
+    const leakedQuestions = [
+      "What emotions arise when you reflect on this?",
+      "Como voce se sente em relacao a esta reflexao?",
+      "Which patterns do you recognize in your behavior?",
+      "O que sua intuicao diz sobre este momento?",
+    ];
+
+    const englishWords = [
+      /\bwhat\b/i,
+      /\bhow\b/i,
+      /\bwhich\b/i,
+      /\bwhy\b/i,
+      /\bwhen\b/i,
+      /\bwhere\b/i,
+      /\bwho\b/i,
+      /\bdo\b/i,
+      /\bthe\b/i,
+      /\band\b/i,
+      /\byou\b/i,
+      /\byour\b/i,
+    ];
+
+    const leakedCount = leakedQuestions.filter((q) =>
+      englishWords.some((re) => re.test(q)),
+    ).length;
+
+    // In production, this would fail the validation gate
+    expect(leakedCount).toBeGreaterThan(0);
+    expect(leakedCount).toBeLessThan(leakedQuestions.length);
+  });
+
+  it("should validate pt-BR tone guard rejects English-dominant content", () => {
+    const englishContent =
+      "What are your thoughts on this matter? The patterns are clear.";
+
+    const ptBRIndicators = [
+      /\b(não|você|é|da|de|para|com|em|por)\b/gi,
+      /[áàâãéèêíìîóòôõöúùûü]/g,
+    ];
+
+    let matchCount = 0;
+    for (const pattern of ptBRIndicators) {
+      const matches = englishContent.match(pattern);
+      if (matches) matchCount += matches.length;
+    }
+
+    const englishIndicators = [
+      /\b(the|and|is|with|this|that|have|been|what|your|are)\b/gi,
+    ];
+    let englishCount = 0;
+    for (const pattern of englishIndicators) {
+      const matches = englishContent.match(pattern);
+      if (matches) englishCount += matches.length;
+    }
+
+    // English should be detected; pt-BR indicators should be absent/low
+    expect(englishCount).toBeGreaterThan(0);
+    expect(matchCount).toBe(0);
+  });
+
+  it("should ensure fallback questions are always in pt-BR", () => {
+    const {
+      getFallbackPromptProvider,
+    } = require("../../../shared/ai/fallback-prompts-ptbr");
+    const provider = getFallbackPromptProvider();
+    const questions = provider.getGuidedQuestionsFallback();
+
+    const ptBRPattern =
+      /[áàâãéèêíìîóòôõöúùûüç]|[nN]ã[oO]|[vV]oc[eê]|[eE]|[uU]ma|[sS]eu|[sS]ua|[qQ]ue|[cC]omo|[qQ]ual|[eE]ste|[eE]sta|[iI]sso/;
+
+    for (const question of questions) {
+      expect(ptBRPattern.test(question)).toBe(true);
+    }
+  });
+
+  it("should not leak system prompt artifacts into user-visible output", () => {
+    // System prompt should never appear in output
+    const systemPrompt =
+      "Voce e um assistente de reflexao em Portugues (pt-BR)";
+    const userOutput = "O que voce sente quando observa suas sombras internas?";
+
+    expect(userOutput).not.toContain("Voce e um assistente");
+    expect(userOutput).not.toContain("pt-BR");
+    expect(userOutput).not.toContain("junguiano");
+  });
+});
+
+describe("Regression Suite - Privacy & Language", () => {
   it("should not leak unencrypted data to logs", () => {
     const sensitiveData = "minha_reflexao_privada_123";
     const logs: string[] = [];

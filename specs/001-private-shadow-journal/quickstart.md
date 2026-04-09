@@ -195,11 +195,17 @@ const text = await this.context.detokenize(tokens);
 ### Unit Tests
 
 ```bash
-# Run all tests
+# Run all tests (Jest - primary runner)
+npm test
+
+# Run all tests (Bun - faster alternative)
 bun test
 
 # Run specific test
 bun test tests/unit/onboarding/
+
+# Watch mode
+npm run test:watch
 ```
 
 ### Manual Testing
@@ -219,6 +225,8 @@ bun test tests/unit/onboarding/
    ```
    # After download, model should load without error code 35
    # Check logs: "Model loaded successfully"
+   # Note: llama.rn requires a development build (npx expo run:android)
+   #       Expo Go does not support native modules
    ```
 
 3. **Generation**:
@@ -274,11 +282,13 @@ Add to `android/app/proguard-rules.pro`:
 
 | Device RAM | Model        | Load Time | Generation (500 words) |
 | ---------- | ------------ | --------- | ---------------------- |
-| 4GB        | Qwen 0.5B Q4 | ~15s      | ~12s                   |
-| 6GB        | Qwen 1.5B Q4 | ~20s      | ~10s                   |
-| 8GB        | Qwen 3B Q4   | ~25s      | ~8s                    |
+| 4GB        | Qwen 0.5B Q4 | ~45s      | ~12s p95               |
+| 6GB        | Qwen 1.5B Q4 | ~35s      | ~10s p95               |
+| 8GB        | Qwen 3B Q4   | ~25s      | ~8s p95                |
 
 **Target**: All within performance budgets (PF-001: <8s p95 for 500 words on 8GB)
+
+See [docs/performance-benchmarks.md](../../docs/performance-benchmarks.md) for full benchmarks including llama.rn vs ExecuTorch comparison.
 
 ## Rollback Plan
 

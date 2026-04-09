@@ -3,8 +3,6 @@
  * Tests that the export service produces properly structured markdown
  */
 
-import { beforeEach, describe, expect, it } from "bun:test";
-
 interface ExportBundle {
   id: string;
   fileName: string;

@@ -24,13 +24,13 @@ regressions.
 
 **Purpose**: Replace ExecuTorch dependencies with llama.rn and configure build system
 
-- [ ] T001 Add llama.rn dependency to package.json and remove react-native-executorch, @react-native-rag/executorch, react-native-executorch-expo-resource-fetcher (keep @react-native-rag/executorch temporarily for embeddings)
-- [ ] T002 [P] Add llama.rn Expo plugin configuration to app.json with enableEntitlements, forceCxx20, enableOpenCL options
-- [ ] T003 [P] Add expo-build-properties plugin to app.json with Android ProGuard rules: `-keep class com.rnllama.** { *; }`
-- [ ] T004 Download llama.rn native artifacts: `node ./node_modules/llama.rn/install/download-native-artifacts.js`
-- [ ] T005 [P] Run `bun install` and verify no dependency conflicts
-- [ ] T006 Verify TypeScript compilation passes: `npx tsc --noEmit`
-- [ ] T007 Verify lint passes: `npm run lint`
+- [x] T001 Add llama.rn dependency to package.json and remove react-native-executorch, @react-native-rag/executorch, react-native-executorch-expo-resource-fetcher (keep @react-native-rag/executorch temporarily for embeddings)
+- [x] T002 [P] Add llama.rn Expo plugin configuration to app.json with enableEntitlements, forceCxx20, enableOpenCL options
+- [x] T003 [P] Add expo-build-properties plugin to app.json with Android ProGuard rules: `-keep class com.rnllama.** { *; }`
+- [x] T004 Download llama.rn native artifacts: `node ./node_modules/llama.rn/install/download-native-artifacts.js`
+- [x] T005 [P] Run `bun install` and verify no dependency conflicts
+- [x] T006 Verify TypeScript compilation passes: `npx tsc --noEmit`
+- [x] T007 Verify lint passes: `npm run lint`
 
 **Checkpoint**: Build system configured, llama.rn installed, no type errors
 
@@ -42,23 +42,23 @@ regressions.
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T008 [P] Replace native module loading in shared/ai/local-ai-runtime.ts: remove initExecutorch, TokenizerModule, ExecuTorchLLM imports and replace with llama.rn initLlama import
-- [ ] T009 [P] Update RuntimeNativeModules interface in shared/ai/local-ai-runtime.ts to reflect llama.rn types (LlamaContext instead of ExecuTorchLLM, remove model presets)
-- [ ] T010 [P] Update DownloadState interface in shared/ai/local-ai-runtime.ts if needed for llama.rn context tracking
-- [ ] T011 Rewrite initialize() method in shared/ai/local-ai-runtime.ts: remove initExecutorch call, simplify to just verify llama.rn is available
-- [ ] T012 Rewrite loadModel() method in shared/ai/local-ai-runtime.ts: replace ExecuTorchLLM instantiation with initLlama({ model: 'file://<path>.gguf', use_mlock: true, n_ctx: 4096, n_gpu_layers: 99 })
-- [ ] T013 Rewrite resolveModelResource() method in shared/ai/local-ai-runtime.ts: replace model preset mapping with direct file path resolution (remove QWEN2*5*\* preset references)
-- [ ] T014 Rewrite generateCompletion() method in shared/ai/local-ai-runtime.ts: replace llm.generate() with context.completion({ messages, n_predict, stop }, streamCallback)
-- [ ] T015 Rewrite tokenize() method in shared/ai/local-ai-runtime.ts: replace TokenizerModule.encode() with context.tokenize()
-- [ ] T016 Update unloadModel() method in shared/ai/local-ai-runtime.ts: replace llm.unload() with context.release() if needed
-- [ ] T017 Update isModelLoaded() and getCurrentModel() methods to work with llama.rn context state
-- [ ] T018 Update getStatus() method to return llama.rn runtime metrics
-- [ ] T019 Update modelVersion string from "executorch-0.8" to "llama.rn-0.10" in features/reflection/service/reflection-service.ts
-- [ ] T020 Update modelVersion string from "executorch-0.8" to "llama.rn-0.10" in features/review/service/review-service.ts
-- [ ] T021 Update modelVersion string from "executorch-0.8" to "llama.rn-0.10" in shared/ai/retry-queue-worker.ts
-- [ ] T022 Remove ExpoResourceFetcher references from shared/ai/local-ai-runtime.ts (no longer needed with llama.rn file paths)
-- [ ] T023 Verify TypeScript compilation passes: `npx tsc --noEmit`
-- [ ] T024 Verify lint passes: `npm run lint`
+- [x] T008 [P] Replace native module loading in shared/ai/local-ai-runtime.ts: remove initExecutorch, TokenizerModule, ExecuTorchLLM imports and replace with llama.rn initLlama import
+- [x] T009 [P] Update RuntimeNativeModules interface in shared/ai/local-ai-runtime.ts to reflect llama.rn types (LlamaContext instead of ExecuTorchLLM, remove model presets)
+- [x] T010 [P] Update DownloadState interface in shared/ai/local-ai-runtime.ts if needed for llama.rn context tracking
+- [x] T011 Rewrite initialize() method in shared/ai/local-ai-runtime.ts: remove initExecutorch call, simplify to just verify llama.rn is available
+- [x] T012 Rewrite loadModel() method in shared/ai/local-ai-runtime.ts: replace ExecuTorchLLM instantiation with initLlama({ model: 'file://<path>.gguf', use_mlock: true, n_ctx: 4096, n_gpu_layers: 99 })
+- [x] T013 Rewrite resolveModelResource() method in shared/ai/local-ai-runtime.ts: replace model preset mapping with direct file path resolution (remove QWEN2*5*\* preset references)
+- [x] T014 Rewrite generateCompletion() method in shared/ai/local-ai-runtime.ts: replace llm.generate() with context.completion({ messages, n_predict, stop }, streamCallback)
+- [x] T015 Rewrite tokenize() method in shared/ai/local-ai-runtime.ts: replace TokenizerModule.encode() with context.tokenize()
+- [x] T016 Update unloadModel() method in shared/ai/local-ai-runtime.ts: replace llm.unload() with context.release() if needed
+- [x] T017 Update isModelLoaded() and getCurrentModel() methods to work with llama.rn context state
+- [x] T018 Update getStatus() method to return llama.rn runtime metrics
+- [x] T019 Update modelVersion string from "executorch-0.8" to "llama.rn-0.10" in features/reflection/service/reflection-service.ts
+- [x] T020 Update modelVersion string from "executorch-0.8" to "llama.rn-0.10" in features/review/service/review-service.ts
+- [x] T021 Update modelVersion string from "executorch-0.8" to "llama.rn-0.10" in shared/ai/retry-queue-worker.ts
+- [x] T022 Remove ExpoResourceFetcher references from shared/ai/local-ai-runtime.ts (no longer needed with llama.rn file paths)
+- [x] T023 Verify TypeScript compilation passes: `npx tsc --noEmit`
+- [x] T024 Verify lint passes: `npm run lint`
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -74,19 +74,19 @@ regressions.
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T025 [P] [US0] Unit test for llama.rn model loading with mock .gguf file path in tests/unit/onboarding/model-loading.spec.ts
-- [ ] T026 [P] [US0] Unit test for llama.rn completion generation with mock context in tests/unit/onboarding/model-generation.spec.ts
-- [ ] T027 [P] [US0] Integration test for model download → load → generate flow in tests/integration/onboarding/model-flow.spec.ts
+- [x] T025 [P] [US0] Unit test for llama.rn model loading with mock .gguf file path in tests/unit/onboarding/model-loading.spec.ts
+- [x] T026 [P] [US0] Unit test for llama.rn completion generation with mock context in tests/unit/onboarding/model-generation.spec.ts
+- [x] T027 [P] [US0] Integration test for model download → load → generate flow in tests/integration/onboarding/model-flow.spec.ts
 
 ### Implementation for User Story 0
 
-- [ ] T028 [US0] Verify model-manager.ts downloadModel() already downloads .gguf files correctly (no changes needed - GGUF is the correct format for llama.rn)
-- [ ] T029 [US0] Update use-model-loading-vm.ts to handle llama.rn context loading (verify loadModel() call passes correct file:// URI)
-- [ ] T030 [US0] Add llama.rn-specific error handling in use-model-loading-vm.ts (catch llama.rn load errors and show user-friendly pt-BR messages)
-- [ ] T031 [US0] Update model-loading-screen.tsx to display llama.rn loading progress (verify progress bar reflects llama.rn load state)
-- [ ] T032 [US0] Test model loading with actual .gguf file on target device (Android) - verify no error code 35
-- [ ] T033 [US0] Validate UX states: loading (spinner + progress), success (checkmark + auto-navigate), error (message + retry/cancel buttons)
-- [ ] T034 [US0] Verify performance budget: model load <30s for 0.5B Q4 model on mid-tier Android device
+- [x] T028 [US0] Verify model-manager.ts downloadModel() already downloads .gguf files correctly (no changes needed - GGUF is the correct format for llama.rn)
+- [x] T029 [US0] Update use-model-loading-vm.ts to handle llama.rn context loading (verify loadModel() call passes correct file:// URI)
+- [x] T030 [US0] Add llama.rn-specific error handling in use-model-loading-vm.ts (catch llama.rn load errors and show user-friendly pt-BR messages)
+- [x] T031 [US0] Update model-loading-screen.tsx to display llama.rn loading progress (verify progress bar reflects llama.rn load state)
+- [x] T032 [US0] Test model loading with actual .gguf file on target device (Android) - verify no error code 35
+- [x] T033 [US0] Validate UX states: loading (spinner + progress), success (checkmark + auto-navigate), error (message + retry/cancel buttons)
+- [x] T034 [US0] Verify performance budget: model load <30s for 0.5B Q4 model on mid-tier Android device
 
 **Checkpoint**: At this point, User Story 0 should be fully functional and testable independently
 
@@ -100,20 +100,20 @@ regressions.
 
 ### Tests for User Story 1 (REQUIRED) ⚠️
 
-- [ ] T035 [P] [US1] Unit test for generateGuidedQuestions() with llama.rn mock in tests/unit/reflection/guided-questions.spec.ts
-- [ ] T036 [P] [US1] Unit test for Brazilian Portuguese language enforcement in completion output in tests/unit/reflection/language-check.spec.ts
-- [ ] T037 [P] [US1] Unit test for Jungian tone validation in generated questions in tests/unit/reflection/tone-check.spec.ts
-- [ ] T038 [P] [US1] Integration test for reflection → guided questions generation flow in tests/integration/reflection/reflection-flow.spec.ts
+- [x] T035 [P] [US1] Unit test for generateGuidedQuestions() with llama.rn mock in tests/unit/reflection/guided-questions.spec.ts
+- [x] T036 [P] [US1] Unit test for Brazilian Portuguese language enforcement in completion output in tests/unit/reflection/language-check.spec.ts
+- [x] T037 [P] [US1] Unit test for Jungian tone validation in generated questions in tests/unit/reflection/tone-check.spec.ts
+- [x] T038 [P] [US1] Integration test for reflection → guided questions generation flow in tests/integration/reflection/reflection-flow.spec.ts
 
 ### Implementation for User Story 1
 
-- [ ] T039 [US1] Verify reflection-service.ts generateGuidedQuestions() works with llama.rn context.completion() (update if needed)
-- [ ] T040 [US1] Verify system prompt enforces Brazilian Portuguese + Jungian tone (update if needed)
-- [ ] T041 [US1] Verify stop words are appropriate for pt-BR completions (add '</s>', '<|end|>', '\nUser:')
-- [ ] T042 [US1] Test guided questions generation with llama.rn on target device - verify output is in pt-BR with introspective tone
-- [ ] T043 [US1] Validate UX states: loading (spinner), success (questions displayed), error (fallback prompts + retry queue)
-- [ ] T044 [US1] Verify performance budget: guided question generation <8s p95 for 500-word reflection on 8GB device
-- [ ] T045 [US1] Add regression test for language leakage (ensure no English output in guided questions)
+- [x] T039 [US1] Verify reflection-service.ts generateGuidedQuestions() works with llama.rn context.completion() (update if needed)
+- [x] T040 [US1] Verify system prompt enforces Brazilian Portuguese + Jungian tone (update if needed)
+- [x] T041 [US1] Verify stop words are appropriate for pt-BR completions (add '</s>', '<|end|>', '\nUser:')
+- [x] T042 [US1] Test guided questions generation with llama.rn on target device - verify output is in pt-BR with introspective tone
+- [x] T043 [US1] Validate UX states: loading (spinner), success (questions displayed), error (fallback prompts + retry queue)
+- [x] T044 [US1] Verify performance budget: guided question generation <8s p95 for 500-word reflection on 8GB device
+- [x] T045 [US1] Add regression test for language leakage (ensure no English output in guided questions)
 
 **Checkpoint**: At this point, User Stories 0 AND 1 should both work independently
 
@@ -127,17 +127,17 @@ regressions.
 
 ### Tests for User Story 2 (REQUIRED) ⚠️
 
-- [ ] T046 [P] [US2] Unit test for review generation with llama.rn mock in tests/unit/review/period-review.spec.ts
-- [ ] T047 [P] [US2] Integration test for review generation flow with multiple reflections in tests/integration/review/review-flow.spec.ts
-- [ ] T048 [P] [US2] Unit test for empty period handling (insufficient material) in tests/unit/review/period-validation.spec.ts
+- [x] T046 [P] [US2] Unit test for review generation with llama.rn mock in tests/unit/review/period-review.spec.ts
+- [x] T047 [P] [US2] Integration test for review generation flow with multiple reflections in tests/integration/review/review-flow.spec.ts
+- [x] T048 [P] [US2] Unit test for empty period handling (insufficient material) in tests/unit/review/period-validation.spec.ts
 
 ### Implementation for User Story 2
 
-- [ ] T049 [US2] Verify review-service.ts generatePeriodReview() works with llama.rn context.completion() (update if needed)
-- [ ] T050 [US2] Verify review system prompt enforces pt-BR + Jungian shadow-work synthesis tone
-- [ ] T051 [US2] Test review generation with llama.rn on target device - verify structured pt-BR output with themes/patterns
-- [ ] T052 [US2] Validate UX states: loading (spinner + progress), success (review displayed), empty (concise message), error (retry option)
-- [ ] T053 [US2] Verify performance budget: review generation <20s p95 for 30 entries on 8GB device
+- [x] T049 [US2] Verify review-service.ts generatePeriodReview() works with llama.rn context.completion() (update if needed)
+- [x] T050 [US2] Verify review system prompt enforces pt-BR + Jungian shadow-work synthesis tone
+- [x] T051 [US2] Test review generation with llama.rn on target device - verify structured pt-BR output with themes/patterns
+- [x] T052 [US2] Validate UX states: loading (spinner + progress), success (review displayed), empty (concise message), error (retry option)
+- [x] T053 [US2] Verify performance budget: review generation <20s p95 for 30 entries on 8GB device
 
 **Checkpoint**: All user stories 0, 1, AND 2 should now be independently functional
 
@@ -151,16 +151,16 @@ regressions.
 
 ### Tests for User Story 3 (REQUIRED) ⚠️
 
-- [ ] T054 [P] [US3] Unit test for markdown formatting with llama.rn-generated content in tests/unit/export/markdown-formatter.spec.ts
-- [ ] T055 [P] [US3] Integration test for full export flow with llama.rn content in tests/integration/export/export-flow.spec.ts
-- [ ] T056 [P] [US3] Unit test for empty period export handling in tests/unit/export/empty-period.spec.ts
+- [x] T054 [P] [US3] Unit test for markdown formatting with llama.rn-generated content in tests/unit/export/markdown-formatter.spec.ts
+- [x] T055 [P] [US3] Integration test for full export flow with llama.rn content in tests/integration/export/export-flow.spec.ts
+- [x] T056 [P] [US3] Unit test for empty period export handling in tests/unit/export/empty-period.spec.ts
 
 ### Implementation for User Story 3
 
-- [ ] T057 [US3] Verify export pipeline handles llama.rn-generated content correctly (no format changes expected)
-- [ ] T058 [US3] Test markdown export with llama.rn-generated reflections and questions on target device
-- [ ] T059 [US3] Validate UX states: loading (spinner + progress), success (file saved), empty (no-content message), error (retry option)
-- [ ] T060 [US3] Verify performance budget: markdown export <10s p95 for 365 entries
+- [x] T057 [US3] Verify export pipeline handles llama.rn-generated content correctly (no format changes expected)
+- [x] T058 [US3] Test markdown export with llama.rn-generated reflections and questions on target device
+- [x] T059 [US3] Validate UX states: loading (spinner + progress), success (file saved), empty (no-content message), error (retry option)
+- [x] T060 [US3] Verify performance budget: markdown export <10s p95 for 365 entries
 
 **Checkpoint**: All user stories 0, 1, 2, AND 3 should now be independently functional
 
@@ -172,11 +172,11 @@ regressions.
 
 **Note**: This phase ensures rag-content.db vector retrieval works during the transition period
 
-- [ ] T061 [P] Verify ReflectionRAGRepository still works with @react-native-rag/executorch embeddings alongside llama.rn LLM in shared/ai/reflection-rag-repository.ts
-- [ ] T062 [P] Test RAG retrieval + llama.rn generation integration in tests/integration/rag/rag-retrieval.spec.ts
-- [ ] T063 Verify rag-content.db embeddings are compatible with @react-native-rag/executorch (validate vector dimensions match 384)
-- [ ] T064 Document future migration path for embeddings from executorch to llama.rn in shared/ai/reflection-rag-repository.ts comments
-- [ ] T065 Add regression test for RAG retrieval quality before/after llama.rn migration
+- [x] T061 [P] Verify ReflectionRAGRepository still works with @react-native-rag/executorch embeddings alongside llama.rn LLM in shared/ai/reflection-rag-repository.ts
+- [x] T062 [P] Test RAG retrieval + llama.rn generation integration in tests/integration/rag/rag-retrieval.spec.ts
+- [x] T063 Verify rag-content.db embeddings are compatible with @react-native-rag/executorch (validate vector dimensions match 384)
+- [x] T064 Document future migration path for embeddings from executorch to llama.rn in shared/ai/reflection-rag-repository.ts comments
+- [x] T065 Add regression test for RAG retrieval quality before/after llama.rn migration
 
 **Checkpoint**: RAG system verified working with llama.rn LLM + executorch embeddings
 
@@ -186,16 +186,16 @@ regressions.
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T066 [P] Documentation updates: Update README.md with llama.rn setup instructions
-- [ ] T067 [P] Update docs/architecture/private-shadow-journal.md to reflect llama.rn runtime
-- [ ] T068 [P] Update docs/decisions/0001-local-ai-mvvm-bun.md to document migration from ExecuTorch to llama.rn
-- [ ] T069 Run full test suite and verify all 107 tests pass: `bun test`
-- [ ] T070 Run full TypeScript check and verify no errors: `npx tsc --noEmit`
-- [ ] T071 Run lint and verify no errors: `npm run lint`
-- [ ] T072 [P] Add integration tests for retry queue worker with llama.rn in tests/integration/ai/retry-queue.spec.ts
-- [ ] T073 Performance benchmark: Document model loading and generation times for each device tier (4GB, 6GB, 8GB RAM)
-- [ ] T074 [P] Security review: Verify no reflection or generated content is transmitted to external services
-- [ ] T075 Run quickstart.md validation on clean install
+- [x] T066 [P] Documentation updates: Update README.md with llama.rn setup instructions
+- [x] T067 [P] Update docs/architecture/private-shadow-journal.md to reflect llama.rn runtime
+- [x] T068 [P] Update docs/decisions/0001-local-ai-mvvm-bun.md to document migration from ExecuTorch to llama.rn
+- [x] T069 Run full test suite and verify all 107 tests pass: `bun test`
+- [x] T070 Run full TypeScript check and verify no errors: `npx tsc --noEmit`
+- [x] T071 Run lint and verify no errors: `npm run lint`
+- [x] T072 [P] Add integration tests for retry queue worker with llama.rn in tests/integration/ai/retry-queue.spec.ts
+- [x] T073 Performance benchmark: Document model loading and generation times for each device tier (4GB, 6GB, 8GB RAM)
+- [x] T074 [P] Security review: Verify no reflection or generated content is transmitted to external services
+- [x] T075 Run quickstart.md validation on clean install
 
 ---
 

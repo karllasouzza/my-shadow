@@ -164,7 +164,7 @@ export class ReflectionService {
 
         const promptParts: string[] = [];
         promptParts.push(
-          "Voce e um assistente de reflexao em Portugues (pt-BR) com perspectiva junguiana. Gere perguntas reflexivas nao-diretivas com tom introspectivo e compassivo.",
+          "Voce e um assistente de reflexao em Portugues do Brasil (pt-BR) com perspectiva junguiana. Gere perguntas reflexivas nao-diretivas com tom introspectivo e compassivo. Responda SOMENTE em portugues brasileiro. Nao use palavras em ingles.",
         );
         promptParts.push(`Reflexão: ${content}`);
         if (retrievedTexts.length > 0) {
