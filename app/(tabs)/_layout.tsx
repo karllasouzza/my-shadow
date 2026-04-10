@@ -4,7 +4,7 @@
  * 3 tabs: Chat (root), Models (Model Management), History (Chat History)
  */
 import { Tabs } from "expo-router";
-import { MessageSquare, Cpu, Clock } from "lucide-react-native";
+import { Clock, Cpu, MessageSquare } from "lucide-react-native";
 
 export default function TabsLayout() {
   return (
@@ -18,9 +18,10 @@ export default function TabsLayout() {
           borderTopColor: "#374151",
         },
       }}
+      initialRouteName="chat/index"
     >
       <Tabs.Screen
-        name="chat"
+        name="chat/index"
         options={{
           title: "Chat",
           tabBarIcon: ({ color, size }) => (
@@ -29,14 +30,14 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="models"
+        name="models/index"
         options={{
           title: "Modelos",
           tabBarIcon: ({ color, size }) => <Cpu size={size} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="history"
+        name="history/index"
         options={{
           title: "Histórico",
           tabBarIcon: ({ color, size }) => <Clock size={size} color={color} />,

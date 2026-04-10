@@ -38,6 +38,7 @@ export default function RootLayout() {
               contentStyle: { backgroundColor: "transparent" },
               headerShown: false,
             }}
+            initialRouteName="(tabs)"
           >
             <Stack.Screen name="(tabs)" />
           </Stack>
