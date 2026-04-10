@@ -15,9 +15,9 @@
  */
 import { getLocalAIRuntime } from "@/shared/ai/local-ai-runtime";
 import {
-    findModelById,
-    MODEL_CATALOG,
-    type ModelCatalogEntry,
+  findModelById,
+  MODEL_CATALOG,
+  type ModelCatalogEntry,
 } from "@/shared/ai/model-catalog";
 import { getModelManager } from "@/shared/ai/model-manager";
 import { observable, Observable } from "@legendapp/state";
@@ -114,7 +114,16 @@ export async function downloadModel(modelId: string): Promise<void> {
     return;
   }
 
+  // Persist the downloaded model path
+  manager.setDownloadedModel(modelId, downloadResult.data);
+
   // Update downloaded models list
+  const newDownloaded: DownloadedModelInfo = {
+    id: modelId,
+    localPath: downloadResult.data,
+    isLoaded: false,
+  };
+  state.downloadedModels.set([...state.downloadedModels.get(), newDownloaded]);
   refreshStatus();
 }
 
@@ -154,8 +163,9 @@ export async function loadModel(
   state.isLoading.set(true);
   state.errorMessage.set(null);
 
-  // Load model into llama.rn
-  const localPath = `file://${model.id}.gguf`;
+  // Use persisted local path if available, otherwise fallback to convention
+  const downloadedPaths = manager.getDownloadedModels();
+  const localPath = downloadedPaths[modelId] ?? `file://${model.id}.gguf`;
   const loadResult = await manager.loadModel(modelId, localPath);
 
   state.isLoading.set(false);
@@ -199,14 +209,16 @@ export async function refreshStatus(): Promise<void> {
   const state = getModelsState();
   const runtime = getLocalAIRuntime();
   const currentModel = runtime.getCurrentModel();
+  const manager = getModelManager();
 
   state.activeModel.set(currentModel?.id ?? null);
 
-  // TODO: Track downloaded models persistently
-  // For now, show catalog entries as not downloaded
+  // Read persisted downloaded model paths
+  const downloadedPaths = manager.getDownloadedModels();
+
   const downloaded: DownloadedModelInfo[] = MODEL_CATALOG.map((m) => ({
     id: m.id,
-    localPath: null, // Will be populated when download completes
+    localPath: downloadedPaths[m.id] ?? null,
     isLoaded: m.id === currentModel?.id,
   }));
 

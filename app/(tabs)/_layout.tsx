@@ -3,10 +3,47 @@
  *
  * 3 tabs: Chat (root), Models (Model Management), History (Chat History)
  */
+import { findModelById } from "@/shared/ai/model-catalog";
+import { getModelManager } from "@/shared/ai/model-manager";
 import { Tabs } from "expo-router";
-import { Clock, Cpu, MessageSquare } from "lucide-react-native";
+import { Clock, Cpu, Loader2, MessageSquare, View } from "lucide-react-native";
+import { useEffect, useState } from "react";
 
 export default function TabsLayout() {
+  const [isReady, setIsReady] = useState(false);
+
+  // T046: Auto-load active model on app launch
+  useEffect(() => {
+    async function init() {
+      try {
+        const manager = getModelManager();
+        const activeModelId = manager.getActiveModel();
+        if (activeModelId) {
+          const model = findModelById(activeModelId);
+          if (model) {
+            // Attempt to load the active model
+            await manager.loadModel(
+              activeModelId,
+              `file://${activeModelId}.gguf`,
+            );
+          }
+        }
+      } catch {
+        // Auto-load failed — app continues without model
+      } finally {
+        setIsReady(true);
+      }
+    }
+    init();
+  }, []);
+
+  if (!isReady) {
+    return (
+      <View className="flex-1 bg-background items-center justify-center">
+        <Loader2 size={24} color="#3b82f6" />
+      </View>
+    );
+  }
   return (
     <Tabs
       screenOptions={{

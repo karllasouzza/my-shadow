@@ -27,6 +27,9 @@ export function ModelsScreen() {
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [activeModelId, setActiveModelId] = useState<string | null>(null);
+  const [downloadedModels, setDownloadedModels] = useState<
+    { id: string; localPath: string | null; isLoaded: boolean }[]
+  >([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [ramWarning, setRamWarning] = useState<{
     modelId: string;
@@ -42,6 +45,7 @@ export function ModelsScreen() {
       setProgress(ms.downloadProgress.get());
       setDownloadingId(ms.downloadingModelId.get());
       setActiveModelId(ms.activeModel.get());
+      setDownloadedModels(ms.downloadedModels.get());
       setErrorMessage(ms.errorMessage.get());
       setRamWarning(ms.ramWarning.get());
       setTick((t) => t + 1);
@@ -76,9 +80,12 @@ export function ModelsScreen() {
     } else if (activeModelId === model.id) {
       statuses[model.id] = { status: "loaded", progress: 100, isLowRam: false };
     } else {
+      // Check if model was previously downloaded
+      const dl = downloadedModels.find((d) => d.id === model.id);
+      const isDownloaded = dl?.localPath != null && dl.localPath.length > 0;
       statuses[model.id] = {
-        status: "not-downloaded",
-        progress: 0,
+        status: isDownloaded ? "downloaded" : "not-downloaded",
+        progress: isDownloaded ? 100 : 0,
         isLowRam: false,
       };
     }

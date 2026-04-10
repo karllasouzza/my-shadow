@@ -20,6 +20,7 @@ import { type MMKV, createMMKV } from "react-native-mmkv";
 
 const MODELS_SUBDIRECTORY = "models";
 const ACTIVE_MODEL_KEY = "model:active";
+const DOWNLOADED_MODELS_KEY = "model:downloaded"; // { modelId: localPath }
 
 interface DownloadState {
   active: boolean;
@@ -233,6 +234,37 @@ export class ModelManager {
   getActiveModel(): string | null {
     const store = getMMKV();
     return store.getString(ACTIVE_MODEL_KEY) ?? null;
+  }
+
+  /**
+   * Persist a downloaded model's local path.
+   */
+  setDownloadedModel(modelId: string, localPath: string): void {
+    const store = getMMKV();
+    const raw = store.getString(DOWNLOADED_MODELS_KEY) ?? "{}";
+    try {
+      const map: Record<string, string> = JSON.parse(raw);
+      map[modelId] = localPath;
+      store.set(DOWNLOADED_MODELS_KEY, JSON.stringify(map));
+    } catch {
+      store.set(
+        DOWNLOADED_MODELS_KEY,
+        JSON.stringify({ [modelId]: localPath }),
+      );
+    }
+  }
+
+  /**
+   * Get all downloaded model paths. Returns { modelId: localPath } map.
+   */
+  getDownloadedModels(): Record<string, string> {
+    const store = getMMKV();
+    const raw = store.getString(DOWNLOADED_MODELS_KEY) ?? "{}";
+    try {
+      return JSON.parse(raw) as Record<string, string>;
+    } catch {
+      return {};
+    }
   }
 
   /**

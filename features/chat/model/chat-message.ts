@@ -13,16 +13,17 @@ export interface ChatMessage {
 }
 
 /** Validation: content non-empty, max 10,000 chars */
-export function validateChatMessage(
-  content: string,
-): { isValid: boolean; error?: string } {
+export function validateChatMessage(content: string): {
+  isValid: boolean;
+  error?: string;
+} {
   if (!content || content.trim().length === 0) {
-    return { isValid: false, error: "Message content cannot be empty" };
+    return { isValid: false, error: "A mensagem não pode estar vazia" };
   }
   if (content.length > 10_000) {
     return {
       isValid: false,
-      error: `Message exceeds maximum length of 10,000 characters (got ${content.length})`,
+      error: `A mensagem excede o comprimento máximo de 10.000 caracteres (obtido ${content.length})`,
     };
   }
   return { isValid: true };

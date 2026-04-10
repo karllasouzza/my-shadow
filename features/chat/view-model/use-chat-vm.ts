@@ -44,8 +44,11 @@ export function getChatState(): ChatState {
 /** Check if runtime has a model loaded and update state */
 export async function syncModelStatus(): Promise<void> {
   const runtime = getLocalAIRuntime();
+  console.log(runtime);
   const loaded = runtime.isModelLoaded();
+  console.log("Model loaded:", loaded);
   const state = getChatState();
+  console.log("Updating state.isModelReady to", loaded);
   state.isModelReady.set(loaded);
 }
 
@@ -63,7 +66,7 @@ export async function sendMessage(content: string): Promise<void> {
   // T025: Validate message
   const validation = validateChatMessage(content);
   if (!validation.isValid) {
-    state.errorMessage.set(validation.error ?? "Invalid message");
+    state.errorMessage.set(validation.error ?? "Mensagem inválida.");
     return;
   }
 
