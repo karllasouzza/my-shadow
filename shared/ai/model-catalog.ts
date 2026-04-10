@@ -21,7 +21,7 @@ export const MODEL_CATALOG: ModelCatalogEntry[] = [
     displayName: "Qwen 2.5 0.5B",
     description: "Modelo leve e rápido, ideal para dispositivos com pouca RAM.",
     downloadUrl:
-      "https://www.modelscope.cn/models/Qwen/Qwen2.5-0.5B-Instruct-GGUF/file/view/master/qwen2.5-0.5b-instruct-q2_k.gguf",
+      "https://huggingface.co/Sekinna/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q2_k.gguf",
     fileSizeBytes: 350 * 1024 * 1024,
     estimatedRamBytes: 600 * 1024 * 1024,
     quantization: "Q2_K",
@@ -29,7 +29,8 @@ export const MODEL_CATALOG: ModelCatalogEntry[] = [
   {
     id: "qwen2.5-1.5b-instruct",
     displayName: "Qwen 2.5 1.5B",
-    description: "Equilíbrio entre qualidade e desempenho para a maioria dos dispositivos.",
+    description:
+      "Equilíbrio entre qualidade e desempenho para a maioria dos dispositivos.",
     downloadUrl:
       "https://huggingface.co/bartowski/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/Qwen2.5-1.5B-Instruct-Q4_0.gguf",
     fileSizeBytes: 938 * 1024 * 1024,
@@ -39,7 +40,8 @@ export const MODEL_CATALOG: ModelCatalogEntry[] = [
   {
     id: "qwen2.5-3b-instruct",
     displayName: "Qwen 2.5 3B",
-    description: "Modelo de maior qualidade, recomendado para dispositivos com 8GB+ de RAM.",
+    description:
+      "Modelo de maior qualidade, recomendado para dispositivos com 8GB+ de RAM.",
     downloadUrl:
       "https://huggingface.co/bartowski/Qwen2.5-3B-Instruct-GGUF/resolve/main/Qwen2.5-3B-Instruct-Q4_0.gguf",
     fileSizeBytes: 1830 * 1024 * 1024,
