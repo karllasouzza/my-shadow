@@ -66,24 +66,24 @@ description: "Task list for AI Chat App Restructure — regenerated with new arc
 
 ### Tests for User Story 1
 
-- [ ] T020 [P] [US1] Unit test for `useChatVm.sendMessage()` with mocked generateCompletion in `tests/unit/chat/use-chat-vm.spec.ts`
-- [ ] T021 [P] [US1] Unit test for `ChatMessage` validation in `tests/unit/chat/chat-message.spec.ts`
-- [ ] T022 [P] [US1] Integration test: sendMessage → generateCompletion → saveConversation in `tests/integration/chat/chat-flow.spec.ts`
+- [x] T020 [P] [US1] Unit test for `useChatVm.sendMessage()` with mocked generateCompletion in `tests/unit/chat/use-chat-vm.spec.ts`
+- [x] T021 [P] [US1] Unit test for `ChatMessage` validation in `tests/unit/chat/chat-message.spec.ts`
+- [x] T022 [P] [US1] Integration test: sendMessage → generateCompletion → saveConversation in `tests/integration/chat/chat-flow.spec.ts`
 
 ### Implementation for User Story 1
 
-- [ ] T023 [US1] Create `features/chat/view-model/use-chat-vm.ts` with Legend State: currentConversation, isModelReady, isGenerating, streamingText, errorMessage, showCancelOption. Implement `sendMessage()`, `cancelGeneration()`, `syncModelStatus()`, `resetChatState()`
-- [ ] T024 [US1] Wire `sendMessage()` in useChatVm to `shared/ai/local-ai-runtime.generateCompletion()` with onToken callback for progressive token display
-- [ ] T025 [US1] Implement context window validation in useChatVm (call runtime.tokenize(), compare to n_ctx - reserved, block send if exceeded)
-- [ ] T026 [US1] Create `features/chat/components/chat-input.tsx` with text input, send button, disabled state when !isModelReady or isGenerating, accessibility labels
-- [ ] T027 [US1] Create `features/chat/components/message-bubble.tsx` with user/assistant/system variants using NativeWind tokens. Include timestamp display
-- [ ] T028 [US1] Create `features/chat/components/generating-indicator.tsx` — spinner + "Pensando..." text during generation
-- [ ] T029 [US1] Create `features/chat/view/chat-screen.tsx` — FlatList bound to messages observable, ChatInput, GeneratingIndicator, EmptyChatState. KeyboardAvoidingView. Auto-scroll on new messages + streaming. No model badge in header — model selector lives in footer/actions (US4).
-- [ ] T030 [US1] Create `app/(tabs)/chat/index.tsx` route that imports and renders ChatScreen. Tab configured in `(tabs)/_layout.tsx`.
-- [ ] T031 [US1] Wire chat-service save: after user message sent AND after assistant response received, call `chat-service.appendUserMessage()` / `appendAssistantMessage()`
-- [ ] T032 [US1] Auto-generate conversation title from first user message (truncate to 50 chars) on first send via `chat-service`
-- [ ] T033 [US1] Add cancel generation button visible after 30s of generation (PF-005) — calls `cancelGeneration()` in useChatVm
-- [ ] T034 [US1] Define all 6 UX states in chat-screen: empty, no model loaded, model loading, generating, error, populated. Each renders appropriate component
+- [x] T023 [US1] Create `features/chat/view-model/use-chat-vm.ts` with Legend State: currentConversation, isModelReady, isGenerating, streamingText, errorMessage, showCancelOption. Implement `sendMessage()`, `cancelGeneration()`, `syncModelStatus()`, `resetChatState()`
+- [x] T024 [US1] Wire `sendMessage()` in useChatVm to `shared/ai/local-ai-runtime.generateCompletion()` with onToken callback for progressive token display
+- [x] T025 [US1] Implement context window validation in useChatVm (call runtime.tokenize(), compare to n_ctx - reserved, block send if exceeded)
+- [x] T026 [US1] Create `features/chat/components/chat-input.tsx` with text input, send button, disabled state when !isModelReady or isGenerating, accessibility labels
+- [x] T027 [US1] Create `features/chat/components/message-bubble.tsx` with user/assistant/system variants using NativeWind tokens. Include timestamp display
+- [x] T028 [US1] Create `features/chat/components/generating-indicator.tsx` — spinner + "Pensando..." text during generation
+- [x] T029 [US1] Create `features/chat/view/chat-screen.tsx` — FlatList bound to messages observable, ChatInput, GeneratingIndicator, EmptyChatState. KeyboardAvoidingView. Auto-scroll on new messages + streaming. No model badge in header — model selector lives in footer/actions (US4).
+- [x] T030 [US1] Create `app/(tabs)/chat/index.tsx` route that imports and renders ChatScreen. Tab configured in `(tabs)/_layout.tsx`.
+- [x] T031 [US1] Wire chat-service save: after user message sent AND after assistant response received, call `chat-service.appendUserMessage()` / `appendAssistantMessage()`
+- [x] T032 [US1] Auto-generate conversation title from first user message (truncate to 50 chars) on first send via `chat-service`
+- [x] T033 [US1] Add cancel generation button visible after 30s of generation (PF-005) — calls `cancelGeneration()` in useChatVm
+- [x] T034 [US1] Define all 6 UX states in chat-screen: empty, no model loaded, model loading, generating, error, populated. Each renders appropriate component
 
 **Checkpoint**: US1 fully functional — user can chat with streaming response, messages persist, cancel works. MVP deliverable.
 

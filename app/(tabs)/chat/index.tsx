@@ -1,16 +1,8 @@
 /**
- * T030: Chat tab root — delegates to ChatScreen (Phase 3)
- *
- * Temporary placeholder until Phase 3 implementation.
+ * T030: Chat tab root — renders ChatScreen
  */
-import { View, Text } from "react-native";
+import { ChatScreen } from "@/features/chat/view/chat-screen";
 
 export default function ChatTab() {
-  return (
-    <View className="flex-1 bg-background items-center justify-center">
-      <Text className="text-foreground text-lg">
-        Chat — Em implementação
-      </Text>
-    </View>
-  );
+  return <ChatScreen />;
 }

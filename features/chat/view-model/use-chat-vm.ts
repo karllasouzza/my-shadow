@@ -1,29 +1,25 @@
 /**
- * T021/T022/T023: Chat view-model with full sendMessage, streaming, cancel
+ * T023/T024/T025/T033: Chat view-model
  *
- * Manages chat screen state: messages, model readiness, generation status.
- * Wires sendMessage() to local-ai-runtime.generateCompletion() with onToken.
+ * Legend State observables for chat screen:
+ * - currentConversation, isModelReady, isGenerating, streamingText,
+ *   errorMessage, showCancelOption
+ *
+ * Actions: sendMessage(), cancelGeneration(), syncModelStatus(), resetChatState(),
+ *          loadConversation()
  */
-import { ChatConversation } from "@/features/chat/model/chat-conversation";
+import type { ChatConversation } from "@/features/chat/model/chat-conversation";
 import { validateChatMessage } from "@/features/chat/model/chat-message";
 import * as ChatService from "@/features/chat/service/chat-service";
 import { getLocalAIRuntime } from "@/shared/ai/local-ai-runtime";
 import { observable, Observable } from "@legendapp/state";
 
 export interface ChatState {
-  /** Current conversation being displayed */
   currentConversation: Observable<ChatConversation | null>;
-  /** Whether a model is loaded and ready for generation */
   isModelReady: Observable<boolean>;
-  /** Whether AI is currently generating a response */
   isGenerating: Observable<boolean>;
-  /** Currently streaming tokens (appended to pending assistant message) */
   streamingText: Observable<string>;
-  /** Error message if any */
   errorMessage: Observable<string | null>;
-  /** Loaded model name for display */
-  loadedModelName: Observable<string | null>;
-  /** Whether to show cancel button (after 30s of generation) */
   showCancelOption: Observable<boolean>;
 }
 
@@ -39,7 +35,6 @@ export function getChatState(): ChatState {
       isGenerating: observable(false),
       streamingText: observable(""),
       errorMessage: observable<string | null>(null),
-      loadedModelName: observable<string | null>(null),
       showCancelOption: observable(false),
     };
   }
@@ -50,18 +45,22 @@ export function getChatState(): ChatState {
 export async function syncModelStatus(): Promise<void> {
   const runtime = getLocalAIRuntime();
   const loaded = runtime.isModelLoaded();
-  const model = runtime.getCurrentModel();
   const state = getChatState();
   state.isModelReady.set(loaded);
-  state.loadedModelName.set(model?.name ?? null);
 }
 
-/** Send a user message and stream the AI response */
+/**
+ * T024/T025: Send user message → stream AI response via onToken
+ *
+ * Validates message, checks model readiness, appends user message,
+ * calls generateCompletion with onToken for progressive display,
+ * then appends assistant response.
+ */
 export async function sendMessage(content: string): Promise<void> {
   const state = getChatState();
   state.errorMessage.set(null);
 
-  // Validate message
+  // T025: Validate message
   const validation = validateChatMessage(content);
   if (!validation.isValid) {
     state.errorMessage.set(validation.error ?? "Invalid message");
@@ -71,7 +70,7 @@ export async function sendMessage(content: string): Promise<void> {
   // Check model readiness
   if (!state.isModelReady.get()) {
     state.errorMessage.set(
-      "Nenhum modelo carregado. Selecione um modelo primeiro.",
+      "Nenhum modelo carregado. Vá para Modelos para carregar um.",
     );
     return;
   }
@@ -79,14 +78,12 @@ export async function sendMessage(content: string): Promise<void> {
   // Get or create conversation
   let conv = state.currentConversation.get();
   if (!conv) {
-    const newConv = ChatService.createConversation(
-      state.loadedModelName.get() ?? "unknown",
-    );
+    const newConv = ChatService.createConversation("unknown");
     conv = newConv;
     state.currentConversation.set(conv);
   }
 
-  // Append user message
+  // T031: Append user message
   const userMsgResult = ChatService.appendUserMessage(conv.id, content);
   if (!userMsgResult.success) {
     state.errorMessage.set("Falha ao salvar mensagem.");
@@ -95,21 +92,19 @@ export async function sendMessage(content: string): Promise<void> {
   const updatedConv = userMsgResult.data;
   if (!updatedConv) return;
 
-  // Update observable with user message
+  // Update observable
   state.currentConversation.set(updatedConv);
   state.streamingText.set("");
   state.isGenerating.set(true);
   state.showCancelOption.set(false);
 
-  // Prepare for streaming
+  // T033: Prepare cancel token + 30s timeout for cancel option
   cancelToken = { cancelled: false };
-
-  // Show cancel option after 30 seconds (PF-005)
   generationTimeout = setTimeout(() => {
     state.showCancelOption.set(true);
   }, 30_000);
 
-  // Build messages array for generateCompletion
+  // T024: Call generateCompletion with onToken streaming
   const messages = updatedConv.messages.map((m) => ({
     role: m.role,
     content: m.content,
@@ -150,7 +145,7 @@ export async function sendMessage(content: string): Promise<void> {
     return;
   }
 
-  // Save assistant response
+  // T031: Save assistant response
   const assistantText = completionResult.data.text;
   const saveResult = ChatService.appendAssistantMessage(conv.id, assistantText);
   if (saveResult.success && saveResult.data) {
@@ -159,7 +154,7 @@ export async function sendMessage(content: string): Promise<void> {
   state.streamingText.set("");
 }
 
-/** Cancel ongoing generation */
+/** T033: Cancel ongoing generation */
 export function cancelGeneration(): void {
   if (cancelToken) {
     cancelToken.cancelled = true;
@@ -181,11 +176,6 @@ export async function loadConversation(id: string): Promise<void> {
   }
 }
 
-/** Start a brand new conversation */
-export function newConversation(): void {
-  resetChatState();
-}
-
 /** Reset chat state for new conversation */
 export function resetChatState(): void {
   if (generationTimeout) {
@@ -199,30 +189,4 @@ export function resetChatState(): void {
   state.streamingText.set("");
   state.errorMessage.set(null);
   state.showCancelOption.set(false);
-}
-
-/**
- * T034-T041: Model loading integration for chat screen
- *
- * Loads a model into the runtime and updates chat state.
- * Called from model picker after download completes.
- */
-export async function loadModelForChat(
-  modelId: string,
-  filePath: string,
-): Promise<void> {
-  const state = getChatState();
-  state.errorMessage.set(null);
-  state.isModelReady.set(false);
-
-  const runtime = getLocalAIRuntime();
-  const result = await runtime.loadModel(modelId, filePath);
-
-  if (result.success) {
-    state.isModelReady.set(true);
-    state.loadedModelName.set(modelId);
-  } else {
-    state.errorMessage.set(result.error.message);
-    state.isModelReady.set(false);
-  }
 }
