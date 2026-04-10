@@ -1,9 +1,11 @@
 /**
- * T006/T008: Root layout — routes to (tabs)/ group
+ * T006/T008/T046: Root layout — routes to (tabs)/ group with auto-load
  *
- * No legacy screen registrations. Only (tabs)/ route group.
+ * T046: On app launch, checks for active model in MMKV and auto-loads it.
  */
 import { ThemeProvider } from "@/context/themes";
+import { findModelById } from "@/shared/ai/model-catalog";
+import { getModelManager } from "@/shared/ai/model-manager";
 import { PortalHost } from "@rn-primitives/portal";
 import { Stack } from "expo-router";
 import { Loader2 } from "lucide-react-native";
@@ -17,8 +19,29 @@ import "../global.css";
 export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
 
+  // T046: Auto-load active model on app launch
   useEffect(() => {
-    setIsReady(true);
+    async function init() {
+      try {
+        const manager = getModelManager();
+        const activeModelId = manager.getActiveModel();
+        if (activeModelId) {
+          const model = findModelById(activeModelId);
+          if (model) {
+            // Attempt to load the active model
+            await manager.loadModel(
+              activeModelId,
+              `file://${activeModelId}.gguf`,
+            );
+          }
+        }
+      } catch {
+        // Auto-load failed — app continues without model
+      } finally {
+        setIsReady(true);
+      }
+    }
+    init();
   }, []);
 
   if (!isReady) {
@@ -38,7 +61,6 @@ export default function RootLayout() {
               contentStyle: { backgroundColor: "transparent" },
               headerShown: false,
             }}
-            initialRouteName="(tabs)"
           >
             <Stack.Screen name="(tabs)" />
           </Stack>

@@ -1,16 +1,8 @@
 /**
- * T045: Models tab root — delegates to ModelsScreen (Phase 4)
- *
- * Temporary placeholder until Phase 4 implementation.
+ * T045: Models tab root — renders ModelsScreen
  */
-import { View, Text } from "react-native";
+import { ModelsScreen } from "@/features/model-management/view/models-screen";
 
 export default function ModelsTab() {
-  return (
-    <View className="flex-1 bg-background items-center justify-center">
-      <Text className="text-foreground text-lg">
-        Modelos — Em implementação
-      </Text>
-    </View>
-  );
+  return <ModelsScreen />;
 }

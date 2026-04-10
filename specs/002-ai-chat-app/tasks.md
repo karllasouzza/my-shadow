@@ -97,22 +97,22 @@ description: "Task list for AI Chat App Restructure — regenerated with new arc
 
 ### Tests for User Story 2
 
-- [ ] T035 [P] [US2] Unit test for `useModelsVm` browse/download/load flow in `tests/unit/model-management/use-models-vm.spec.ts`
-- [ ] T036 [P] [US2] Unit test for `shared/ai/model-manager.downloadModel()` with progress callback in `tests/unit/model-management/model-manager.spec.ts`
-- [ ] T037 [P] [US2] Integration test: download → verify → load chain in `tests/integration/model-management/model-flow.spec.ts`
+- [x] T035 [P] [US2] Unit test for `useModelsVm` browse/download/load flow in `tests/unit/model-management/use-models-vm.spec.ts`
+- [x] T036 [P] [US2] Unit test for `shared/ai/model-manager.downloadModel()` with progress callback in `tests/unit/model-management/model-manager.spec.ts`
+- [x] T037 [P] [US2] Integration test: download → verify → load chain in `tests/integration/model-management/model-flow.spec.ts`
 
 ### Implementation for User Story 2
 
-- [ ] T038 [US2] Create `features/model-management/view-model/use-models-vm.ts` with Legend State: catalog, downloadedModels, activeModel, isLoading, downloadProgress, errorMessage. Implement `browseModels()`, `downloadModel()`, `loadModel()`, `unloadModel()`, `refreshStatus()`
-- [ ] T039 [US2] Wire `useModelsVm.downloadModel()` to `shared/ai/model-manager.downloadModel()` with progress callback that updates downloadProgress observable
-- [ ] T040 [US2] Wire `useModelsVm.loadModel()` to `shared/ai/model-manager.loadModel()` + `shared/ai/model-manager.setActiveModel()`. Broadcast to chat screen's useChatVm.isModelReady after load succeeds.
-- [ ] T041 [US2] Implement disk space validation before download (FR-014): check expo-file-system available storage vs model fileSizeBytes
-- [ ] T042 [US2] Implement RAM warning before load (FR-015): compare model estimatedRamBytes to device RAM via react-native-device-info
-- [ ] T043 [US2] Create `features/model-management/components/model-catalog.tsx` — FlatList of ModelItem components, empty state when no models, loading state during catalog fetch
-- [ ] T044 [US2] Create `features/model-management/view/models-screen.tsx` — ModelCatalog, DownloadProgress overlay, RAMWarning modal. All 5 UX states: no models, browsing, downloading, loading, failed. No back button — accessed via bottom tab.
-- [ ] T045 [US2] Create `app/(tabs)/models/index.tsx` route that imports and renders ModelsScreen. Tab configured in `(tabs)/_layout.tsx` with icon and label "Modelos".
-- [ ] T046 [US2] Implement active model auto-load on app launch: in `app/_layout.tsx` or `(tabs)/_layout.tsx`, call `shared/ai/model-manager.getActiveModel()` → if localPath exists, call `shared/ai/model-manager.loadModel()` → update chat isModelReady. (Uses T010 persistence layer.)
-- [ ] T047 [US2] Create `features/chat/components/model-selector-footer.tsx` — compact model selector in chat footer/actions bar. Shows current model name (or "Sem modelo"). Tap opens ModelPicker modal. Displays RAM warning. Used when no model is loaded or user taps to switch.
+- [x] T038 [US2] Create `features/model-management/view-model/use-models-vm.ts` with Legend State: catalog, downloadedModels, activeModel, isLoading, downloadProgress, errorMessage. Implement `browseModels()`, `downloadModel()`, `loadModel()`, `unloadModel()`, `refreshStatus()`
+- [x] T039 [US2] Wire `useModelsVm.downloadModel()` to `shared/ai/model-manager.downloadModel()` with progress callback that updates downloadProgress observable
+- [x] T040 [US2] Wire `useModelsVm.loadModel()` to `shared/ai/model-manager.loadModel()` + `shared/ai/model-manager.setActiveModel()`. Broadcast to chat screen's useChatVm.isModelReady after load succeeds.
+- [x] T041 [US2] Implement disk space validation before download (FR-014): check expo-file-system available storage vs model fileSizeBytes
+- [x] T042 [US2] Implement RAM warning before load (FR-015): compare model estimatedRamBytes to device RAM via react-native-device-info
+- [x] T043 [US2] Create `features/model-management/components/model-catalog.tsx` — FlatList of ModelItem components, empty state when no models, loading state during catalog fetch
+- [x] T044 [US2] Create `features/model-management/view/models-screen.tsx` — ModelCatalog, DownloadProgress overlay, RAMWarning modal. All 5 UX states: no models, browsing, downloading, loading, failed. No back button — accessed via bottom tab.
+- [x] T045 [US2] Create `app/(tabs)/models/index.tsx` route that imports and renders ModelsScreen. Tab configured in `(tabs)/_layout.tsx` with icon and label "Modelos".
+- [x] T046 [US2] Implement active model auto-load on app launch: in `app/_layout.tsx` or `(tabs)/_layout.tsx`, call `shared/ai/model-manager.getActiveModel()` → if localPath exists, call `shared/ai/model-manager.loadModel()` → update chat isModelReady. (Uses T010 persistence layer.)
+- [x] T047 [US2] Create `features/chat/components/model-selector-footer.tsx` — compact model selector in chat footer/actions bar. Shows current model name (or "Sem modelo"). Tap opens ModelPicker modal. Displays RAM warning. Used when no model is loaded or user taps to switch.
 
 **Checkpoint**: US1 + US2 both work — user can manage models independently, chat recognizes loaded model, active model persists between sessions.
 
