@@ -175,15 +175,15 @@ description: "Task list for AI Chat App Restructure — regenerated with new arc
 
 ### Tests for User Story 5
 
-- [ ] T065 [P] [US5] Regression test: grep-sweep for forbidden imports (no `fetch`, `axios`, `XMLHttpRequest` in chat-service, no cloud sync libs) in CI script
-- [ ] T066 [P] [US5] Integration test: verify local-ai-runtime makes no HTTP/fetch calls during generateCompletion (mock network layer, verify zero requests)
+- [x] T065 [P] [US5] Regression test: grep-sweep for forbidden imports (no `fetch`, `axios`, `XMLHttpRequest` in chat-service, no cloud sync libs) in CI script
+- [x] T066 [P] [US5] Integration test: verify local-ai-runtime makes no HTTP/fetch calls during generateCompletion (mock network layer, verify zero requests)
 
 ### Implementation for User Story 5
 
-- [ ] T067 [US5] Audit `shared/ai/local-ai-runtime.ts` — confirm no fetch/axios/http imports, only native llama.rn calls. Document findings in PR notes
-- [ ] T068 [US5] Audit `features/chat/service/chat-service.ts` — confirm MMKV-only persistence, no cloud sync, no analytics/tracking of message content. Document in PR notes
-- [ ] T069 [US5] Add CI grep-sweep script to `package.json` scripts field
-- [ ] T070 [US5] Document privacy guarantees in `specs/002-ai-chat-app/quickstart.md`
+- [x] T067 [US5] Audit `shared/ai/local-ai-runtime.ts` — confirm no fetch/axios/http imports, only native llama.rn calls. Document findings in PR notes
+- [x] T068 [US5] Audit `features/chat/service/chat-service.ts` — confirm MMKV-only persistence, no cloud sync, no analytics/tracking of message content. Document in PR notes
+- [x] T069 [US5] Add CI grep-sweep script to `package.json` scripts field
+- [x] T070 [US5] Document privacy guarantees in `specs/002-ai-chat-app/quickstart.md`
 
 **Checkpoint**: Privacy guarantees verified and tested. No external data leakage possible during generation.
 
@@ -193,14 +193,14 @@ description: "Task list for AI Chat App Restructure — regenerated with new arc
 
 **Purpose**: Improvements that affect multiple user stories.
 
-- [ ] T071 [P] E2E test: full user journey (open app → Models tab → download → load → Chat tab → send message → verify History tab → rename → delete) in `tests/e2e/chat/chat-journey.e2e.spec.ts`
-- [ ] T072 [P] Audit ALL remaining files in `features/`, `shared/`, `app/` for unused imports, dead code, console.log statements. Remove or fix
-- [ ] T073 Run full test suite (`npm test`) — all tests must pass
-- [ ] T074 Run TypeScript check (`npx tsc --noEmit`) — zero errors
-- [ ] T075 Update `QWEN.md` and project README with new architecture (3-tab model, shared/ai ownership, co-located components)
-- [ ] T076 Performance profiling: record first-token latency, streaming latency, history render time on 4GB RAM device. Attach results to PR
-- [ ] T077 Verify accessibility: all inputs have labels, contrast meets WCAG AA, error states have descriptive text across all 3 screens
-- [ ] T078 Verify tab navigation: smooth transitions between Chat/Models/History, correct active tab indicator, no state loss on tab switch
+- [x] T071 [P] E2E test: full user journey (open app → Models tab → download → load → Chat tab → send message → verify History tab → rename → delete) in `tests/e2e/chat/chat-journey.e2e.spec.ts`
+- [x] T072 [P] Audit ALL remaining files in `features/`, `shared/`, `app/` for unused imports, dead code, console.log statements. Remove or fix
+- [x] T073 Run full test suite (`npm test`) — all tests must pass
+- [x] T074 Run TypeScript check (`npx tsc --noEmit`) — zero errors
+- [x] T075 Update `QWEN.md` and project README with new architecture (3-tab model, shared/ai ownership, co-located components)
+- [x] T076 Performance profiling: record first-token latency, streaming latency, history render time on 4GB RAM device. Attach results to PR
+- [x] T077 Verify accessibility: all inputs have labels, contrast meets WCAG AA, error states have descriptive text across all 3 screens
+- [x] T078 Verify tab navigation: smooth transitions between Chat/Models/History, correct active tab indicator, no state loss on tab switch
 
 ---
 
@@ -251,7 +251,7 @@ Note: All 3 tabs (Chat, Models, History) share the same `(tabs)/` layout. Naviga
 - Phase 3: T020, T021, T022 parallelizable (test writing)
 - Phase 4: T035, T036, T037 parallelizable (test writing)
 - Phase 5: T048, T049, T050 parallelizable (test writing)
-- Phase 8: T071, T072, T075 parallelizable (E2E + audit + docs)
+- Phase 8: [x] T071, [x] T072, [x] T075 parallelizable (E2E + audit + docs)
 
 ---
 
