@@ -7,7 +7,7 @@
 import React from "react";
 import { FlatList, View, Text } from "react-native";
 import { ModelItem, type ModelStatus } from "@/features/model-management/components/model-item";
-import type { ModelCatalogEntry } from "@/shared/ai/model-catalog";
+import type { ModelCatalogEntry } from "@/shared/ai/catalog";
 
 interface ModelCatalogProps {
   models: ModelCatalogEntry[];

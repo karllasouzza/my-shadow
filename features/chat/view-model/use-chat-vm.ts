@@ -11,7 +11,7 @@
 import type { ChatConversation } from "@/features/chat/model/chat-conversation";
 import { validateChatMessage } from "@/features/chat/model/chat-message";
 import * as ChatService from "@/features/chat/service/chat-service";
-import { getLocalAIRuntime } from "@/shared/ai/local-ai-runtime";
+import { getLocalAIRuntime } from "@/shared/ai/runtime/local-ai-runtime.service";
 import { observable, Observable } from "@legendapp/state";
 
 export interface ChatState {

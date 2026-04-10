@@ -253,7 +253,7 @@
 
 ### 10.1: Barrel Files e API Pública
 
-- [ ] T034 Reescrever `shared/ai/index.ts` (novo arquivo raiz)
+- [x] T034 Reescrever `shared/ai/index.ts` (novo arquivo raiz)
   - Barrel file principal que re-exporta tudo de forma organizada:
     ```ts
     export * from "./catalog";
@@ -267,17 +267,17 @@
     export * from "./constants";
     export * from "./errors";
     ```
-- [ ] T035 [P] Remover barrel files antigos duplicados
+- [x] T035 [P] Remover barrel files antigos duplicados
   - `shared/ai/model-manager.ts` → apontar para `manager/index.ts` ou remover
   - `shared/ai/model-catalog.ts` → apontar para `catalog/index.ts` ou remover
   - `shared/ai/local-ai-runtime.ts` → apontar para `runtime/index.ts` ou remover
-- [ ] T036 [P] Atualizar TODOS os imports externos
+- [x] T036 [P] Atualizar TODOS os imports externos
   - `features/chat/view-model/use-chat-vm.ts`
   - `features/model-management/view-model/use-models-vm.ts`
   - `features/model-management/view/models-screen.tsx`
   - `features/model-management/components/model-catalog.tsx`
   - Garantir que todos apontam para os novos paths corretos
-- [ ] T037 Rodar `npx tsc --noEmit` para verificar que tudo compila
+- [x] T037 Rodar `npx tsc --noEmit` para verificar que tudo compila
   - Corrigir qualquer error de tipo/importação
   - Zero errors esperado
 

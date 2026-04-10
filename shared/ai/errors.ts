@@ -5,10 +5,15 @@
  * Maintains compatibility with AppErrorCode from shared/utils/app-error.ts
  */
 
-import { AppErrorCode, createError, err, type AppError, type Result } from "@/shared/utils/app-error";
+import {
+    createError,
+    err,
+    type AppError,
+    type Result
+} from "@/shared/utils/app-error";
 
 // ============================================================================
-// AI-Specific Error Subtypes
+// AI-Specific Error Subtypes (descriptive labels, not AppErrorCode replacements)
 // ============================================================================
 
 export type AIErrorSubtype =
@@ -25,17 +30,10 @@ export type AIErrorSubtype =
   | "CATALOG_ENTRY_NOT_FOUND";
 
 // ============================================================================
-// AI Error Code (extends AppErrorCode)
-// ============================================================================
-
-export type AIErrorCode = AppErrorCode | AIErrorSubtype;
-
-// ============================================================================
-// AI Error Interface
+// AI Error Interface (extends AppError with optional subtype)
 // ============================================================================
 
 export interface AIError extends AppError {
-  code: AIErrorCode;
   subtype?: AIErrorSubtype;
 }
 
@@ -91,9 +89,7 @@ export function createContextOverflowError(
   ) as AIError;
 }
 
-export function createGenerationTimeoutError(
-  timeoutMs: number,
-): AIError {
+export function createGenerationTimeoutError(timeoutMs: number): AIError {
   return createError(
     "LOCAL_GENERATION_UNAVAILABLE",
     `Geração excedeu tempo limite de ${timeoutMs / 1000}s.`,
@@ -138,9 +134,7 @@ export function createDownloadCancelledError(): AIError {
   ) as AIError;
 }
 
-export function createCatalogEntryNotFoundError(
-  modelId: string,
-): AIError {
+export function createCatalogEntryNotFoundError(modelId: string): AIError {
   return createError(
     "NOT_FOUND",
     `Modelo "${modelId}" não encontrado no catálogo.`,

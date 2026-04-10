@@ -9,7 +9,7 @@ import {
   getModelsState,
   loadModel,
 } from "@/features/model-management/view-model/use-models-vm";
-import { MODEL_CATALOG } from "@/shared/ai/model-catalog";
+import { MODEL_CATALOG } from "@/shared/ai/catalog";
 import { observer } from "@legendapp/state/react";
 import React, { useCallback, useEffect } from "react";
 import { Text, View } from "react-native";
