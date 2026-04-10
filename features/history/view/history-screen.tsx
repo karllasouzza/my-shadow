@@ -5,6 +5,9 @@
  * Auto-refresh on focus via useFocusEffect.
  * Tap → switch to Chat tab + load conversation.
  * Long-press → rename/delete confirmation dialogs.
+ *
+ * Fix: Wrapped in observer() to prevent infinite re-renders.
+ * Removed polling setInterval — observer tracks observables automatically.
  */
 import type { ChatConversationIndex } from "@/features/chat/model/chat-conversation";
 import {
@@ -15,21 +18,25 @@ import { ConversationList } from "@/features/history/components/conversation-lis
 import { EmptyHistory } from "@/features/history/components/empty-history";
 import {
     deleteConversation,
+    getHistoryState,
     loadConversations,
     renameConversation,
 } from "@/features/history/view-model/use-history-vm";
+import { observer } from "@legendapp/state/react";
 import { router, useFocusEffect } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback } from "react";
 import { ActivityIndicator, Alert, Text, View } from "react-native";
 
-export function HistoryScreen() {
-  const [conversations, setConversations] = useState<ChatConversationIndex[]>(
-    [],
-  );
-  const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+const HistoryScreenInner = observer(function HistoryScreenInner() {
+  const historyState = getHistoryState();
+
+  // Read observables directly — observer() tracks them
+  const conversations = historyState.conversations.get();
+  const isLoading = historyState.isLoading.get();
+  const errorMessage = historyState.errorMessage.get();
+
   // Track currently loaded conversation in chat for T064 edge case
-  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+  const [currentChatId, setCurrentChatId] = React.useState<string | null>(null);
 
   // T058: Handle conversation tap → switch to Chat tab + load conversation
   const handleConversationPress = useCallback(async (id: string) => {
@@ -105,29 +112,17 @@ export function HistoryScreen() {
     [handleRename, handleDelete],
   );
 
-  // Refresh list on focus
+  // Refresh list
   const refreshList = useCallback(async () => {
-    setIsLoading(true);
-    setErrorMessage(null);
-    const result = await loadConversations();
-    if (result.success) {
-      setConversations(result.data);
-    } else {
-      setErrorMessage(result.error.message);
-    }
-    setIsLoading(false);
+    await loadConversations();
   }, []);
 
+  // Refresh on focus
   useFocusEffect(
     useCallback(() => {
       refreshList();
     }, [refreshList]),
   );
-
-  // Initial load
-  useEffect(() => {
-    refreshList();
-  }, []);
 
   if (isLoading && conversations.length === 0) {
     return (
@@ -161,4 +156,8 @@ export function HistoryScreen() {
       )}
     </View>
   );
+});
+
+export function HistoryScreen() {
+  return <HistoryScreenInner />;
 }

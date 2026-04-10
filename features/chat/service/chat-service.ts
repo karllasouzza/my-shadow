@@ -46,7 +46,6 @@ export function saveConversation(conversation: ChatConversation): Result<void> {
     const store = getStorage();
     // Save full body
     store.set(`chat:${conversation.id}`, JSON.stringify(conversation));
-    // Update index
     updateIndex(conversation);
     return ok(undefined);
   } catch (error) {
@@ -153,10 +152,12 @@ export function appendUserMessage(
 ): Result<ChatConversation | null> {
   const loadResult = loadConversation(conversationId);
   if (!loadResult.success) return err(loadResult.error);
+
   const conv = loadResult.data;
   if (!conv) return ok(null);
 
   const message = createChatMessage("user", content);
+  console.log("Appending user message:", message);
   conv.messages.push(message);
   conv.updatedAt = new Date().toISOString();
 

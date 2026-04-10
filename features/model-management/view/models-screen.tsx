@@ -1,9 +1,12 @@
 /**
- * T044: Models screen
+ * T044: Models screen — wrapped with Legend State observer
  *
  * Model Management tab content.
  * Shows catalog of available models with download/load/unload actions.
  * 5 UX states: no models, browsing, downloading, loading, failed.
+ *
+ * Fix: Wrapped in observer() to prevent infinite re-renders.
+ * Removed polling setInterval — observer tracks observables automatically.
  */
 import { syncModelStatus } from "@/features/chat/view-model/use-chat-vm";
 import { DownloadProgress } from "@/features/model-management/components/download-progress";
@@ -11,65 +14,50 @@ import { ModelCatalog } from "@/features/model-management/components/model-catal
 import type { ModelStatus } from "@/features/model-management/components/model-item";
 import { RamWarning } from "@/features/model-management/components/ram-warning";
 import {
-    browseModels,
-    downloadModel,
-    getModelsState,
-    loadModel,
-    type ModelsState,
+  browseModels,
+  downloadModel,
+  getModelsState,
+  loadModel,
 } from "@/features/model-management/view-model/use-models-vm";
 import { MODEL_CATALOG } from "@/shared/ai/model-catalog";
-import React, { useEffect, useState } from "react";
+import { observer } from "@legendapp/state/react";
+import React, { useCallback, useEffect } from "react";
 import { Text, View } from "react-native";
 
-export function ModelsScreen() {
+const ModelsScreenInner = observer(function ModelsScreenInner() {
   const state = getModelsState();
-  const [_tick, setTick] = useState(0);
-  const [downloadingId, setDownloadingId] = useState<string | null>(null);
-  const [progress, setProgress] = useState(0);
-  const [activeModelId, setActiveModelId] = useState<string | null>(null);
-  const [downloadedModels, setDownloadedModels] = useState<
-    { id: string; localPath: string | null; isLoaded: boolean }[]
-  >([]);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [ramWarning, setRamWarning] = useState<{
-    modelId: string;
-    requiredMB: number;
-    availableMB: number;
-  } | null>(null);
 
-  // Poll Legend State
+  // Read observables directly — observer() tracks them
+  const downloadingId = state.downloadingModelId.get();
+  const progress = state.downloadProgress.get();
+  const activeModelId = state.activeModel.get();
+  const errorMessage = state.errorMessage.get();
+  const ramWarning = state.ramWarning.get();
+  const downloadedModels = state.downloadedModels.get();
+  const isLoading = state.isLoading.get();
+
   useEffect(() => {
     browseModels();
-    const interval = setInterval(() => {
-      const ms = state as ModelsState;
-      setProgress(ms.downloadProgress.get());
-      setDownloadingId(ms.downloadingModelId.get());
-      setActiveModelId(ms.activeModel.get());
-      setDownloadedModels(ms.downloadedModels.get());
-      setErrorMessage(ms.errorMessage.get());
-      setRamWarning(ms.ramWarning.get());
-      setTick((t) => t + 1);
-    }, 200);
-    return () => clearInterval(interval);
   }, []);
 
-  const handleDownload = async (modelId: string) => {
-    setDownloadingId(modelId);
+  const handleDownload = useCallback(async (modelId: string) => {
     await downloadModel(modelId);
-    setDownloadingId(null);
-  };
+  }, []);
 
-  const handleLoad = async (modelId: string) => {
+  const handleLoad = useCallback(async (modelId: string) => {
     await loadModel(modelId, async () => {
       await syncModelStatus();
     });
-  };
+  }, []);
 
-  const handleRetry = async (modelId: string) => {
-    await handleDownload(modelId);
-  };
+  const handleRetry = useCallback(
+    async (modelId: string) => {
+      await handleDownload(modelId);
+    },
+    [handleDownload],
+  );
 
-  // Build statuses map
+  // Build statuses map from observables
   const statuses: Record<
     string,
     { status: ModelStatus; progress: number; isLowRam: boolean }
@@ -80,7 +68,6 @@ export function ModelsScreen() {
     } else if (activeModelId === model.id) {
       statuses[model.id] = { status: "loaded", progress: 100, isLowRam: false };
     } else {
-      // Check if model was previously downloaded
       const dl = downloadedModels.find((d) => d.id === model.id);
       const isDownloaded = dl?.localPath != null && dl.localPath.length > 0;
       statuses[model.id] = {
@@ -131,6 +118,17 @@ export function ModelsScreen() {
         onLoad={handleLoad}
         onRetry={handleRetry}
       />
+
+      {/* Loading overlay */}
+      {isLoading && !downloadingId && (
+        <View className="absolute inset-0 bg-background/80 items-center justify-center">
+          <Text className="text-muted text-base">Carregando...</Text>
+        </View>
+      )}
     </View>
   );
+});
+
+export function ModelsScreen() {
+  return <ModelsScreenInner />;
 }

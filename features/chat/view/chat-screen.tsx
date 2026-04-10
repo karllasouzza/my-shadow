@@ -1,61 +1,48 @@
 /**
- * T029/T034: Chat screen
+ * T029/T034: Chat screen — wrapped with Legend State observer
  *
  * FlatList of messages + streaming text.
  * ChatInput at bottom. GeneratingIndicator during generation.
  * Cancel button after 30s (PF-005).
  *
  * T034: 6 UX states — empty, no model loaded, model loading, generating, error, populated
+ *
+ * Fix: Wrapped in observer() from @legendapp/state/react to prevent infinite re-renders.
+ * Removed polling setInterval — observer tracks observables automatically.
  */
 import { ChatInput } from "@/features/chat/components/chat-input";
 import { EmptyChat } from "@/features/chat/components/empty-chat";
 import { GeneratingIndicator } from "@/features/chat/components/generating-indicator";
 import { MessageBubble } from "@/features/chat/components/message-bubble";
-import type { ChatMessage } from "@/features/chat/model/chat-message";
 import {
-    cancelGeneration,
-    getChatState,
-    sendMessage,
-    syncModelStatus,
+  cancelGeneration,
+  getChatState,
+  sendMessage,
+  syncModelStatus,
 } from "@/features/chat/view-model/use-chat-vm";
+import { observer } from "@legendapp/state/react";
 import { Square } from "lucide-react-native";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import {
-    FlatList,
-    KeyboardAvoidingView,
-    Platform,
-    Text,
-    TouchableOpacity,
-    View,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
-export function ChatScreen() {
+const ChatScreenInner = observer(function ChatScreenInner() {
   const state = getChatState();
   const flatListRef = useRef<FlatList>(null);
 
-  // Local React state — refreshed from Legend State observables
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [isModelReady, setIsModelReady] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [showCancelOption, setShowCancelOption] = useState(false);
-  const [_tick, setTick] = useState(0);
-
-  // Refresh from Legend State periodically (v3 beta compatibility)
-  useEffect(() => {
-    function refresh() {
-      const conv = state.currentConversation.get();
-      setMessages(conv?.messages ?? []);
-      setIsModelReady(state.isModelReady.get());
-      setIsGenerating(state.isGenerating.get());
-      setErrorMessage(state.errorMessage.get());
-      setShowCancelOption(state.showCancelOption.get());
-      setTick((t) => t + 1);
-    }
-    refresh();
-    const interval = setInterval(refresh, 200);
-    return () => clearInterval(interval);
-  }, []);
+  // Read observables directly — observer() tracks them automatically
+  const messages = state.currentConversation.get()?.messages ?? [];
+  const isModelReady = state.isModelReady.get();
+  const isGenerating = state.isGenerating.get();
+  const streamingText = state.streamingText.get();
+  const errorMessage = state.errorMessage.get();
+  const showCancelOption = state.showCancelOption.get();
 
   // Sync model status on mount
   useEffect(() => {
@@ -63,8 +50,10 @@ export function ChatScreen() {
   }, []);
 
   // Auto-scroll on new messages
+  const prevCount = useRef(0);
   useEffect(() => {
-    if (messages.length > 0) {
+    if (messages.length > prevCount.current && messages.length > 0) {
+      prevCount.current = messages.length;
       setTimeout(
         () => flatListRef.current?.scrollToEnd({ animated: true }),
         100,
@@ -73,16 +62,15 @@ export function ChatScreen() {
   }, [messages.length]);
 
   // Auto-scroll during streaming
-  const streamingText = state.streamingText.get();
   useEffect(() => {
     if (streamingText) {
       flatListRef.current?.scrollToEnd({ animated: true });
     }
   }, [streamingText]);
 
-  const handleSend = async (text: string) => {
+  const handleSend = useCallback(async (text: string) => {
     await sendMessage(text);
-  };
+  }, []);
 
   return (
     <KeyboardAvoidingView
@@ -158,4 +146,15 @@ export function ChatScreen() {
       />
     </KeyboardAvoidingView>
   );
+});
+
+/**
+ * Exported ChatScreen wrapped in observer.
+ *
+ * Legend State observer() automatically tracks which observables
+ * are accessed during render, and only re-renders when they change.
+ * This replaces the polling setInterval approach which caused infinite re-renders.
+ */
+export function ChatScreen() {
+  return <ChatScreenInner />;
 }
