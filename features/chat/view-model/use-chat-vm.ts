@@ -44,12 +44,10 @@ export function getChatState(): ChatState {
 /** Check if runtime has a model loaded and update state */
 export async function syncModelStatus(): Promise<void> {
   const runtime = getLocalAIRuntime();
-  console.log(runtime);
   const loaded = runtime.isModelLoaded();
-  console.log("Model loaded:", loaded);
+  console.log("[ChatVM] syncModelStatus — model loaded:", loaded);
   const state = getChatState();
-  console.log("Updating state.isModelReady to", loaded);
-  state.isModelReady.set(loaded);
+  state.isModelReady.set(!!loaded);
 }
 
 /**
@@ -63,15 +61,19 @@ export async function sendMessage(content: string): Promise<void> {
   const state = getChatState();
   state.errorMessage.set(null);
 
+  console.log("[ChatVM] sendMessage called:", content.slice(0, 50));
+
   // T025: Validate message
   const validation = validateChatMessage(content);
   if (!validation.isValid) {
+    console.log("[ChatVM] Message validation failed:", validation.error);
     state.errorMessage.set(validation.error ?? "Mensagem inválida.");
     return;
   }
 
   // Check model readiness
   if (!state.isModelReady.get()) {
+    console.log("[ChatVM] Model not ready");
     state.errorMessage.set(
       "Nenhum modelo carregado. Vá para Modelos para carregar um.",
     );
@@ -81,25 +83,38 @@ export async function sendMessage(content: string): Promise<void> {
   // Get or create conversation
   let conv = state.currentConversation.get();
   if (!conv) {
+    console.log("[ChatVM] Creating new conversation");
     const newConv = ChatService.createConversation("unknown");
     conv = newConv;
-    state.currentConversation.set(conv);
+    state.currentConversation.set(newConv);
   }
+  console.log("[ChatVM] Using conversation:", conv.id);
 
   // T031: Append user message
   const userMsgResult = ChatService.appendUserMessage(conv.id, content);
   if (!userMsgResult.success) {
+    console.log("[ChatVM] Failed to append user message:", userMsgResult.error);
     state.errorMessage.set("Falha ao salvar mensagem.");
     return;
   }
   const updatedConv = userMsgResult.data;
-  if (!updatedConv) return;
+  if (!updatedConv) {
+    console.log("[ChatVM] updatedConv is null after appendUserMessage");
+    return;
+  }
 
-  // Update observable
-  state.currentConversation.set(updatedConv);
+  console.log(
+    "[ChatVM] User message appended, messages count:",
+    updatedConv.messages.length,
+  );
+
+  // Update observable — FORCE new reference for Legend State to detect change
+  state.currentConversation.set({ ...updatedConv });
   state.streamingText.set("");
   state.isGenerating.set(true);
   state.showCancelOption.set(false);
+
+  console.log("[ChatVM] State updated, starting generation...");
 
   // T033: Prepare cancel token + 30s timeout for cancel option
   cancelToken = { cancelled: false };
@@ -113,10 +128,13 @@ export async function sendMessage(content: string): Promise<void> {
     content: m.content,
   }));
 
+  console.log("[ChatVM] Sending", messages.length, "messages to runtime");
+
   const runtime = getLocalAIRuntime();
   const completionResult = await runtime.generateCompletion(messages, {
     onToken: (token: string) => {
       if (cancelToken?.cancelled) return;
+      console.log("[ChatVM] onToken received:", token.slice(0, 20));
       state.streamingText.set((prev: string) => prev + token);
     },
   });
@@ -130,7 +148,13 @@ export async function sendMessage(content: string): Promise<void> {
   state.isGenerating.set(false);
   state.showCancelOption.set(false);
 
+  console.log(
+    "[ChatVM] Generation complete, success:",
+    completionResult.success,
+  );
+
   if (!completionResult.success) {
+    console.log("[ChatVM] Generation error:", completionResult.error.message);
     state.errorMessage.set(completionResult.error.message);
     return;
   }
@@ -138,6 +162,10 @@ export async function sendMessage(content: string): Promise<void> {
   // Cancel was triggered
   if (cancelToken?.cancelled) {
     const partialText = state.streamingText.get();
+    console.log(
+      "[ChatVM] Generation cancelled, partial text:",
+      partialText.length,
+    );
     if (partialText.trim()) {
       ChatService.appendAssistantMessage(
         conv!.id,
@@ -150,15 +178,17 @@ export async function sendMessage(content: string): Promise<void> {
 
   // T031: Save assistant response
   const assistantText = completionResult.data.text;
+  console.log("[ChatVM] Assistant response:", assistantText.slice(0, 80));
   const saveResult = ChatService.appendAssistantMessage(conv.id, assistantText);
   if (saveResult.success && saveResult.data) {
-    state.currentConversation.set(saveResult.data);
+    state.currentConversation.set({ ...saveResult.data });
   }
   state.streamingText.set("");
 }
 
 /** T033: Cancel ongoing generation */
 export function cancelGeneration(): void {
+  console.log("[ChatVM] cancelGeneration called");
   if (cancelToken) {
     cancelToken.cancelled = true;
   }
@@ -173,6 +203,7 @@ export function cancelGeneration(): void {
 
 /** Load an existing conversation by ID */
 export async function loadConversation(id: string): Promise<void> {
+  console.log("[ChatVM] loadConversation:", id);
   const result = ChatService.loadConversation(id);
   if (result.success) {
     getChatState().currentConversation.set(result.data);
@@ -181,6 +212,7 @@ export async function loadConversation(id: string): Promise<void> {
 
 /** Reset chat state for new conversation */
 export function resetChatState(): void {
+  console.log("[ChatVM] resetChatState");
   if (generationTimeout) {
     clearTimeout(generationTimeout);
     generationTimeout = null;
