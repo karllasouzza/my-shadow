@@ -126,20 +126,20 @@ description: "Task list for AI Chat App Restructure — regenerated with new arc
 
 ### Tests for User Story 3
 
-- [ ] T048 [P] [US3] Unit test for `useHistoryVm` list/load in `tests/unit/history/use-history-vm.spec.ts`
-- [ ] T049 [P] [US3] Unit test for `chat-service.listConversations()` + `loadConversation()` in `tests/unit/history/chat-service.spec.ts`
-- [ ] T050 [P] [US3] Integration test: history navigation flow in `tests/integration/history/history-flow.spec.ts`
+- [x] T048 [P] [US3] Unit test for `useHistoryVm` list/load in `tests/unit/history/use-history-vm.spec.ts`
+- [x] T049 [P] [US3] Unit test for `chat-service.listConversations()` + `loadConversation()` in `tests/unit/history/chat-service.spec.ts`
+- [x] T050 [P] [US3] Integration test: history navigation flow in `tests/integration/history/history-flow.spec.ts`
 
 ### Implementation for User Story 3
 
-- [ ] T051 [US3] Create `features/history/view-model/use-history-vm.ts` with Legend State: conversations (index list), isLoading, errorMessage. Implement `loadConversations()`, `loadFullConversation()`, `refreshList()`
-- [ ] T052 [US3] Wire `loadConversations()` to `chat-service.listConversations()` (reads MMKV index, sorts by updatedAt desc)
-- [ ] T053 [US3] Wire `loadFullConversation()` to `chat-service.loadConversation()` (reads full `chat:{id}` from MMKV)
-- [ ] T054 [US3] Create `features/history/components/conversation-list.tsx` — FlatList of ConversationItem components, pull-to-refresh
-- [ ] T055 [US3] Create `features/history/components/conversation-item.tsx` — shows title + formatted date (e.g., "2h atrás", "3d atrás"). Tap → switch to Chat tab + load conversation. Long-press → action sheet (Phase 6)
-- [ ] T056 [US3] Create `features/history/view/history-screen.tsx` — ConversationList or EmptyHistoryState, loading spinner. Auto-refresh on focus via useFocusEffect. No header back button — accessed via bottom tab.
-- [ ] T057 [US3] Create `app/(tabs)/history/index.tsx` route that imports and renders HistoryScreen. Tab configured in `(tabs)/_layout.tsx` with icon and label "Histórico".
-- [ ] T058 [US3] Wire history tap → switch to Chat tab via `router.push("/(tabs)/chat")` → load conversation into chat screen's messages observable via `useChatVm.loadConversation(id)`. Use shared state or event bus to pass conversation ID across tabs.
+- [x] T051 [US3] Create `features/history/view-model/use-history-vm.ts` with Legend State: conversations (index list), isLoading, errorMessage. Implement `loadConversations()`, `loadFullConversation()`, `refreshList()`
+- [x] T052 [US3] Wire `loadConversations()` to `chat-service.listConversations()` (reads MMKV index, sorts by updatedAt desc)
+- [x] T053 [US3] Wire `loadFullConversation()` to `chat-service.loadConversation()` (reads full `chat:{id}` from MMKV)
+- [x] T054 [US3] Create `features/history/components/conversation-list.tsx` — FlatList of ConversationItem components, pull-to-refresh
+- [x] T055 [US3] Create `features/history/components/conversation-item.tsx` — shows title + formatted date (e.g., "2h atrás", "3d atrás"). Tap → switch to Chat tab + load conversation. Long-press → action sheet (Phase 6)
+- [x] T056 [US3] Create `features/history/view/history-screen.tsx` — ConversationList or EmptyHistoryState, loading spinner. Auto-refresh on focus via useFocusEffect. No header back button — accessed via bottom tab.
+- [x] T057 [US3] Create `app/(tabs)/history/index.tsx` route that imports and renders HistoryScreen. Tab configured in `(tabs)/_layout.tsx` with icon and label "Histórico".
+- [x] T058 [US3] Wire history tap → switch to Chat tab via `router.push("/(tabs)/chat")` → load conversation into chat screen's messages observable via `useChatVm.loadConversation(id)`. Use shared state or event bus to pass conversation ID across tabs.
 
 **Checkpoint**: US1 + US2 + US3 all work — user can chat, manage models, and resume past conversations independently.
 

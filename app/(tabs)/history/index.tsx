@@ -1,16 +1,8 @@
 /**
- * T056: History tab root — delegates to HistoryScreen (Phase 5)
- *
- * Temporary placeholder until Phase 5 implementation.
+ * T057: History tab root — renders HistoryScreen
  */
-import { View, Text } from "react-native";
+import { HistoryScreen } from "@/features/history/view/history-screen";
 
 export default function HistoryTab() {
-  return (
-    <View className="flex-1 bg-background items-center justify-center">
-      <Text className="text-foreground text-lg">
-        Histórico — Em implementação
-      </Text>
-    </View>
-  );
+  return <HistoryScreen />;
 }
