@@ -153,15 +153,15 @@ description: "Task list for AI Chat App Restructure — regenerated with new arc
 
 ### Tests for User Story 4
 
-- [ ] T059 [P] [US4] Unit test for `chat-service.renameConversation()` in `tests/unit/history/chat-service.spec.ts`
-- [ ] T060 [P] [US4] Unit test for `chat-service.deleteConversation()` (cascade removal) in `tests/unit/history/chat-service.spec.ts`
+- [x] T059 [P] [US4] Unit test for `chat-service.renameConversation()` in `tests/unit/history/chat-service.spec.ts`
+- [x] T060 [P] [US4] Unit test for `chat-service.deleteConversation()` (cascade removal) in `tests/unit/history/chat-service.spec.ts`
 
 ### Implementation for User Story 4
 
-- [ ] T061 [US4] Implement rename flow in history-screen: long-press conversation → Alert.prompt for new title → validate ≤100 chars → call `chat-service.renameConversation()` → refresh list
-- [ ] T062 [US4] Implement delete flow in history-screen: long-press → Alert.alert confirmation → call `chat-service.deleteConversation()` → remove from MMKV + index → refresh list
-- [ ] T063 [US4] Update `useHistoryVm` with `renameConversation()` and `deleteConversation()` actions that wrap service calls and refresh list on success
-- [ ] T064 [US4] Handle edge case: user deletes conversation currently open in chat screen → reset chat state to empty (new conversation)
+- [x] T061 [US4] Implement rename flow in history-screen: long-press conversation → Alert.prompt for new title → validate ≤100 chars → call `chat-service.renameConversation()` → refresh list
+- [x] T062 [US4] Implement delete flow in history-screen: long-press → Alert.alert confirmation → call `chat-service.deleteConversation()` → remove from MMKV + index → refresh list
+- [x] T063 [US4] Update `useHistoryVm` with `renameConversation()` and `deleteConversation()` actions that wrap service calls and refresh list on success
+- [x] T064 [US4] Handle edge case: user deletes conversation currently open in chat screen → reset chat state to empty (new conversation)
 
 **Checkpoint**: All 4 user stories independently functional — full chat, model management, history, and conversation management.
 
