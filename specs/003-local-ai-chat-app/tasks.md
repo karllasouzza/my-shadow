@@ -31,18 +31,18 @@
 
 ### 2.1: Tipos Unificados
 
-- [ ] T004 Reescrever `shared/ai/types.ts` (novo arquivo consolidado)
+- [x] T004 Reescrever `shared/ai/types.ts` (novo arquivo consolidado)
   - Unificar tipos de `manager/types.ts`, `runtime/types.ts`, `catalog/types.ts`
   - Entidades: `ModelCatalogEntry`, `DownloadedModel`, `DownloadState`, `LlamaModel`, `ModelStatus`, `ChatMessage` (IA), `CompletionOutput`, `CompletionOptions`, `LocalAIRuntimeStatus`
   - Exportar tudo de um único ponto
-- [ ] T005 Reescrever `shared/ai/constants.ts` (novo arquivo consolidado)
+- [x] T005 Reescrever `shared/ai/constants.ts` (novo arquivo consolidado)
   - Unificar constantes de `manager/constants.ts` + `runtime/constants.ts`
   - Keys MMKV, paths, limites de contexto, timeouts, buffers de disco
   - Exportar tudo de um único ponto
 
 ### 2.2: Sistema de Erros Específico de IA
 
-- [ ] T006 Criar `shared/ai/errors.ts`
+- [x] T006 Criar `shared/ai/errors.ts`
   - Error codes específicos de IA: `MODEL_NOT_FOUND`, `DOWNLOAD_FAILED`, `INSUFFICIENT_RAM`, `INSUFFICIENT_DISK`, `CONTEXT_OVERFLOW`, `GENERATION_TIMEOUT`, `MODEL_LOAD_FAILED`, `RUNTIME_NOT_INITIALIZED`
   - Factory functions: `createModelNotFoundError()`, `createDownloadError()`, etc.
   - Manter compatibilidade com `AppErrorCode` de `shared/utils/app-error.ts`
