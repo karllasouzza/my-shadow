@@ -1,178 +1,168 @@
 ---
-description: "Task list for AI Chat App Restructure (feature 002)"
+description: "Task list for AI Chat App Restructure — regenerated with new architecture"
 ---
 
 # Tasks: AI Chat App Restructure
 
 **Input**: Design documents from `/specs/002-ai-chat-app/`
-**Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/
+**Prerequisites**: plan.md, spec.md, research.md, data-model.md
 
-**Tests**: Test tasks are REQUIRED for each user story and for cross-cutting risk areas (model loading, privacy, cleanup of removed features).
+**Tests**: Test tasks are REQUIRED for each user story and cross-cutting risk areas.
 
-**Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
+**Organization**: Tasks grouped by user story for independent implementation and testing.
 
 ## Format: `[ID] [P?] [Story] Description`
 
 - **[P]**: Can run in parallel (different files, no dependencies)
-- **[Story]**: Which user story this task belongs to (e.g., US1, US2, US3, US5)
-- Include exact file paths in descriptions
-
-## Path Conventions
-
-- `src/` at repository root (single project mobile app)
-- `tests/` at repository root
-- Feature modules: `src/features/chat/`, `src/features/onboarding/`
-- Routes: `src/app/(chat)/`
-- Shared: `src/shared/ai/`
-- Components: `src/components/`
+- **[Story]**: US1=Chat, US2=Model Mgmt, US3=History, US4=Manage, US5=Privacy
+- Include exact file paths
 
 ---
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-**Purpose**: Remove legacy features, update routing, configure project for chat-only flow.
+**Purpose**: Remove onboarding feature entirely, clean up deprecated files, create new shared/ai/ structure, update route group.
 
-- [x] T001 Delete `src/features/reflection/` directory and all subfiles
-- [x] T002 [P] Delete `src/features/review/` directory and all subfiles
-- [x] T003 [P] Delete legacy onboarding routes: `src/app/onboarding/` and related screens
-- [x] T004 Grep-sweep: remove all imports of reflection/review/onboarding from remaining code (verify `npm test` + `npx tsc --noEmit` passes)
-- [x] T005 [P] Create route group structure: `src/app/(chat)/_layout.tsx` with stack navigator
-- [x] T006 Update `src/app/_layout.tsx` to redirect root to `(chat)/` route group
-- [x] T007 [P] Add jest mock config for llama.rn in `tests/__mocks__/llama.rn.ts` (verify existing mock covers completion, tokenize, embedding)
+- [ ] T001 [P] Delete `features/onboarding/` directory and all subfiles
+- [ ] T002 [P] Remove `app/onboarding.tsx` route and any onboarding references from `_layout.tsx`
+- [ ] T003 Grep-sweep: verify zero imports of `onboarding`, `reflection`, `review`, `export` in remaining code. Run `npx tsc --noEmit` and `npm test` to confirm clean
+- [ ] T004 [P] Move `features/onboarding/service/model-manager.ts` → `shared/ai/model-manager.ts`. Update all import paths across codebase
+- [ ] T005 [P] Create `shared/ai/model-catalog.ts` with MODEL_CATALOG array (moved from inline in components)
+- [ ] T006 Update `app/_layout.tsx` to only route to `(chat)/` group — remove all legacy screen registrations
+- [ ] T007 [P] Delete root `components/chat/`, `components/history/` directories (components move to feature modules)
+- [ ] T008 [P] Create feature component directories: `features/chat/components/`, `features/history/components/`, `features/model-management/components/`
 
-**Checkpoint**: Legacy features fully removed. Route structure ready for chat screens.
+**Checkpoint**: Onboarding removed. shared/ai/ owns model lifecycle + catalog. No legacy imports. Feature component dirs ready.
 
 ---
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-**Purpose**: Core entities, chat persistence, model picker infrastructure — MUST complete before ANY user story.
+**Purpose**: shared/ai/ API, co-located component primitives, route structure. MUST complete before any user story.
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [x] T008 [P] Define `ChatConversation` type in `src/features/chat/model/chat-conversation.ts` (fields per data-model.md)
-- [x] T009 [P] Define `ChatMessage` type in `src/features/chat/model/chat-message.ts` (fields per data-model.md)
-- [x] T010 Create chat repository in `src/features/chat/service/chat-service.ts` with MMKV storage (create, load, list index, delete, rename)
-- [x] T011 [P] Create `model-picker.tsx` component in `src/features/onboarding/view/model-picker.tsx` (modal sheet with catalog list, download progress, RAM warning)
-- [x] T012 [P] Update `use-model-loading-vm.ts` in `src/features/onboarding/view-model/` for in-chat loading flow (no navigation, callback-based)
-- [x] T013 Create `message-bubble.tsx` component in `src/components/chat/message-bubble.tsx` (user/assistant/system variants, NativeWind tokens)
-- [x] T014 Create `chat-input.tsx` component in `src/components/chat/chat-input.tsx` (text input, send button, disabled state, accessibility label)
-- [x] T015 [P] Create `model-selector.tsx` component in `src/components/chat/model-selector.tsx` (badge showing loaded model, tap opens picker)
-- [x] T016 [P] Create `conversation-item.tsx` component in `src/components/history/conversation-item.tsx` (title, updatedAt, swipe actions for rename/delete)
-- [x] T017 Define Legend State observables for chat messages in `src/features/chat/view-model/` (messages list, streaming pending message, loading state)
+- [ ] T009 [P] Refactor `shared/ai/model-manager.ts` to export clean API: `downloadModel()`, `verifyModel()`, `loadModel()`, `unloadModel()`, `getActiveModel()`, `setActiveModel()`. All use MMKV for persistence
+- [ ] T010 [P] Ensure `shared/ai/local-ai-runtime.ts` exports: `initialize()`, `loadModel()`, `generateCompletion()`, `tokenize()`, `isModelLoaded()`, `getCurrentModel()`, `unloadModel()`, `getStatus()`
+- [ ] T011 [P] Create `features/chat/model/chat-conversation.ts` with ChatConversation + ChatConversationIndex types (if not already present)
+- [ ] T012 [P] Create `features/chat/model/chat-message.ts` with ChatMessage type + validation (if not already present)
+- [ ] T013 [P] Create `features/chat/components/model-badge.tsx` — shows loaded model name (green) or "Sem modelo" (yellow). Tap triggers onPress callback
+- [ ] T014 [P] Create `features/chat/components/empty-chat.tsx` — friendly empty state with "Inicie uma conversa" text
+- [ ] T015 [P] Create `features/history/components/empty-history.tsx` — empty state with "Nenhuma conversa ainda" text
+- [ ] T016 [P] Create `features/model-management/components/model-item.tsx` — single model row with download/load status, size, RAM info, action button
+- [ ] T017 [P] Create `features/model-management/components/download-progress.tsx` — progress bar + percentage for active download
+- [ ] T018 [P] Create `features/model-management/components/ram-warning.tsx` — yellow warning banner when device RAM < model estimate
 
-**Checkpoint**: Foundation ready — entities, storage, UI primitives, model picker all in place. User story implementation can now begin.
+**Checkpoint**: shared/ai/ API ready. Component primitives in place. Route structure clean. User story implementation can now begin.
 
 ---
 
 ## Phase 3: User Story 1 — Start a New Chat Conversation (Priority: P1) 🎯 MVP
 
-**Goal**: User opens app, sees chat screen, sends a message, receives streaming AI response (model already loaded).
+**Goal**: User opens app, sees chat screen, sends message, receives streaming AI response (model already loaded).
 
-**Independent Test**: Open chat → type message → send → see response tokens stream progressively.
+**Independent Test**: Open chat → send message → see response tokens stream progressively.
 
-### Tests for User Story 1 (REQUIRED) ⚠️
+### Tests for User Story 1
 
-> **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
-
-- [x] T018 [P] [US1] Unit test for `useChatVm` sendMessage flow in `tests/unit/chat/use-chat-vm.spec.ts` (mock local-ai-runtime, verify onToken callback)
-- [x] T019 [P] [US1] Integration test for load-model → generate → save flow in `tests/integration/chat/chat-flow.spec.ts`
-- [x] T020 [P] [US1] Unit test for `ChatMessage` validation (role, content length, timestamp) in `tests/unit/chat/chat-conversation.spec.ts`
+- [ ] T019 [P] [US1] Unit test for `useChatVm.sendMessage()` with mocked generateCompletion in `tests/unit/chat/use-chat-vm.spec.ts`
+- [ ] T020 [P] [US1] Unit test for `ChatMessage` validation in `tests/unit/chat/chat-message.spec.ts`
+- [ ] T021 [P] [US1] Integration test: sendMessage → generateCompletion → saveConversation in `tests/integration/chat/chat-flow.spec.ts`
 
 ### Implementation for User Story 1
 
-- [x] T021 [US1] Create `use-chat-vm.ts` in `src/features/chat/view-model/` with Legend State: messages observable, sendMessage(), cancelGeneration(), streaming state
-- [x] T022 [US1] Wire `sendMessage()` to `local-ai-runtime.generateCompletion()` with onToken callback for progressive rendering
-- [x] T023 [US1] Implement context window validation in `useChatVm` (tokenize, compare to n_ctx - reserved, block send if exceeded)
-- [x] T024 [US1] Create chat screen at `src/app/(chat)/index.tsx` with FlatList bound to messages observable, ChatInput, loading/empty/error states
-- [x] T025 [US1] Add cancel generation button (visible during streaming, aborts via local-ai-runtime timeout/cancel)
-- [x] T026 [US1] Persist conversation to MMKV after each user message and assistant response (call chat-service save)
-- [x] T027 [US1] Auto-generate conversation title from first user message (truncate to 50 chars) on first send
-- [x] T028 [US1] Add progress indicator during generation (spinner + "Generating..." text, PF-005: show cancel option after 30s)
-- [x] T029 [US1] Validate UX states for Chat screen: no model loaded, downloading, model loading, generating, error, empty conversation
-- [x] T030 [US1] Verify performance: first token <5s with 0.5B model (profile, record result in PR notes)
+- [ ] T022 [US1] Create `features/chat/view-model/use-chat-vm.ts` with Legend State: currentConversation, isModelReady, isGenerating, streamingText, errorMessage, showCancelOption. Implement `sendMessage()`, `cancelGeneration()`, `syncModelStatus()`, `resetChatState()`
+- [ ] T023 [US1] Wire `sendMessage()` in useChatVm to `shared/ai/local-ai-runtime.generateCompletion()` with onToken callback for progressive token display
+- [ ] T024 [US1] Implement context window validation in useChatVm (call runtime.tokenize(), compare to n_ctx - reserved, block send if exceeded)
+- [ ] T025 [US1] Create `features/chat/components/chat-input.tsx` with text input, send button, disabled state when !isModelReady or isGenerating, accessibility labels
+- [ ] T026 [US1] Create `features/chat/components/message-bubble.tsx` with user/assistant/system variants using NativeWind tokens. Include timestamp display
+- [ ] T027 [US1] Create `features/chat/components/generating-indicator.tsx` — spinner + "Pensando..." text during generation
+- [ ] T028 [US1] Create `features/chat/view/chat-screen.tsx` — FlatList bound to messages observable, ChatInput, ModelBadge, GeneratingIndicator, EmptyChatState. KeyboardAvoidingView. Auto-scroll on new messages + streaming
+- [ ] T029 [US1] Create `app/(chat)/index.tsx` that imports and renders ChatScreen. Add history button (clock icon) in header → `router.push("/(chat)/history")`
+- [ ] T030 [US1] Wire chat-service save: after user message sent AND after assistant response received, call `chat-service.appendUserMessage()` / `appendAssistantMessage()`
+- [ ] T031 [US1] Auto-generate conversation title from first user message (truncate to 50 chars) on first send via `chat-service`
+- [ ] T032 [US1] Add cancel generation button visible after 30s of generation (PF-005) — calls `cancelGeneration()` in useChatVm
+- [ ] T033 [US1] Define all 6 UX states in chat-screen: empty, no model loaded, model loading, generating, error, populated. Each renders appropriate component
 
-**Checkpoint**: User Story 1 is fully functional — user can chat with AI and see streaming response independently. MVP deliverable.
+**Checkpoint**: US1 fully functional — user can chat with streaming response, messages persist, cancel works. MVP deliverable.
 
 ---
 
-## Phase 4: User Story 2 — Download and Select AI Model In-Chat (Priority: P1)
+## Phase 4: User Story 2 — Manage AI Models (Priority: P1)
 
-**Goal**: User can select, download, and load a GGUF model directly from the chat screen without leaving context.
+**Goal**: User navigates to Model Management screen, browses catalog, downloads models, loads/unloads models. Active model persists between sessions.
 
-**Independent Test**: Open chat → no model loaded → model picker appears → select model → download → load → chat enabled.
+**Independent Test**: Open models screen → select model → download → load → verify chat recognizes active model.
 
-### Tests for User Story 2 (REQUIRED) ⚠️
+### Tests for User Story 2
 
-- [x] T031 [P] [US2] Unit test for model download flow with progress callback in `tests/unit/onboarding/model-manager.spec.ts`
-- [x] T032 [P] [US2] Unit test for RAM validation before model load in `tests/unit/onboarding/use-model-loading-vm.spec.ts`
-- [x] T033 [P] [US2] Integration test for download → verify → load chain in `tests/integration/chat/chat-flow.spec.ts`
+- [ ] T034 [P] [US2] Unit test for `useModelsVm` browse/download/load flow in `tests/unit/model-management/use-models-vm.spec.ts`
+- [ ] T035 [P] [US2] Unit test for `shared/ai/model-manager.downloadModel()` with progress callback in `tests/unit/model-management/model-manager.spec.ts`
+- [ ] T036 [P] [US2] Integration test: download → verify → load chain in `tests/integration/model-management/model-flow.spec.ts`
 
 ### Implementation for User Story 2
 
-- [x] T034 [US2] Wire model picker modal to chat screen header (show when no model loaded or user taps model selector badge)
-- [x] T035 [US2] Integrate `model-manager.downloadModel()` with progress callback → update NativeWind progress bar in modal
-- [x] T036 [US2] Add disk space validation before download (FR-014, use expo-file-system to check available storage)
-- [x] T037 [US2] Add RAM warning before loading model (FR-015, compare estimatedRamBytes to device RAM via react-native-device-info or equivalent)
-- [x] T038 [US2] Wire `model-manager.loadModel()` after download completes → update chat screen state (enable input, show model badge)
-- [x] T039 [US2] Handle download failure state (retry button, alternate model selection, error message)
-- [x] T040 [US2] Handle model load failure (corrupt file detection, retry, fallback to model selection)
-- [x] T041 [US2] Block chat input while model is loading (FR-012, disabled state with "Loading model..." indicator)
-- [x] T042 [US2] Validate UX states for model flow: no model, browsing catalog, downloading, verifying, loading, loaded, download failed, load failed
-- [x] T043 [US2] Verify performance: download + load of 0.5B model <3 minutes on 4G (SC-002, record result)
+- [ ] T037 [US2] Create `features/model-management/view-model/use-models-vm.ts` with Legend State: catalog, downloadedModels, activeModel, isLoading, downloadProgress, errorMessage. Implement `browseModels()`, `downloadModel()`, `loadModel()`, `unloadModel()`, `refreshStatus()`
+- [ ] T038 [US2] Wire `useModelsVm.downloadModel()` to `shared/ai/model-manager.downloadModel()` with progress callback that updates downloadProgress observable
+- [ ] T039 [US2] Wire `useModelsVm.loadModel()` to `shared/ai/model-manager.loadModel()` + `setActiveModel()`. Update chat screen's isModelReady after load
+- [ ] T040 [US2] Implement disk space validation before download (FR-014): check expo-file-system available storage vs model fileSizeBytes
+- [ ] T041 [US2] Implement RAM warning before load (FR-015): compare model estimatedRamBytes to device RAM via react-native-device-info
+- [ ] T042 [US2] Create `features/model-management/components/model-catalog.tsx` — FlatList of ModelItem components, empty state when no models, loading state during catalog fetch
+- [ ] T043 [US2] Create `features/model-management/view/models-screen.tsx` — header with back button, ModelCatalog, DownloadProgress overlay, RAMWarning modal. All 5 UX states: no models, browsing, downloading, loading, failed
+- [ ] T044 [US2] Create `app/(chat)/models.tsx` that imports and renders ModelsScreen. Stack-pushed from chat header
+- [ ] T045 [US2] Wire model badge in chat header to open models screen via `router.push("/(chat)/models")`
+- [ ] T046 [US2] Implement active model persistence: on app launch, call `shared/ai/model-manager.getActiveModel()` → auto-load if localPath exists → update chat isModelReady
 
-**Checkpoint**: User Stories 1 AND 2 both work — user can download, load, and chat entirely within the chat screen.
+**Checkpoint**: US1 + US2 both work — user can manage models independently, chat recognizes loaded model, active model persists between sessions.
 
 ---
 
 ## Phase 5: User Story 3 — View and Resume Chat History (Priority: P2)
 
-**Goal**: User navigates to history screen from chat header, sees list of past conversations, taps to resume any conversation.
+**Goal**: User navigates to History screen from chat header, sees list of past conversations, taps to resume any conversation.
 
-**Independent Test**: Create conversation → go to history → see it listed → tap → return to chat with full message history.
+**Independent Test**: Create conversation → open history → see it listed → tap → return to chat with full message history.
 
-### Tests for User Story 3 (REQUIRED) ⚠️
+### Tests for User Story 3
 
-- [x] T044 [P] [US3] Unit test for chat repository list/load in `tests/unit/chat/chat-service.spec.ts`
-- [x] T045 [P] [US3] Unit test for `useHistoryVm` in `tests/unit/chat/use-history-vm.spec.ts` (mock repository, verify list + load)
-- [x] T046 [P] [US3] Integration test for history navigation flow in `tests/integration/chat/chat-flow.spec.ts`
+- [ ] T047 [P] [US3] Unit test for `useHistoryVm` list/load in `tests/unit/history/use-history-vm.spec.ts`
+- [ ] T048 [P] [US3] Unit test for `chat-service.listConversations()` + `loadConversation()` in `tests/unit/history/chat-service.spec.ts`
+- [ ] T049 [P] [US3] Integration test: history navigation flow in `tests/integration/history/history-flow.spec.ts`
 
 ### Implementation for User Story 3
 
-- [x] T047 [US3] Create history screen at `src/app/(chat)/history.tsx` with FlatList bound to conversation index
-- [x] T048 [US3] Create `use-history-vm.ts` in `src/features/chat/view-model/` (listConversations, loadConversation, Legend State observables)
-- [x] T049 [US3] Implement `loadConversation()` in chat-service (reads full `chat:{id}` from MMKV, returns ChatConversation)
-- [x] T050 [US3] Wire history navigation button in chat header (icon button, pushes history route via Expo Router)
-- [x] T051 [US3] Wire conversation tap in history list → pop stack → load conversation into chat screen messages observable
-- [x] T052 [US3] Implement empty state for history screen (illustration/text, CTA to start new conversation)
-- [x] T053 [US3] Add loading state for history list (skeleton or spinner while index loads from MMKV)
-- [x] T054 [US3] Validate UX states for History screen: no conversations, loading list, populated list, empty state
-- [x] T055 [US3] Verify performance: history list renders 100 conversations in <500ms (SC-004, profile index read + FlatList render)
+- [ ] T050 [US3] Create `features/history/view-model/use-history-vm.ts` with Legend State: conversations (index list), isLoading, errorMessage. Implement `loadConversations()`, `loadFullConversation()`, `refreshList()`
+- [ ] T051 [US3] Wire `loadConversations()` to `chat-service.listConversations()` (reads MMKV index, sorts by updatedAt desc)
+- [ ] T052 [US3] Wire `loadFullConversation()` to `chat-service.loadConversation()` (reads full `chat:{id}` from MMKV)
+- [ ] T053 [US3] Create `features/history/components/conversation-list.tsx` — FlatList of ConversationItem components, pull-to-refresh
+- [ ] T054 [US3] Create `features/history/components/conversation-item.tsx` — shows title + formatted date (e.g., "2h atrás", "3d atrás"). Tap → navigate to chat with conversation loaded. Long-press → action sheet (Phase 6)
+- [ ] T055 [US3] Create `features/history/view/history-screen.tsx` — header with back button, ConversationList or EmptyHistoryState, loading spinner. Auto-refresh on focus via useFocusEffect
+- [ ] T056 [US3] Create `app/(chat)/history.tsx` that imports and renders HistoryScreen. Stack-pushed from chat header clock icon
+- [ ] T057 [US3] Wire history tap → pop stack → load conversation into chat screen's messages observable via `useChatVm.loadConversation(id)`
 
-**Checkpoint**: User Stories 1, 2, AND 3 all work — user can chat, manage models, and resume past conversations.
+**Checkpoint**: US1 + US2 + US3 all work — user can chat, manage models, and resume past conversations independently.
 
 ---
 
 ## Phase 6: User Story 4 — Manage Chat Conversations (Priority: P3)
 
-**Goal**: User can rename and delete conversations from the history screen with confirmation.
+**Goal**: User can rename and delete conversations from history screen with confirmation dialogs.
 
-**Independent Test**: Rename conversation → see new title in list. Delete conversation → confirmation → verify removal.
+**Independent Test**: Rename conversation → see new title. Delete conversation → confirmation → verify removal from list + MMKV.
 
-### Tests for User Story 4 (REQUIRED) ⚠️
+### Tests for User Story 4
 
-- [x] T056 [P] [US4] Unit test for renameConversation in `tests/unit/chat/chat-service.spec.ts`
-- [x] T057 [P] [US4] Unit test for deleteConversation (with cascade) in `tests/unit/chat/chat-service.spec.ts`
+- [ ] T058 [P] [US4] Unit test for `chat-service.renameConversation()` in `tests/unit/history/chat-service.spec.ts`
+- [ ] T059 [P] [US4] Unit test for `chat-service.deleteConversation()` (cascade removal) in `tests/unit/history/chat-service.spec.ts`
 
 ### Implementation for User Story 4
 
-- [x] T058 [US4] Implement rename flow in history screen (long-press or swipe → text input → validate title ≤100 chars → persist)
-- [x] T059 [US4] Implement delete flow in history screen (swipe/action button → confirmation dialog → delete from MMKV + remove from index)
-- [x] T060 [US4] Update `useHistoryVm` with rename/delete actions and confirmation state
-- [x] T061 [US4] Validate delete confirmation UI (modal dialog with conversation title, "Delete" and "Cancel" buttons)
-- [x] T062 [US4] Handle edge case: delete conversation that's currently open in chat screen (navigate back to empty chat)
+- [ ] T060 [US4] Implement rename flow in history-screen: long-press conversation → Alert.prompt for new title → validate ≤100 chars → call `chat-service.renameConversation()` → refresh list
+- [ ] T061 [US4] Implement delete flow in history-screen: long-press → Alert.alert confirmation → call `chat-service.deleteConversation()` → remove from MMKV + index → refresh list
+- [ ] T062 [US4] Update `useHistoryVm` with `renameConversation()` and `deleteConversation()` actions that wrap service calls and refresh list on success
+- [ ] T063 [US4] Handle edge case: user deletes conversation currently open in chat screen → reset chat state to empty (new conversation)
 
-**Checkpoint**: All user stories are independently functional — full chat, model management, history, and conversation management.
+**Checkpoint**: All 4 user stories independently functional — full chat, model management, history, and conversation management.
 
 ---
 
@@ -180,19 +170,19 @@ description: "Task list for AI Chat App Restructure (feature 002)"
 
 **Goal**: Verify and document that all processing is local — no external network calls for generation, all data persists on-device only.
 
-**Independent Test**: Monitor network traffic during chat session → verify zero requests to external APIs for generation. Verify data persists in MMKV only.
+**Independent Test**: Monitor network traffic during chat session → zero requests to external APIs for generation. Verify data persists in MMKV only.
 
-### Tests for User Story 5 (REQUIRED) ⚠️
+### Tests for User Story 5
 
-- [x] T063 [P] [US5] Regression test: verify no imports of reflection/review/onboarding remain in bundle (grep sweep in CI script)
-- [x] T064 [P] [US5] Integration test: verify local-ai-runtime makes no HTTP/fetch calls during generateCompletion (mock network, verify no requests)
+- [ ] T064 [P] [US5] Regression test: grep-sweep for forbidden imports (no `fetch`, `axios`, `XMLHttpRequest` in chat-service, no cloud sync libs) in CI script
+- [ ] T065 [P] [US5] Integration test: verify local-ai-runtime makes no HTTP/fetch calls during generateCompletion (mock network layer, verify zero requests)
 
 ### Implementation for User Story 5
 
-- [x] T065 [US5] Audit `local-ai-runtime.ts` — confirm no fetch/axios/http imports, only native llama.rn calls (document in PR notes)
-- [x] T066 [US5] Audit chat-service — confirm MMKV-only persistence, no cloud sync, no analytics/tracking of message content
-- [x] T067 [US5] Add CI grep-sweep script to `package.json` (verify no `import.*reflection`, `import.*review`, `import.*onboarding` in src/)
-- [x] T068 [US5] Document privacy guarantees in `specs/002-ai-chat-app/quickstart.md` (no external calls, local-only storage, model runs on-device)
+- [ ] T066 [US5] Audit `shared/ai/local-ai-runtime.ts` — confirm no fetch/axios/http imports, only native llama.rn calls. Document findings in PR notes
+- [ ] T067 [US5] Audit `features/chat/service/chat-service.ts` — confirm MMKV-only persistence, no cloud sync, no analytics/tracking of message content. Document in PR notes
+- [ ] T068 [US5] Add CI grep-sweep script to `package.json` scripts field: `"lint:imports": "grep -rn 'from.*fetch\\|from.*axios\\|from.*XMLHttpRequest' src/shared/ai/ src/features/chat/"` (fail on matches)
+- [ ] T069 [US5] Document privacy guarantees in `specs/002-ai-chat-app/quickstart.md` — "No external calls, local-only storage, model runs on-device"
 
 **Checkpoint**: Privacy guarantees verified and tested. No external data leakage possible during generation.
 
@@ -202,13 +192,13 @@ description: "Task list for AI Chat App Restructure (feature 002)"
 
 **Purpose**: Improvements that affect multiple user stories.
 
-- [x] T069 [P] E2E test: full user journey (open app → download model → chat → verify history → rename → delete) in `tests/e2e/chat/chat-journey.e2e.spec.ts`
-- [x] T070 [P] Update `QWEN.md` and project README with new chat app structure and quickstart instructions
-- [x] T071 Run full test suite (`npm test`) — all tests must pass
-- [x] T072 Run TypeScript check (`npx tsc --noEmit`) — zero errors
-- [x] T073 Performance profiling summary: record first-token latency, streaming latency, history render time (attach to PR)
-- [x] T074 Clean up any unused imports, dead code, or console.log statements
-- [x] T075 Verify accessibility: all inputs have labels, contrast meets WCAG AA, error states have descriptive text
+- [ ] T070 [P] E2E test: full user journey (open app → navigate to models → download → load → chat → verify history → rename → delete) in `tests/e2e/chat/chat-journey.e2e.spec.ts`
+- [ ] T071 [P] Audit ALL remaining files in `features/`, `shared/`, `components/`, `app/` for unused imports, dead code, console.log statements. Remove or fix
+- [ ] T072 Run full test suite (`npm test`) — all tests must pass
+- [ ] T073 Run TypeScript check (`npx tsc --noEmit`) — zero errors
+- [ ] T074 Update `QWEN.md` and project README with new architecture (3-screen model, shared/ai ownership, co-located components)
+- [ ] T075 Performance profiling: record first-token latency, streaming latency, history render time on 4GB RAM device. Attach results to PR
+- [ ] T076 Verify accessibility: all inputs have labels, contrast meets WCAG AA, error states have descriptive text across all 3 screens
 
 ---
 
@@ -219,22 +209,32 @@ description: "Task list for AI Chat App Restructure (feature 002)"
 - **Setup (Phase 1)**: No dependencies — can start immediately
 - **Foundational (Phase 2)**: Depends on Setup completion — BLOCKS all user stories
 - **User Stories (Phases 3-7)**: All depend on Foundational phase completion
-  - User stories can proceed sequentially (P1 → P2 → P3 → P1(privacy) → P3)
-  - Or in parallel if team capacity allows (US1 + US2 share Phase 3 priority, US3+US4 independent)
+  - US1 (P1) and US2 (P1) can proceed in parallel after Foundational
+  - US3 (P2) depends on US1 (chat-service must exist for history to load conversations)
+  - US4 (P3) depends on US3 (history screen must exist for rename/delete)
+  - US5 (P1) depends on US1 (audit chat-service after it's built)
 - **Polish (Phase 8)**: Depends on all desired user stories being complete
 
 ### User Story Dependencies
 
-- **User Story 1 (P1)**: After Foundational — no dependencies on other stories → MVP
-- **User Story 2 (P1)**: After Foundational — integrates with US1 (model loading enables chat)
-- **User Story 5 (P1)**: After US1 — audits existing US1 implementation for privacy compliance
-- **User Story 3 (P2)**: After Foundational — depends on chat-service (T010) but not on US1/US2 screens
-- **User Story 4 (P3)**: After US3 — depends on history screen existing (T047)
+```
+Phase 1 (Setup) → Phase 2 (Foundational)
+                        │
+              ┌─────────┼──────────┐
+              ▼         ▼          ▼
+           US1(Chat)  US2(Models)  US5(Privacy, after US1)
+              │
+              ▼
+           US3(History)
+              │
+              ▼
+           US4(Manage)
+```
 
 ### Within Each User Story
 
 - Tests MUST be written and FAIL before implementation
-- Models/types before services
+- Types before services
 - Services before view-models
 - View-models before screens
 - Core implementation before polish states
@@ -242,27 +242,27 @@ description: "Task list for AI Chat App Restructure (feature 002)"
 
 ### Parallel Opportunities
 
-- Phase 1: T002, T003, T005, T007 can run in parallel
-- Phase 2: T008, T009, T011, T012, T013, T014, T015, T016, T017 can run in parallel (different files)
-- Phase 3: T018, T019, T020 can run in parallel (test writing)
-- Phase 4: T031, T032, T033 can run in parallel (test writing)
-- Phase 5: T044, T045, T046 can run in parallel (test writing)
-- Phase 8: T069, T070 can run in parallel (E2E + docs)
+- Phase 1: T001, T002, T004, T005, T007, T008 all parallelizable
+- Phase 2: T009-T018 all parallelizable (different files, no cross-deps)
+- Phase 3: T019, T020, T021 parallelizable (test writing)
+- Phase 4: T034, T035, T036 parallelizable (test writing)
+- Phase 5: T047, T048, T049 parallelizable (test writing)
+- Phase 8: T070, T071, T074 parallelizable (E2E + audit + docs)
 
 ---
 
 ## Parallel Example: User Story 1
 
 ```bash
-# Launch all tests for User Story 1 together:
-Task: "Unit test for useChatVm sendMessage flow" (T018)
-Task: "Integration test for load-model → generate → save flow" (T019)
+# Launch all tests for US1 together:
+Task: "Unit test for useChatVm.sendMessage()" (T019)
 Task: "Unit test for ChatMessage validation" (T020)
+Task: "Integration test: sendMessage flow" (T021)
 
-# After tests pass, launch implementation:
-Task: "Create use-chat-vm.ts" (T021)
-Task: "Wire sendMessage to local-ai-runtime" (T022)
-Task: "Create chat screen index.tsx" (T024)
+# After tests pass, launch implementation in parallel:
+Task: "Create use-chat-vm.ts" (T022)
+Task: "Create chat-input.tsx" (T025)
+Task: "Create message-bubble.tsx" (T026)
 ```
 
 ---
@@ -271,8 +271,8 @@ Task: "Create chat screen index.tsx" (T024)
 
 ### MVP First (User Story 1 Only)
 
-1. Complete Phase 1: Setup (remove legacy, create routes)
-2. Complete Phase 2: Foundational (entities, storage, UI primitives)
+1. Complete Phase 1: Setup (remove onboarding, clean legacy, create dirs)
+2. Complete Phase 2: Foundational (shared/ai API, component primitives)
 3. Complete Phase 3: User Story 1 (chat with streaming)
 4. **STOP and VALIDATE**: Test chat flow independently
 5. Deploy/demo MVP
@@ -281,7 +281,7 @@ Task: "Create chat screen index.tsx" (T024)
 
 1. Setup + Foundational → Foundation ready
 2. US1 → Chat with streaming → MVP!
-3. US2 → Model download in-chat → Full self-service
+3. US2 → Model management → Full self-service
 4. US3 → History → Conversation continuity
 5. US4 → Rename/delete → Long-term organization
 6. US5 → Privacy audit → Trust guarantee
@@ -293,9 +293,8 @@ With multiple developers:
 
 1. Team completes Setup + Foundational together
 2. Once Foundational is done:
-   - Developer A: User Story 1 (chat)
-   - Developer B: User Story 2 (model picker) + User Story 5 (privacy)
-   - Developer C: User Story 3 (history) → User Story 4 (management)
+   - Developer A: User Story 1 (chat) → User Story 3 (history) → User Story 4 (manage)
+   - Developer B: User Story 2 (model management) + User Story 5 (privacy)
 3. Stories complete and integrate independently
 
 ---
@@ -310,3 +309,4 @@ With multiple developers:
 - Commit after each task or logical group
 - Stop at any checkpoint to validate story independently
 - **Avoid**: vague tasks, same file conflicts, cross-story dependencies that break independence
+- **Architecture rule**: Features NEVER import components from other features. shared/ai/ is the ONLY shared module for AI ops.
