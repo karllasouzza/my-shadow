@@ -7,12 +7,12 @@
 import { AlertTriangle, Download, X } from "lucide-react-native";
 import React from "react";
 import {
-    ActivityIndicator,
-    Modal,
-    ScrollView,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Modal,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export interface ModelCatalogEntry {
@@ -42,6 +42,7 @@ export function ModelPicker({
   onSelect,
   deviceRamMB,
 }: ModelPickerProps) {
+  console.log("ModelPicker render", { visible, models, deviceRamMB });
   return (
     <Modal
       visible={visible}
@@ -49,8 +50,8 @@ export function ModelPicker({
       transparent
       onRequestClose={onClose}
     >
-      <View className="flex-1 bg-black/50 justify-end">
-        <View className="bg-card rounded-t-3xl max-h-[80%]">
+      <View className="flex-1 flex h-screen bg-black/50 justify-end">
+        <View className="bg-card flex-1 flex rounded-t-3xl max-h-[80%] h-max">
           {/* Header */}
           <View className="flex-row items-center justify-between px-5 py-4 border-b border-border">
             <Text className="text-foreground text-lg font-semibold">
@@ -66,7 +67,10 @@ export function ModelPicker({
           </View>
 
           {/* Model list */}
-          <ScrollView className="flex-1 px-5 py-3">
+          <ScrollView
+            className="bg-card flex-1 px-5 py-3"
+            contentContainerStyle={{ paddingBottom: 12 }}
+          >
             {models.map((model) => (
               <ModelRow
                 key={model.id}

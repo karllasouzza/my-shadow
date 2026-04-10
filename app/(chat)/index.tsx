@@ -134,14 +134,14 @@ export default function ChatScreen() {
     await sendMessage(text);
   }, []);
 
-  // T034: Open model picker modal
+  // Open model picker modal
   const handleModelSelectorPress = useCallback(() => {
     setShowModelPicker(true);
   }, []);
 
-  // T035/T038: Handle model selection after download
+  // Handle model selection after download
   const handleModelSelect = useCallback(async (modelId: string) => {
-    // T038: Load model into runtime
+    // Load model into runtime
     // filePath would come from model manager after download
     // For now, use standard path convention
     const filePath = `file://${modelId}.gguf`;
@@ -149,9 +149,9 @@ export default function ChatScreen() {
     setShowModelPicker(false);
   }, []);
 
-  // T035: Handle model download (progress callback integrated in ModelPicker)
+  // Handle model download (progress callback integrated in ModelPicker)
   const handleModelDownload = useCallback((modelId: string) => {
-    // T035: Trigger download via model manager
+    // Trigger download via model manager
     // Progress callback updates ModelPicker UI
     console.log(`[ChatScreen] Download requested for: ${modelId}`);
   }, []);
@@ -237,7 +237,7 @@ export default function ChatScreen() {
         modelLoadingMessage={!isModelReady ? "Selecione um modelo" : undefined}
       />
 
-      {/* T034: Model Picker Modal */}
+      {/* Model Picker Modal */}
       <ModelPicker
         visible={showModelPicker}
         onClose={() => setShowModelPicker(false)}

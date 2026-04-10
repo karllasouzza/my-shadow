@@ -1,96 +1,77 @@
-# Quickstart: AI Chat App Feature
+# Quickstart: AI Chat App
+
+## Architecture Overview
+
+```
+┌──────────────┐     ┌───────────────────────┐     ┌──────────────────┐
+│ Chat Screen  │────▶│ useChatVm             │────▶│ ChatService      │
+│ (root)       │◀────│ (Legend State)        │◀────│ (MMKV CRUD)      │
+└──────┬───────┘     └──────────┬────────────┘     └──────────────────┘
+       │ push                    │
+       │               ┌────────▼────────────┐     ┌──────────────────┐
+       │               │ shared/ai/          │────▶│ llama.rn         │
+       │               │ - local-ai-runtime  │     │ (native GGUF)    │
+       │               │ - model-manager     │     └──────────────────┘
+       │               └─────────────────────┘
+       │ push
+┌──────▼───────┐     ┌───────────────────────┐
+│ Model Mgmt   │────▶│ useModelsVm           │
+│ Screen       │◀────│ (Legend State)        │
+└──────────────┘     └───────────────────────┘
+       │ back
+┌──────▼───────┐     ┌───────────────────────┐
+│ History      │────▶│ useHistoryVm          │
+│ Screen       │◀────│ (Legend State)        │
+└──────────────┘     └───────────────────────┘
+```
+
+**Key boundaries**:
+
+- `shared/ai/` — ALL AI ops (inference, model download, model load/unload)
+- `features/chat/service/` — MMKV conversation CRUD only
+- `features/model-management/` — Model browsing, download, loading UI
+- `features/history/` — Conversation listing, resume, management UI
 
 ## Prerequisites
 
-- Node.js 20+ and Bun installed
-- Expo CLI (`npx expo`)
-- Android Studio (Android emulator/device) or Xcode (iOS simulator)
-- Stable internet for initial model download (~350MB for Qwen 2.5 0.5B)
+- Node.js 20+ and Bun
+- Android Studio or Xcode
+- Internet for model download (~350MB for Qwen 2.5 0.5B)
 - Device with ≥4GB RAM recommended
 
 ## Setup
 
 ```bash
-# 1. Install dependencies
 bun install
-
-# 2. Verify TypeScript compilation
-npx tsc --noEmit
-
-# 3. Run existing test suite (ensure baseline is green before changes)
-npm test
+npx tsc --noEmit    # 0 errors
+npm test            # all green
 ```
 
-## Running the App (Development)
+## Running
 
 ```bash
-# Start Expo dev server
 npx expo start
-
 # Press 'a' for Android or 'i' for iOS
-# Or scan QR code with Expo Go app
 ```
 
-## Running Tests
+## First Use Flow
 
-```bash
-# Full test suite
-npm test
-
-# Single feature tests
-npm test -- tests/unit/chat/
-npm test -- tests/integration/chat/
-npm test -- tests/e2e/chat/
-```
-
-## First Chat Flow (Manual Test)
-
-1. **Open app** → Chat screen appears
-2. **No model loaded** → Model picker modal appears automatically
-3. **Select a model** from catalog (e.g., Qwen 2.5 0.5B)
-4. **Download starts** → Watch progress bar (may take 1-3 minutes on 4G)
-5. **Model loads** → Chat input becomes enabled
-6. **Type a message** → Press send
-7. **Response streams** → Tokens appear progressively in assistant bubble
-8. **Check history** → Tap history icon in header → See conversation listed
-9. **Resume conversation** → Tap conversation → Returns to chat with full message history
-
-## Architecture Overview
-
-```
-┌─────────────┐     ┌──────────────────┐     ┌──────────────────┐
-│ Chat Screen  │────▶│ useChatVm        │────▶│ ChatService      │
-│ (index.tsx)  │◀────│ (Legend State)   │◀────│ (MMKV storage)   │
-└──────┬───────┘     └────────┬─────────┘     └──────────────────┘
-       │                      │
-       │               ┌──────▼──────────┐     ┌──────────────────┐
-       │               │ LocalAIRuntime   │────▶│ llama.rn         │
-       │               │ (llama wrapper)  │     │ (native GGUF)    │
-       │               └─────────────────┘     └──────────────────┘
-       │
-       │ push           ┌──────────────────┐     ┌──────────────────┐
-       └───────────────▶│ History Screen   │────▶│ useHistoryVm     │
-         (header btn)   │ (history.tsx)    │     │ (MMKV index)     │
-                        └──────────────────┘     └──────────────────┘
-```
+1. Open app → Chat screen appears
+2. Tap model badge in header → Model Management screen
+3. Select model from catalog → Download starts
+4. Wait for download → Tap "Load" → Model loaded into memory
+5. Return to Chat → Input enabled
+6. Type message → Send → Response streams token-by-token
+7. Tap clock icon → History screen → See conversation listed
+8. Tap conversation → Returns to Chat with full history
 
 ## Key Files
 
-| File | Purpose |
-|---|---|
-| `src/app/(chat)/index.tsx` | Chat screen (root route) |
-| `src/app/(chat)/history.tsx` | History screen (stack-pushed) |
-| `src/features/chat/view-model/use-chat-vm.ts` | Chat state management |
-| `src/features/chat/service/chat-service.ts` | Conversation persistence |
-| `src/shared/ai/local-ai-runtime.ts` | llama.rn wrapper (existing, reused) |
-| `src/features/onboarding/service/model-manager.ts` | Model download/verify/load (existing, reused) |
-
-## Feature Flags / Configuration
-
-No feature flags — this replaces the app's primary flow entirely.
-
-## Known Limitations
-
-- Model download cannot be resumed if interrupted (must restart download)
-- Conversations are device-local only — no cloud sync
-- No multi-modal support (text only, no images or audio)
+| File                                                    | Purpose                                    |
+| ------------------------------------------------------- | ------------------------------------------ |
+| `shared/ai/local-ai-runtime.ts`                         | llama.rn wrapper (completion, tokenize)    |
+| `shared/ai/model-manager.ts`                            | Model lifecycle (download → verify → load) |
+| `features/chat/service/chat-service.ts`                 | MMKV conversation CRUD                     |
+| `features/chat/view-model/use-chat-vm.ts`               | Chat state + sendMessage wiring            |
+| `features/model-management/view-model/use-models-vm.ts` | Model browsing state                       |
+| `features/history/view-model/use-history-vm.ts`         | History list state                         |

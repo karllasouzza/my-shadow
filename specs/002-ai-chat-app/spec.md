@@ -12,6 +12,14 @@
 - Q: How much of the existing Reflection behavior should be preserved inside the Chat screen vs. replaced with standard chat UX? → A: Reflection is fully removed. Chat screen is a clean-slate implementation with no inherited reflection logic (guided questions, RAG, tone guard all removed).
 - Q: How should the user navigate between Chat and History screens? → A: Stack navigation — Chat is the primary root screen. History is accessed via stack push (e.g., tapping a button in the chat header). Back navigation returns to the active conversation.
 
+### Session 2026-04-09 (Architecture)
+
+- Q: Ownership boundary between shared/ai/ and feature services? → A: (B) shared/ai/ owns inference + full model lifecycle (download, verify, load, generate). features/chat/service/ keeps only MMKV conversation CRUD. shared/ai/ is the single owner of all AI operations.
+- Q: Component placement strategy? → A: (A) Co-locate components inside each feature module — features/chat/components/, features/history/components/, features/model-management/components/. Root components/ removed for feature-specific UI; only cross-cutting design tokens remain.
+- Q: Model manager location? → A: (A) model-manager.ts moves to shared/ai/model-manager.ts. It is the single source of truth for the model lifecycle (download → verify → load). Features import from shared/ai/, never manage models directly.
+- Clarification: Separate model selection/download into its own feature module (features/model-management/) with its own screen, VM, and components. Onboarding feature fully removed — no files, no imports, no dependencies remain.
+- Clarification: Audit entire project for unused/deprecated files, imports, and dependencies after restructuring. Clean bundle must have zero dangling references to removed features.
+
 ## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - Start a New Chat Conversation (Priority: P1)
@@ -30,19 +38,20 @@ O usuário abre o app e vê a tela principal de chat. Seleciona um modelo local 
 
 ---
 
-### User Story 2 - Download and Select AI Model In-Chat (Priority: P1)
+### User Story 2 — Manage AI Models (Priority: P1)
 
-O usuário pode selecionar, baixar e gerenciar modelos GGUF diretamente da tela de chat, sem precisar navegar para telas de configuração separadas.
+O usuário acessa a tela de Gerenciamento de Modelos (via botão no header do Chat), onde pode ver o catálogo de modelos GGUF, baixar novos modelos, carregar um modelo na memória, e trocar entre modelos baixados. O modelo selecionado persiste entre sessões.
 
-**Why this priority**: Essencial para que o usuário possa usar o app — sem modelo, não há geração de respostas.
+**Why this priority**: Sem modelo carregado, o chat não funciona. O gerenciamento deve ser acessível mas não bloquear a conversa quando um modelo já está carregado.
 
-**Independent Test**: Pode ser testado selecionando um modelo do catálogo, iniciando o download e verificando que o modelo é carregado na memória após conclusão.
+**Independent Test**: Pode ser testado abrindo a tela de modelos, selecionando um do catálogo, fazendo download, carregando na memória — e verificando que o chat reconhece o modelo ativo.
 
 **Acceptance Scenarios**:
 
-1. **Given** nenhum modelo baixado, **When** usuário seleciona modelo do catálogo, **Then** download inicia com barra de progresso visível
-2. **Given** download completo, **When** modelo é selecionado, **Then** modelo é carregado na memória e tela de chat fica disponível
-3. **Given** múltiplos modelos baixados, **When** usuário abre seletor de modelo, **Then** lista de modelos disponíveis é exibida com indicador de tamanho e RAM estimada
+1. **Given** nenhum modelo baixado, **When** usuário abre Gerenciamento de Modelos, **Then** catálogo é exibido com botão de download e indicador de tamanho/RAM
+2. **Given** download completo, **When** usuário seleciona modelo, **Then** modelo é carregado na memória e badge de "carregado" é exibido
+3. **Given** múltiplos modelos baixados, **When** usuário abre gerenciador, **Then** lista de modelos baixados é exibida com opção de carregar/descarregar cada um
+4. **Given** modelo já carregado, **When** usuário volta ao Chat, **Then** badge no header mostra nome do modelo ativo e input está habilitado
 
 ---
 
@@ -95,10 +104,10 @@ Todas as conversas e processamento de IA ocorrem localmente no dispositivo. Nenh
 
 ### Testing Strategy _(mandatory)_
 
-- **Unit tests**: Testar view-models de chat, model-loading, message-parsing e chat-history repository com mocks do motor de inferência local
-- **Integration tests**: Testar fluxo completo de load-model → generate-completion → save-chat com mocks de native modules
-- **End-to-end tests**: Simular fluxo de usuário: abrir app → baixar modelo → enviar mensagem → verificar resposta → salvar no histórico
-- **Regression tests**: Garantir que remoção de reflection, review e onboarding é limpa — nenhuma importação ou referência residual permanece no bundle
+- **Unit tests**: Testar view-models de chat, model-management, message-parsing e chat-history repository com mocks do motor de inferência local
+- **Integration tests**: Testar fluxo completo de download-model → load-model → generate-completion → save-chat com mocks de native modules
+- **End-to-end tests**: Simular fluxo de usuário: abrir app → navegar para modelos → baixar modelo → carregar → enviar mensagem → verificar resposta → salvar no histórico
+- **Regression tests**: Garantir que remoção de reflection, review e onboarding é limpa — features/ e shared/ não têm imports residuais
 
 ### Edge Cases
 
@@ -114,19 +123,20 @@ Todas as conversas e processamento de IA ocorrem localmente no dispositivo. Nenh
 
 - **FR-001**: O app MUST exibir a tela de Chat como tela raiz principal, com acesso ao Histórico de Chat via navegação em stack (botão no header do chat).
 - **FR-002**: A tela de Chat MUST permitir envio de mensagens de texto e exibição de respostas da IA com streaming progressivo
-- **FR-003**: O app MUST permitir seleção de modelo GGUF do catálogo integrado diretamente na tela de Chat
-- **FR-004**: O app MUST permitir download de modelo GGUF com indicador de progresso na tela de Chat
-- **FR-005**: O app MUST carregar modelo GGUF baixado em memória via motor de inferência local antes de permitir envio de mensagens
-- **FR-006**: O app MUST persistir conversas localmente com título, timestamp e lista de mensagens (role + content)
+- **FR-003**: O app MUST permitir navegação à tela de Gerenciamento de Modelos via botão no header do Chat (stack push/pop).
+- **FR-004**: A tela de Gerenciamento de Modelos MUST exibir catálogo de modelos GGUF com download, progresso, e status de carregamento.
+- **FR-005**: O app MUST carregar modelo GGUF baixado em memória via shared/ai (model lifecycle) antes de permitir envio de mensagens no Chat.
+- **FR-006**: O app MUST persistir conversas localmente com título, timestamp e lista de mensagens (role + content) — responsabilidade de features/chat/service/, não de shared/ai/.
 - **FR-007**: O Histórico de Chat MUST listar conversas ordenadas por timestamp decrescente
 - **FR-008**: O app MUST permitir retomar conversa do histórico, exibindo mensagens anteriores e permitindo continuidade
 - **FR-009**: O app MUST permitir renomear título de conversa no histórico
 - **FR-010**: O app MUST permitir excluir conversa do histórico com confirmação prévia
 - **FR-011**: O app MUST exibir estado vazio amigável quando nenhuma conversa existe no histórico
-- **FR-012**: O app MUST exibir indicador de carregamento de modelo e bloquear input enquanto modelo não está pronto
+- **FR-012**: O Chat MUST exibir indicador de modelo carregado (badge no header) e bloquear input enquanto nenhum modelo está pronto.
 - **FR-013**: O app MUST permitir cancelar geração de resposta em andamento
-- **FR-014**: O app MUST validar espaço em disco disponível antes de iniciar download de modelo
-- **FR-015**: O app MUST informar usuário se RAM do dispositivo é insuficiente para modelo selecionado antes de carregar
+- **FR-014**: O Gerenciamento de Modelos MUST validar espaço em disco disponível antes de iniciar download de modelo.
+- **FR-015**: O Gerenciamento de Modelos MUST informar usuário se RAM do dispositivo é insuficiente para modelo selecionado antes de carregar.
+- **FR-016**: O modelo ativo (carregado) MUST persistir entre sessões — ao reabrir o app, o último modelo carregado é restaurado automaticamente.
 
 ### Code Quality Requirements _(mandatory)_
 
@@ -137,7 +147,7 @@ Todas as conversas e processamento de IA ocorrem localmente no dispositivo. Nenh
 ### UX Consistency Requirements _(mandatory for user-facing changes)_
 
 - **UX-001**: User-facing changes MUST use established design tokens, spacing, typography, and shared UI primitives from the project's design system.
-- **UX-002**: Each affected flow MUST define loading, empty, success, and error states — specifically: Chat screen (no model loaded, generating response, error), History screen (no conversations, loading list, empty state).
+- **UX-002**: Each affected flow MUST define loading, empty, success, and error states — specifically: Chat screen (no model loaded, generating response, error), History screen (no conversations, loading list, empty state), Model Management screen (no models downloaded, downloading, loading model, download failed, RAM warning).
 - **UX-003**: Accessibility expectations (labels, readable contrast, input feedback) MUST be specified for chat input, message bubbles, model selector, download progress indicator, and history navigation button in chat header.
 
 ### Performance Requirements _(mandatory)_
@@ -171,8 +181,10 @@ Todas as conversas e processamento de IA ocorrem localmente no dispositivo. Nenh
 
 - Usuários possuem conectividade de internet para download inicial de modelos GGUF (~350MB para modelo 0.5B)
 - Dispositivos alvo possuem mínimo de 4GB de RAM para suportar inferência local
-- Funcionalidades existentes de reflection, review e onboarding serão completamente removidas — nenhuma lógica será reaproveitada. O app terá apenas Chat e Histórico.
+- Funcionalidades existentes de reflection, review e onboarding serão completamente removidas — nenhuma lógica será reaproveitada. O app terá Chat, Gerenciamento de Modelos e Histórico.
 - Modelo padrão recomendado é Qwen 2.5 0.5B por equilíbrio entre tamanho e qualidade
-- Persistência de conversas será feita via storage local do dispositivo — sem sincronização cloud
-- App já possui infraestrutura de llama.rn integrada e catálogo de modelos configurado (herdados de feature anterior)
+- Persistência de conversas será feita via storage local do dispositivo (MMKV) — sem sincronização cloud
+- **shared/ai/** é o owner único de toda lógica de IA: inferência (llama.rn wrapper), ciclo de vida do modelo (download → verify → load), e geração de texto. **features/chat/service/** cuida apenas de CRUD de conversas no MMKV.
+- Componentes UI são co-localizados em cada feature module (features/chat/components/, features/history/components/, features/model-management/components/). Root components/ é removido para UI específica de feature.
+- A feature de Gerenciamento de Modelos é um módulo separado (features/model-management/) com sua própria screen, view-model, e components — acessado via stack navigation a partir do header do Chat.
 - Não há necessidade de autenticação ou contas de usuário para uso do app

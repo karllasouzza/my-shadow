@@ -1,36 +1,57 @@
 # Implementation Plan: AI Chat App Restructure
 
 **Branch**: `002-ai-chat-app` | **Date**: 2026-04-09 | **Spec**: [spec.md](spec.md)
-**Input**: Feature specification from `/specs/002-ai-chat-app/spec.md`
-
-**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/plan-template.md` for the execution workflow.
+**Input**: Feature specification from `/specs/002-ai-chat-app/spec.md` (updated with architecture clarifications)
 
 ## Summary
 
-Replace the current app structure (reflection, review, onboarding screens) with a two-screen AI chat application: Chat (root) and Chat History (stack-pushed from Chat header). Model selection, download, and loading occur inline within the Chat screen using llama.rn for local GGUF inference. All data persists locally with zero external network calls for generation.
+Replace the current app structure (reflection, review, onboarding screens) with a three-screen AI chat application: **Chat** (root), **Model Management** (stack-pushed from Chat header), and **Chat History** (stack-pushed from Chat header). All AI operations (inference, model download, model lifecycle) are owned by `shared/ai/`. Each feature module co-locates its own components. Model management is a separate feature module with its own screen, VM, and components. All data persists locally with zero external network calls for generation.
 
 ## Technical Context
 
 **Language/Version**: TypeScript 5.9
-**Primary Dependencies**: React 19.1, React Native 0.81.5, Expo SDK 54, Expo Router 6, llama.rn (native inference), Legend State 3.0-beta (reactivity), NativeWind 4.2 (styling), @rn-primitives (UI components), react-native-mmkv 4.3 (local persistence)
-**Storage**: react-native-mmkv for chat conversations/messages; expo-file-system for GGUF model downloads
+**Primary Dependencies**: React 19.1, React Native 0.81.5, Expo SDK 54, Expo Router 6, llama.rn (native inference), Legend State 3.0-beta (reactivity), NativeWind 4.2 (styling), @rn-primitives (UI components), react-native-mmkv 4.3 (local persistence), expo-file-system (model downloads)
+**Storage**: react-native-mmkv for chat conversations + model config; expo-file-system for GGUF model downloads
 **Testing**: Jest (unit/integration), with mocked llama.rn native module
 **Target Platform**: Android + iOS via Expo (React Native New Architecture enabled)
 **Project Type**: Mobile app (React Native + Expo Router)
 **Performance Goals**: First token <5s, streaming token display <200ms latency, history list 100 items <500ms render
 **Constraints**: Offline-capable after model download; model loading memory-bound (~600MB RAM for 0.5B model); no external API calls for generation
-**Scale/Scope**: 2 screens, 3 entities (ChatConversation, ChatMessage, ModelConfiguration), local-only data
+**Scale/Scope**: 3 screens, 3 entities (ChatConversation, ChatMessage, ModelConfiguration), local-only data
+
+## Architecture Decisions (from Clarifications)
+
+### 1. shared/ai/ is the Single AI Owner
+
+- `shared/ai/local-ai-runtime.ts` — llama.rn wrapper (initLlama, completion, tokenize)
+- `shared/ai/model-manager.ts` — model lifecycle (download, verify, load, unload, persist active model)
+- Features import AI ops from `@/shared/ai/` — never manage models or inference directly
+
+### 2. Feature Modules Own Their Storage and UI
+
+- `features/chat/service/chat-service.ts` — MMKV CRUD for conversations (create, read, list index, delete, rename)
+- `features/chat/components/` — co-located UI (MessageBubble, ChatInput, etc.)
+- `features/history/` — co-located screen, VM, components
+- `features/model-management/` — co-located screen, VM, components
+
+### 3. Co-Located Components Pattern
+
+Each feature module contains: `view/` (screen), `view-model/` (Legend State VM), `service/` (feature storage ops), `components/` (feature-specific UI). Root `components/` is removed for feature-specific UI.
+
+### 4. Model Management as Separate Feature
+
+Separate `features/model-management/` with its own screen, view-model, and components. Accessed via stack navigation from Chat header. Handles model catalog browsing, download with progress, load/unload, RAM warnings, disk space validation.
 
 ## Constitution Check
 
 _GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
-- **Code Quality Gate**: All changes MUST pass `npm test && npx tsc --noEmit`. New chat screens, view-models, and repositories will be small composable units (service → repository → view-model → screen). No new abstractions beyond existing patterns (local-ai-runtime service already exists). Removal of reflection/review/onboarding will delete ~15+ files — cleanup must leave zero dangling imports.
-- **Testing Gate**: Each user story requires: (1) unit tests for view-models and services with mocked llama.rn, (2) integration tests for full load-model → generate → save flow, (3) end-to-end tests for user journey (open app → download model → chat → verify history). Regression tests: verify no import of removed reflection/review/onboarding modules remains in bundle.
-- **UX Consistency Gate**: Two new screens (Chat, History) MUST use NativeWind design tokens + @rn-primitives. Required states: Chat (no model loaded, downloading, model loading, generating response, error, empty conversation), History (no conversations, loading list, empty state). Accessibility: labels for chat input, message bubbles, model selector, download progress, history nav button.
-- **Performance Gate**: First token <5s with 0.5B model (validated via profiling). Streaming token display <200ms (measured by onToken callback timing). History list 100 items <500ms render. If performance misses budget, mitigation: recommend smaller quantization (Q2_K vs Q4_K_M) or prompt user.
+- **Code Quality Gate** (Constitution Principle I): All changes MUST pass `npm test && npx tsc --noEmit`. New screens, VMs, and services follow small composable units. `shared/ai/` is the single abstraction for AI — no new abstractions needed. Model manager moves from onboarding to shared/ai (reuse, not new complexity). Onboarding/feature removal deletes ~15+ files — cleanup verified via grep sweep.
+- **Testing Gate** (Constitution Principle II): Each user story requires: (1) unit tests for VMs and services with mocked llama.rn, (2) integration tests for download-model → load-model → generate → save flow, (3) E2E for full user journey. Regression: zero imports of removed modules in bundle. Test files co-located with features.
+- **UX Consistency Gate** (Constitution Principle III): Three screens (Chat, Model Management, History) MUST use NativeWind tokens + @rn-primitives. All states defined: Chat (no model, generating, error, empty), Model Mgmt (no models, downloading, loading, failed, RAM warning), History (no conversations, loading, empty). Accessibility on all interactive elements.
+- **Performance Gate** (Constitution Principle IV): First token <5s with 0.5B model. Streaming <200ms/token. History 100 items <500ms. Validated via profiling on 4GB RAM device. Mitigation: recommend smaller quantization if budget missed.
 
-**Gate Outcome**: ✅ All four gates PASS — requirements are clear, achievable, and aligned with existing architecture.
+**Gate Outcome**: ✅ All four gates PASS — architecture aligns with constitution. shared/ai/ provides clear ownership, co-located components keep features independent, model management feature has clean boundaries.
 
 ## Project Structure
 
@@ -38,12 +59,13 @@ _GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
 ```text
 specs/002-ai-chat-app/
-├── plan.md              # This file (/speckit.plan command output)
-├── research.md          # Phase 0 output (/speckit.plan command)
-├── data-model.md        # Phase 1 output (/speckit.plan command)
-├── quickstart.md        # Phase 1 output (/speckit.plan command)
-├── contracts/           # Phase 1 output (/speckit.plan command)
-└── tasks.md             # Phase 2 output (/speckit.tasks command - NOT created by /speckit.plan)
+├── plan.md              # This file
+├── spec.md              # Updated with architecture clarifications
+├── research.md          # Phase 0 output
+├── data-model.md        # Phase 1 output
+├── quickstart.md        # Phase 1 output
+├── contracts/           # Phase 1 output
+└── tasks.md             # Phase 2 output (regenerated after plan)
 ```
 
 ### Source Code (repository root)
@@ -51,78 +73,82 @@ specs/002-ai-chat-app/
 ```text
 src/
 ├── app/
-│   ├── _layout.tsx                  # Root layout (updated routes)
+│   ├── _layout.tsx                  # Root layout → (chat) route group
 │   ├── (chat)/
 │   │   ├── _layout.tsx              # Chat stack navigator
 │   │   ├── index.tsx                # Chat screen (root)
-│   │   └── history.tsx              # Chat history screen (stack-pushed)
+│   │   ├── models.tsx               # Model Management screen (stack-pushed)
+│   │   └── history.tsx              # Chat History screen (stack-pushed)
 │   └── +not-found.tsx
 ├── features/
 │   ├── chat/
 │   │   ├── view/
-│   │   │   ├── chat-screen.tsx
+│   │   │   └── chat-screen.tsx      # Screen delegates to components/
+│   │   ├── view-model/
+│   │   │   └── use-chat-vm.ts       # Legend State: messages, send, cancel
+│   │   ├── service/
+│   │   │   └── chat-service.ts      # MMKV CRUD for conversations
+│   │   └── components/
+│   │       ├── message-bubble.tsx
+│   │       ├── chat-input.tsx
+│   │       ├── model-badge.tsx
+│   │       └── empty-chat.tsx
+│   ├── history/
+│   │   ├── view/
 │   │   │   └── history-screen.tsx
 │   │   ├── view-model/
-│   │   │   ├── use-chat-vm.ts
 │   │   │   └── use-history-vm.ts
-│   │   ├── service/
-│   │   │   └── chat-service.ts      # Save/load/delete conversations
-│   │   └── model/
-│   │       ├── chat-conversation.ts
-│   │       └── chat-message.ts
-│   └── onboarding/
-│       ├── view/                    # Model selection/download widgets (reused in-chat)
-│       │   └── model-picker.tsx
+│   │   └── components/
+│   │       ├── conversation-list.tsx
+│   │       ├── conversation-item.tsx
+│   │       └── empty-history.tsx
+│   └── model-management/
+│       ├── view/
+│       │   └── models-screen.tsx
 │       ├── view-model/
-│       │   └── use-model-loading-vm.ts (updated for in-chat loading)
-│       └── service/
-│           └── model-manager.ts     # Download, verify, load models
+│       │   └── use-models-vm.ts
+│       └── components/
+│           ├── model-catalog.tsx
+│           ├── model-item.tsx
+│           ├── download-progress.tsx
+│           └── ram-warning.tsx
 ├── shared/
 │   └── ai/
-│       └── local-ai-runtime.ts      # Already exists — llama.rn wrapper
-└── components/                      # Shared UI primitives (message bubbles, input, etc.)
-    ├── chat/
-    │   ├── message-bubble.tsx
-    │   ├── chat-input.tsx
-    │   └── model-selector.tsx
-    └── history/
-        └── conversation-item.tsx
+│       ├── local-ai-runtime.ts      # llama.rn wrapper (inference only)
+│       ├── model-manager.ts         # Model lifecycle (download → verify → load)
+│       └── model-catalog.ts         # Available models metadata
+└── components/
+    └── ui/                          # Cross-cutting primitives only
+        └── icon.tsx
 
 tests/
 ├── unit/
 │   ├── chat/
-│   │   ├── chat-service.spec.ts
-│   │   ├── use-chat-vm.spec.ts
-│   │   └── chat-conversation.spec.ts
-│   └── onboarding/
-│       └── model-manager.spec.ts
+│   ├── history/
+│   └── model-management/
 ├── integration/
 │   └── chat/
-│       └── chat-flow.spec.ts
 └── e2e/
     └── chat/
-        └── chat-journey.e2e.spec.ts
 ```
 
-**Structure Decision**: Single project mobile app. New `features/chat/` module owns chat screens, view-models, services, and models. Existing `features/onboarding/` is partially retained (model management only — model selection/download reused inline in chat). Existing `features/reflection/` and `features/review/` are fully deleted. `shared/ai/local-ai-runtime.ts` is reused as-is. Routing uses Expo Router stack navigation within `app/(chat)/` group.
+**Structure Decision**: Single project mobile app with strict feature boundaries. `shared/ai/` owns all AI operations (inference + model lifecycle). Each feature (`chat`, `history`, `model-management`) is self-contained with co-located components, view-model, and services. No cross-feature imports of components. Root `components/ui/` has only cross-cutting primitives. `features/onboarding/` fully removed.
 
 ## Complexity Tracking
 
-> **Fill ONLY if Constitution Check has violations that must be justified**
-
-| Violation                                                                                                                                   | Why Needed | Simpler Alternative Rejected Because |
-| ------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ------------------------------------ |
-| N/A — no constitution violations. Feature reuses existing patterns (local-ai-runtime, model-manager, Legend State VMs, NativeWind styling). |            |                                      |
-
----
+| Violation                         | Why Needed                                                                                            | Simpler Alternative Rejected Because                            |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| Separate model-management feature | Model lifecycle has 8+ UX states, download progress, RAM checks — too complex to embed in Chat screen | Embedding in Chat would bloat screen, mix concerns, violate SRP |
+| shared/ai/ as single owner        | Model lifecycle (download → verify → load) is cross-cutting — any AI feature would need it            | Duplicating model ops per feature would diverge behavior        |
+| Co-located components per feature | Feature boundaries prevent accidental cross-feature coupling                                          | Central components/ becomes dumping ground with implicit deps   |
 
 ## Post-Design Constitution Check
 
-_Re-evaluated after Phase 1 design completion._
+_Re-evaluated after architecture clarifications._
 
-- **Code Quality Gate**: ✅ Data model is clean (4 entities with clear boundaries). Contracts document service interfaces explicitly. No circular dependencies — chat-service depends only on MMKV and local-ai-runtime. Deletion of reflection/review will be validated via import grep sweep.
-- **Testing Gate**: ✅ Contracts define clear test boundaries — each ChatService method has defined inputs/outputs/errors suitable for unit mocking. Integration flow test maps to load-model → generate → save chain. E2E journey test maps to spec's User Story 1 acceptance scenarios.
-- **UX Consistency Gate**: ✅ Screen state matrix documented: Chat (6 states), History (3 states). All use NativeWind + @rn-primitives. Accessibility targets specified (labels, contrast, feedback).
-- **Performance Gate**: ✅ Data model supports performance targets: index key avoids full-body loads for history list (<500ms). FlatList virtualization handles 1000+ messages. In-place token append avoids re-render jank (<200ms per token).
+- **Code Quality Gate**: ✅ shared/ai/ eliminates duplication. Co-located components keep features independent. No circular deps.
+- **Testing Gate**: ✅ Each feature has clear test boundary. shared/ai/ mocked at runtime level. Feature tests don't leak across boundaries.
+- **UX Consistency Gate**: ✅ 3 screens × defined state matrices. All NativeWind + @rn-primitives. Accessibility on all interactive elements.
+- **Performance Gate**: ✅ Architecture supports budgets: shared/ai/ avoids double-init, co-located components reduce import overhead, MMKV index avoids full-body loads.
 
-**Post-Design Gate Outcome**: ✅ All four gates PASS. No new violations or complexity introduced.
+**Post-Design Gate Outcome**: ✅ All four gates PASS. Architecture decisions reduce complexity vs. original plan.
