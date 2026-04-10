@@ -42,17 +42,17 @@ description: "Task list for AI Chat App Restructure — regenerated with new arc
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T009 [P] Refactor `shared/ai/model-manager.ts` to export clean API: `downloadModel()`, `verifyModel()`, `loadModel()`, `unloadModel()`. All use MMKV for persistence
-- [ ] T010 [P] Implement active model persistence in `shared/ai/model-manager.ts`: `setActiveModel(modelId)` saves to MMKV key `model:active`, `getActiveModel()` reads it. Active model = last model selected by user. On app launch, auto-load this model if localPath exists.
-- [ ] T011 [P] Ensure `shared/ai/local-ai-runtime.ts` exports: `initialize()`, `loadModel()`, `generateCompletion()`, `tokenize()`, `isModelLoaded()`, `getCurrentModel()`, `unloadModel()`, `getStatus()`
-- [ ] T012 [P] Create `features/chat/model/chat-conversation.ts` with ChatConversation + ChatConversationIndex types (if not already present)
-- [ ] T013 [P] Create `features/chat/model/chat-message.ts` with ChatMessage type + validation (if not already present)
-- [ ] T014 [P] Remove `features/chat/components/model-badge.tsx` — model selection moves to chat footer/actions (US4)
-- [ ] T015 [P] Create `features/chat/components/empty-chat.tsx` — friendly empty state with "Inicie uma conversa" text
-- [ ] T016 [P] Create `features/history/components/empty-history.tsx` — empty state with "Nenhuma conversa ainda" text
-- [ ] T017 [P] Create `features/model-management/components/model-item.tsx` — single model row with download/load status, size, RAM info, action button
-- [ ] T018 [P] Create `features/model-management/components/download-progress.tsx` — progress bar + percentage for active download
-- [ ] T019 [P] Create `features/model-management/components/ram-warning.tsx` — yellow warning banner when device RAM < model estimate
+- [x] T009 [P] Refactor `shared/ai/model-manager.ts` to export clean API: `downloadModel()`, `verifyModel()`, `loadModel()`, `unloadModel()`. All use MMKV for persistence
+- [x] T010 [P] Implement active model persistence in `shared/ai/model-manager.ts`: `setActiveModel(modelId)` saves to MMKV key `model:active`, `getActiveModel()` reads it. Active model = last model selected by user. On app launch, auto-load this model if localPath exists.
+- [x] T011 [P] Ensure `shared/ai/local-ai-runtime.ts` exports: `initialize()`, `loadModel()`, `generateCompletion()`, `tokenize()`, `isModelLoaded()`, `getCurrentModel()`, `unloadModel()`, `getStatus()`
+- [x] T012 [P] Create `features/chat/model/chat-conversation.ts` with ChatConversation + ChatConversationIndex types (if not already present)
+- [x] T013 [P] Create `features/chat/model/chat-message.ts` with ChatMessage type + validation (if not already present)
+- [x] T014 [P] Remove `features/chat/components/model-badge.tsx` — model selection moves to chat footer/actions (US4)
+- [x] T015 [P] Create `features/chat/components/empty-chat.tsx` — friendly empty state with "Inicie uma conversa" text
+- [x] T016 [P] Create `features/history/components/empty-history.tsx` — empty state with "Nenhuma conversa ainda" text
+- [x] T017 [P] Create `features/model-management/components/model-item.tsx` — single model row with download/load status, size, RAM info, action button
+- [x] T018 [P] Create `features/model-management/components/download-progress.tsx` — progress bar + percentage for active download
+- [x] T019 [P] Create `features/model-management/components/ram-warning.tsx` — yellow warning banner when device RAM < model estimate
 
 **Checkpoint**: shared/ai/ API ready. Component primitives in place. Route structure clean. User story implementation can now begin.
 
