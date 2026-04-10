@@ -1,31 +1,47 @@
-import { Result, createError, err, ok } from "@/shared/utils/app-error";
+/**
+ * Download utilities for fetching model files.
+ *
+ * Handles resumable downloads with atomic file writes,
+ * progress reporting, and proper cleanup on failure or cancellation.
+ */
+
 import * as FileSystem from "expo-file-system/legacy";
-import { DownloadedFile, ResumableRef } from "./types";
 
-export interface DownloadFileOptions {
-  url: string;
-  destinationUri: string;
-  onProgress?: (progress: number) => void;
-  resumableRef: ResumableRef;
-}
+import { createError, err, ok, Result } from "@/shared/utils/app-error";
+import { MIN_VALID_MODEL_BYTES } from "../constants";
+import type {
+    DownloadedFile,
+    DownloadFileOptions
+} from "../types";
 
+// ============================================================================
+// Helpers
+// ============================================================================
+
+/**
+ * Clamps a progress percentage to the range [0, 100].
+ */
 function clampProgress(value: number): number {
-  if (value < 0) return 0;
-  if (value > 100) return 100;
-  return value;
+  return Math.max(0, Math.min(100, value));
 }
 
+/**
+ * Detects whether an error represents a user-initiated cancellation.
+ */
 function isCancelledDownloadError(error: unknown): boolean {
-  if (!error) {
-    return false;
-  }
+  if (!error) return false;
 
   const message =
-    error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+    error instanceof Error
+      ? error.message.toLowerCase()
+      : String(error).toLowerCase();
 
   return message.includes("cancel") || message.includes("abort");
 }
 
+/**
+ * Removes a file if it exists, silently ignoring errors.
+ */
 async function removeFileIfExists(uri: string): Promise<void> {
   const info = await FileSystem.getInfoAsync(uri);
   if (info.exists) {
@@ -33,15 +49,26 @@ async function removeFileIfExists(uri: string): Promise<void> {
   }
 }
 
+// ============================================================================
+// Public API
+// ============================================================================
+
+/**
+ * Ensures that a directory exists, creating it (with intermediates) if needed.
+ *
+ * @param directoryUri - The URI of the directory to ensure.
+ * @returns A Result indicating success or a STORAGE_ERROR on failure.
+ */
 export async function ensureDirectoryExists(
   directoryUri: string,
 ): Promise<Result<void>> {
   try {
     const info = await FileSystem.getInfoAsync(directoryUri);
     if (!info.exists) {
-      await FileSystem.makeDirectoryAsync(directoryUri, { intermediates: true });
+      await FileSystem.makeDirectoryAsync(directoryUri, {
+        intermediates: true,
+      });
     }
-
     return ok(void 0);
   } catch (error) {
     return err(
@@ -55,6 +82,15 @@ export async function ensureDirectoryExists(
   }
 }
 
+/**
+ * Downloads a file atomically: writes to a `.part` temporary file,
+ * validates the result, then moves it to the final destination.
+ *
+ * On failure or cancellation the temp file is cleaned up automatically.
+ *
+ * @param options - Download configuration including URL, destination, and progress callback.
+ * @returns A Result containing the downloaded file info or an error.
+ */
 export async function downloadFileAtomically(
   options: DownloadFileOptions,
 ): Promise<Result<DownloadedFile>> {
@@ -62,6 +98,7 @@ export async function downloadFileAtomically(
   let completed = false;
 
   try {
+    // Clean up any stale partial file from a previous failed attempt.
     await removeFileIfExists(partialUri);
 
     const resumable = FileSystem.createDownloadResumable(
@@ -69,14 +106,10 @@ export async function downloadFileAtomically(
       partialUri,
       {},
       (progressEvent) => {
-        if (!options.onProgress) {
-          return;
-        }
+        if (!options.onProgress) return;
 
         const expectedBytes = progressEvent.totalBytesExpectedToWrite;
-        if (expectedBytes <= 0) {
-          return;
-        }
+        if (expectedBytes <= 0) return;
 
         const progress =
           (progressEvent.totalBytesWritten / expectedBytes) * 100;
@@ -84,6 +117,7 @@ export async function downloadFileAtomically(
       },
     );
 
+    // Store reference so the caller can cancel the download.
     options.resumableRef.current = resumable;
     const response = await resumable.downloadAsync();
 
@@ -97,12 +131,14 @@ export async function downloadFileAtomically(
       );
     }
 
+    // Validate that the partial file has meaningful content.
     const partialInfo = await FileSystem.getInfoAsync(partialUri);
     const downloadedSize =
       "size" in partialInfo && typeof partialInfo.size === "number"
         ? partialInfo.size
         : 0;
-    if (!partialInfo.exists || downloadedSize <= 0) {
+
+    if (!partialInfo.exists || downloadedSize < MIN_VALID_MODEL_BYTES) {
       return err(
         createError(
           "VALIDATION_ERROR",
@@ -110,11 +146,13 @@ export async function downloadFileAtomically(
           {
             partialUri,
             downloadedSize,
+            minExpectedBytes: MIN_VALID_MODEL_BYTES,
           },
         ),
       );
     }
 
+    // Atomic move from temp to final destination.
     await removeFileIfExists(options.destinationUri);
     await FileSystem.moveAsync({
       from: partialUri,
@@ -129,6 +167,7 @@ export async function downloadFileAtomically(
       sizeBytes: downloadedSize,
     });
   } catch (error) {
+    // Distinguish user cancellation from genuine errors.
     if (isCancelledDownloadError(error)) {
       return err(
         createError("UNKNOWN_ERROR", "Download cancelado pelo usuario."),
@@ -147,10 +186,13 @@ export async function downloadFileAtomically(
       ),
     );
   } finally {
+    // Always clear the resumable reference.
     options.resumableRef.current = null;
+
+    // Clean up the temp file if the download did not complete successfully.
     if (!completed) {
       await removeFileIfExists(partialUri).catch(() => {
-        return;
+        /* ignore cleanup errors */
       });
     }
   }

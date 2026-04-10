@@ -57,19 +57,19 @@
 
 ### 3.1: Catálogo de Modelos
 
-- [ ] T007 [P] Reescrever `shared/ai/catalog/types.ts`
+- [x] T007 [P] Reescrever `shared/ai/catalog/types.ts`
   - `ModelCatalogEntry` com todos os campos do data-model.md
   - Adicionar campos: `quantization`, `params` (ex: "0.5B"), `tags: string[]`
-- [ ] T008 [P] Reescrever `shared/ai/catalog/data.ts`
+- [x] T008 [P] Reescrever `shared/ai/catalog/data.ts`
   - Manter 3 modelos Qwen 2.5 existentes
   - Adicionar metadata rica: `tags: ["lightweight", "instruct"]`, etc.
   - Validar cada entrada com Zod schema
-- [ ] T009 Reescrever `shared/ai/catalog/helpers.ts`
+- [x] T009 Reescrever `shared/ai/catalog/helpers.ts`
   - `findModelById(id: string)` — buscar por ID
   - `getAllModels()` — listar todos
   - `getModelsByRam(maxRamBytes: number)` — filtrar por RAM disponível
   - `isModelDownloaded(modelId: string)` — check via `getDownloadedModelMap()`
-- [ ] T010 Reescrever `shared/ai/catalog/index.ts`
+- [x] T010 Reescrever `shared/ai/catalog/index.ts`
   - Re-exportar tudo corretamente
   - Adicionar validação de integridade do catálogo no boot
 
@@ -83,13 +83,13 @@
 
 ### 4.1: Storage de Modelos
 
-- [ ] T011 [P] Reescrever `shared/ai/storage/types.ts`
+- [x] T011 [P] Reescrever `shared/ai/storage/types.ts`
   - Tipos: `ModelConfigStorage`, `DownloadedModelMap`
   - Schema de validação Zod
-- [ ] T012 [P] Reescrever `shared/ai/storage/mmkv.ts`
+- [x] T012 [P] Reescrever `shared/ai/storage/mmkv.ts`
   - Singleton MMKV com `createMMKV({ id: "model_config" })`
   - Lazy initialization com thread-safety
-- [ ] T013 Reescrever `shared/ai/storage/model-config.ts`
+- [x] T013 Reescrever `shared/ai/storage/model-config.ts`
   - `getActiveModelId(): string | null`
   - `setActiveModelId(modelId: string): void`
   - `clearActiveModelId(): void`
@@ -98,7 +98,7 @@
   - `removeDownloadedModel(modelId: string): void`
   - `replaceDownloadedModelMap(map: DownloadedModelMap): void`
   - Todas as funções com validação de entrada (Zod)
-- [ ] T014 Reescrever `shared/ai/storage/index.ts`
+- [x] T014 Reescrever `shared/ai/storage/index.ts`
   - Re-exportar tudo
 
 **Checkpoint**: Storage funcional, validado, com tipagem forte.
@@ -111,10 +111,10 @@
 
 ### 5.1: Path Resolution
 
-- [ ] T015 [P] Reescrever `shared/ai/paths/constants.ts`
+- [x] T015 [P] Reescrever `shared/ai/paths/constants.ts`
   - `MODELS_SUBDIRECTORY`, `MODEL_FILE_EXTENSION`
   - Migrar de `manager/constants.ts` para cá
-- [ ] T016 [P] Reescrever `shared/ai/paths/resolver.ts`
+- [x] T016 [P] Reescrever `shared/ai/paths/resolver.ts`
   - `ensureFileUri(pathOrUri: string): string` — garantir prefix `file://`
   - `getModelsDirectoryUri(): Result<string>` — resolver diretório base
   - `sanitizeModelId(modelId: string): string` — normalizar IDs
@@ -122,7 +122,7 @@
   - `resolveModelDestinationUri(modelId, customPath?, modelsDir): string` — resolver path final
   - `extractFileNameFromUrl(url: string): string` — parse de URL
   - `resolveLegacyModelUri(downloadUrl, modelsDir): string` — migração legacy
-- [ ] T017 Reescrever `shared/ai/paths/index.ts`
+- [x] T017 Reescrever `shared/ai/paths/index.ts`
   - Re-exportar tudo
 
 **Checkpoint**: Path resolution funcional, seguro, com migração legacy.
@@ -135,16 +135,16 @@
 
 ### 6.1: Download Engine
 
-- [ ] T018 [P] Reescrever `shared/ai/download/types.ts`
+- [x] T018 [P] Reescrever `shared/ai/download/types.ts`
   - `DownloadFileOptions`, `DownloadedFile`, `ResumableRef`, `DownloadProgress`
-- [ ] T019 [P] Reescrever `shared/ai/download/resumable.ts`
+- [x] T019 [P] Reescrever `shared/ai/download/resumable.ts`
   - `createResumableDownload(options): Promise<Result<DownloadedFile>>`
   - `FileSystem.createDownloadResumable()` com callback de progresso
   - Suporte a cancelamento via `cancelAsync()`
   - Cleanup de `.part` em falha/cancelamento
   - Validação de arquivo baixado (size > 0)
   - Move atômico de `.part` para destino final
-- [ ] T020 Reescrever `shared/ai/download/index.ts`
+- [x] T020 Reescrever `shared/ai/download/index.ts`
   - Re-exportar tudo
 
 **Checkpoint**: Download funcional com progresso, cancelamento e atomicidade.
@@ -157,21 +157,21 @@
 
 ### 7.1: Validation Engine
 
-- [ ] T021 [P] Reescrever `shared/ai/validation/types.ts`
+- [x] T021 [P] Reescrever `shared/ai/validation/types.ts`
   - `ModelFileDiagnostics`, `DiskSpaceCheck`, `RamCheck`
-- [ ] T022 [P] Reescrever `shared/ai/validation/file.ts`
+- [x] T022 [P] Reescrever `shared/ai/validation/file.ts`
   - `fileExists(pathOrUri): Promise<boolean>`
   - `verifyModelFile(pathOrUri, expectedSize?): Promise<Result<number>>`
   - Validar: existência, size > MIN_VALID_MODEL_BYTES, size ratio vs esperado
-- [ ] T023 [P] Reescrever `shared/ai/validation/disk-space.ts`
+- [x] T023 [P] Reescrever `shared/ai/validation/disk-space.ts`
   - `hasEnoughDiskSpace(requiredBytes): Promise<Result<boolean>>`
   - Usar `FileSystem.getFreeDiskStorageAsync()` se disponível
   - Buffer de segurança de 100MB
-- [ ] T024 [P] Reescrever `shared/ai/validation/ram.ts`
+- [x] T024 [P] Reescrever `shared/ai/validation/ram.ts`
   - `hasEnoughRam(estimatedRamBytes): Promise<Result<boolean>>`
   - Usar `DeviceInfo.getTotalMemory()`
   - Retornar warning (não bloqueio) se RAM insuficiente
-- [ ] T025 Reescrever `shared/ai/validation/index.ts`
+- [x] T025 Reescrever `shared/ai/validation/index.ts`
   - Re-exportar tudo
 
 **Checkpoint**: Validação completa de arquivo, disco e RAM.
@@ -184,10 +184,10 @@
 
 ### 8.1: ModelManager Service
 
-- [ ] T026 [P] Reescrever `shared/ai/manager/types.ts`
+- [x] T026 [P] Reescrever `shared/ai/manager/types.ts`
   - `ModelManagerState`, `ModelOperationResult`
   - Estado unificado: download active, progress, loaded model, errors
-- [ ] T027 Reescrever `shared/ai/manager/model-manager.service.ts`
+- [x] T027 Reescrever `shared/ai/manager/model-manager.service.ts`
   - **downloadModel(modelId, url, options)**: Orquestrar download → validate → persist
     - Usar T019 (download), T022 (validation), T013 (storage)
     - Progress callbacks, cancelamento
@@ -205,7 +205,7 @@
   - **getDownloadProgress()**: Progresso atual (0-100)
   - **isDownloadActive()**: Se download está em andamento
   - **hasEnoughRam() / hasEnoughDisk()**: Delegar para T024, T023
-- [ ] T028 Reescrever `shared/ai/manager/index.ts`
+- [x] T028 Reescrever `shared/ai/manager/index.ts`
   - Re-exportar tudo
 
 **Checkpoint**: ModelManager completo, orquestrando todas as camadas inferiores.
@@ -218,15 +218,15 @@
 
 ### 9.1: Local AI Runtime
 
-- [ ] T029 [P] Reescrever `shared/ai/runtime/types.ts`
+- [x] T029 [P] Reescrever `shared/ai/runtime/types.ts`
   - Manter compatibilidade com `llama.rn` types (`RNLlamaOAICompatibleMessage`)
   - `LlamaModel`, `LocalAIRuntimeStatus`, `CompletionOutput`, `CompletionOptions`
-- [ ] T030 [P] Reescrever `shared/ai/runtime/constants.ts`
+- [x] T030 [P] Reescrever `shared/ai/runtime/constants.ts`
   - `DEFAULT_CONTEXT_LENGTH = 4096`, `RESERVED_RESPONSE_TOKENS = 512`, `GENERATION_TIMEOUT_MS = 60000`
-- [ ] T031 [P] Reescrever `shared/ai/runtime/model-file.ts`
+- [x] T031 [P] Reescrever `shared/ai/runtime/model-file.ts`
   - `resolveModelPath(modelPath): string` — garantir `file://`
   - `diagnoseModelFile(filePath): Promise<ModelFileDiagnostics>` — validar existência + size
-- [ ] T032 Reescrever `shared/ai/runtime/local-ai-runtime.service.ts`
+- [x] T032 Reescrever `shared/ai/runtime/local-ai-runtime.service.ts`
   - **initialize()**: Boot do runtime (idempotent)
   - **loadModel(modelId, modelPath)**: `initLlama()` com `n_ctx`, `use_mlock`, `n_gpu_layers`
   - **unloadModel()**: `context.release()` + limpar estado
@@ -240,7 +240,7 @@
   - **getStatus()**: Status completo do runtime
   - **waitReady()**: Promise que resolve quando runtime está pronto
   - **isAvailable()**: Check se runtime está disponível (não-web)
-- [ ] T033 Reescrever `shared/ai/runtime/index.ts`
+- [x] T033 Reescrever `shared/ai/runtime/index.ts`
   - Re-exportar tudo
 
 **Checkpoint**: Runtime completo com streaming, timeout, token counting.

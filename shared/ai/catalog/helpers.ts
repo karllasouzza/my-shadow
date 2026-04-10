@@ -26,7 +26,9 @@ export function getAllModels(): ModelCatalogEntry[] {
  * Filter models that fit within the available RAM.
  */
 export function getModelsByRam(maxRamBytes: number): ModelCatalogEntry[] {
-  return MODEL_CATALOG.filter((model) => model.estimatedRamBytes <= maxRamBytes);
+  return MODEL_CATALOG.filter(
+    (model) => model.estimatedRamBytes <= maxRamBytes,
+  );
 }
 
 /**
@@ -38,7 +40,7 @@ export async function isModelDownloaded(modelId: string): Promise<boolean> {
   if (!path) return false;
 
   // Verify file still exists on disk
-  const *FileSystem = await import("expo-file-system/legacy");
+  const FileSystem = await import("expo-file-system/legacy");
   const info = await FileSystem.getInfoAsync(path);
   return info.exists;
 }

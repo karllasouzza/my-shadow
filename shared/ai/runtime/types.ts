@@ -1,36 +1,10 @@
-import { RNLlamaOAICompatibleMessage } from "llama.rn";
+/**
+ * Re-exports unified runtime types from `../types` to maintain
+ * backward compatibility for consumers importing from `runtime/types`.
+ */
 
-export type ChatMessage = RNLlamaOAICompatibleMessage;
+export type {
+    ChatMessage, CompletionOptions, CompletionOutput, LlamaModel,
+    LocalAIRuntimeStatus, OnTokenCallback
+} from "../types";
 
-export interface LlamaModel {
-  id: string;
-  name: string;
-  path: string;
-  sizeBytes: number;
-  contextLength: number;
-  isLoaded: boolean;
-}
-
-export interface LocalAIRuntimeStatus {
-  initialized: boolean;
-  modelLoaded: boolean;
-  currentModel?: LlamaModel;
-  availableMemory?: number;
-  totalMemory?: number;
-  tokensPerSecond?: number;
-}
-
-export interface CompletionOutput {
-  text: string;
-  promptTokens: number;
-  completionTokens: number;
-  totalTokens: number;
-}
-
-export type OnTokenCallback = (token: string) => void;
-
-export interface CompletionOptions {
-  onToken?: OnTokenCallback;
-  timeoutMs?: number;
-  maxTokens?: number;
-}

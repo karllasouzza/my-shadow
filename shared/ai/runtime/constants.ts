@@ -1,3 +1,9 @@
-export const DEFAULT_CONTEXT_LENGTH = 4096;
-export const RESERVED_RESPONSE_TOKENS = 512;
-export const GENERATION_TIMEOUT_MS = 60_000;
+/**
+ * Re-exports unified runtime constants from `../constants` to maintain
+ * backward compatibility for consumers importing from `runtime/constants`.
+ */
+
+export {
+    DEFAULT_CONTEXT_LENGTH, GENERATION_TIMEOUT_MS, RESERVED_RESPONSE_TOKENS
+} from "../constants";
+

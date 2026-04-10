@@ -4,19 +4,19 @@ import * as FileSystem from "expo-file-system/legacy";
 import DeviceInfo from "react-native-device-info";
 import { downloadFileAtomically, ensureDirectoryExists } from "./download";
 import {
-  ensureFileUri,
-  extractFileNameFromUrl,
-  getModelsDirectoryUri,
-  resolveLegacyModelUri,
-  resolveModelDestinationUri,
+    ensureFileUri,
+    extractFileNameFromUrl,
+    getModelsDirectoryUri,
+    resolveLegacyModelUri,
+    resolveModelDestinationUri,
 } from "./paths";
 import {
-  clearActiveModelId,
-  getActiveModelId,
-  getDownloadedModelMap,
-  removeDownloadedModelKey,
-  setActiveModelId,
-  setDownloadedModelPath,
+    clearActiveModelId,
+    getActiveModelId,
+    getDownloadedModelMap,
+    removeDownloadedModelKey,
+    setActiveModelId,
+    setDownloadedModelPath,
 } from "./storage";
 import { DownloadState, ResumableRef } from "./types";
 import { fileExists, hasEnoughDiskSpace, verifyModelFile } from "./validation";
@@ -54,7 +54,8 @@ export class ModelManager {
       }
 
       const modelsDirectoryUri = modelsDirectoryResult.data;
-      const ensureDirectoryResult = await ensureDirectoryExists(modelsDirectoryUri);
+      const ensureDirectoryResult =
+        await ensureDirectoryExists(modelsDirectoryUri);
       if (!ensureDirectoryResult.success) {
         return err(ensureDirectoryResult.error);
       }
@@ -80,7 +81,9 @@ export class ModelManager {
       }
 
       if (this.downloadState.cancelled) {
-        return err(createError("UNKNOWN_ERROR", "Download cancelado pelo usuario."));
+        return err(
+          createError("UNKNOWN_ERROR", "Download cancelado pelo usuario."),
+        );
       }
 
       const verificationResult = await verifyModelFile(
@@ -262,7 +265,10 @@ export class ModelManager {
       removeDownloadedModelKey(legacyKey);
     }
 
-    const legacyUriOnDisk = resolveLegacyModelUri(downloadUrl, modelsDirectoryUri);
+    const legacyUriOnDisk = resolveLegacyModelUri(
+      downloadUrl,
+      modelsDirectoryUri,
+    );
     if (await fileExists(legacyUriOnDisk)) {
       this.setDownloadedModel(modelId, legacyUriOnDisk);
       if (legacyKey !== modelId) {
@@ -302,7 +308,9 @@ export class ModelManager {
   }
 
   async hasEnoughDisk(requiredBytes: number): Promise<Result<boolean>> {
-    return hasEnoughDiskSpace(requiredBytes);
+    const result = await hasEnoughDiskSpace(requiredBytes);
+    if (!result.success) return result;
+    return ok(result.data.hasEnoughSpace);
   }
 
   async cancelDownload(): Promise<void> {

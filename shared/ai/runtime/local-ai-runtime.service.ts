@@ -1,33 +1,98 @@
-import {
-  AppError,
-  Result,
-  createError,
-  err,
-  ok,
-} from "@/shared/utils/app-error";
-import { LlamaContext, initLlama as initLlamaNative } from "llama.rn";
-import { Platform } from "react-native";
-import {
-  DEFAULT_CONTEXT_LENGTH,
-  GENERATION_TIMEOUT_MS,
-  RESERVED_RESPONSE_TOKENS,
-} from "./constants";
-import { diagnoseModelFile, resolveModelPath } from "./model-file";
-import {
-  ChatMessage,
-  CompletionOptions,
-  CompletionOutput,
-  LlamaModel,
-  LocalAIRuntimeStatus,
-} from "./types";
+/**
+ * Local AI Runtime Service
+ *
+ * Manages the llama.rn lifecycle: initialization, model loading, text
+ * generation, tokenization, and status reporting. All operations return
+ * `Result<T>` wrappers for consistent error handling.
+ *
+ * The service enforces a context window limit of 3584 effective tokens
+ * (DEFAULT_CONTEXT_LENGTH minus RESERVED_RESPONSE_TOKENS). Messages that
+ * exceed this budget are truncated from the oldest end while preserving
+ * the system prompt and the most recent messages.
+ */
 
+import { Platform } from "react-native";
+
+import { LlamaContext, initLlama as initLlamaNative } from "llama.rn";
+
+import {
+    AppError,
+    Result,
+    createError,
+    err,
+    ok,
+} from "@/shared/utils/app-error";
+import {
+    DEFAULT_CONTEXT_LENGTH,
+    EFFECTIVE_CONTEXT_TOKENS,
+    GENERATION_TIMEOUT_MS,
+    MAX_CONTEXT_MESSAGES,
+    RESERVED_RESPONSE_TOKENS,
+} from "../constants";
+import type {
+    ChatMessage,
+    CompletionOptions,
+    CompletionOutput,
+    LlamaModel,
+    LocalAIRuntimeStatus,
+} from "../types";
+import { diagnoseModelFile, resolveModelPath } from "./model-file";
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Type guard that narrows `unknown` to `AppError`. */
 function isAppError(value: unknown): value is AppError {
   if (!value || typeof value !== "object") {
     return false;
   }
-
   return "code" in value && "message" in value;
 }
+
+/**
+ * Truncates the message list so that the total token count fits within the
+ * effective context window (3584 tokens). Keeps the system message intact
+ * and removes the oldest messages first, up to `MAX_CONTEXT_MESSAGES`.
+ */
+async function truncateToContextWindow(
+  messages: ChatMessage[],
+  context: LlamaContext,
+): Promise<ChatMessage[]> {
+  // If the message count is already within bounds, return as-is.
+  if (messages.length <= MAX_CONTEXT_MESSAGES) {
+    const fullText = messages.map((m) => `${m.role}: ${m.content}`).join("\n");
+    const { tokens } = await context.tokenize(fullText);
+    if (tokens.length <= EFFECTIVE_CONTEXT_TOKENS) {
+      return messages;
+    }
+  }
+
+  // Separate system prompt from the rest.
+  const systemMessages = messages.filter((m) => m.role === "system");
+  const nonSystem = messages.filter((m) => m.role !== "system");
+
+  // Take the most recent messages up to MAX_CONTEXT_MESSAGES.
+  let window = nonSystem.slice(-MAX_CONTEXT_MESSAGES);
+
+  // Iteratively drop the oldest message until we fit the token budget.
+  while (window.length > 0) {
+    const fullText = [...systemMessages, ...window]
+      .map((m) => `${m.role}: ${m.content}`)
+      .join("\n");
+    const { tokens } = await context.tokenize(fullText);
+    if (tokens.length <= EFFECTIVE_CONTEXT_TOKENS) {
+      break;
+    }
+    window = window.slice(1);
+  }
+
+  return [...systemMessages, ...window];
+}
+
+// ---------------------------------------------------------------------------
+// Service
+// ---------------------------------------------------------------------------
 
 export class LocalAIRuntimeService {
   private initialized = false;
@@ -43,6 +108,11 @@ export class LocalAIRuntimeService {
     });
   }
 
+  /**
+   * Initializes the runtime. On web platforms this always fails because
+   * `llama.rn` requires native APIs. Safe to call multiple times; subsequent
+   * calls return immediately.
+   */
   async initialize(): Promise<Result<void>> {
     if (this.initialized) {
       return ok(void 0);
@@ -86,10 +156,18 @@ export class LocalAIRuntimeService {
     return result;
   }
 
+  /** Resolves when the runtime has finished initializing. */
   async waitReady(): Promise<void> {
     return this.runtimeReady;
   }
 
+  /**
+   * Loads a GGUF model into the llama.rn context.
+   *
+   * @param modelId  - Logical identifier for the model.
+   * @param modelPath - Absolute `file://` path to the GGUF file (will be
+   *   normalized via `resolveModelPath` if missing the scheme).
+   */
   async loadModel(
     modelId: string,
     modelPath: string,
@@ -184,6 +262,12 @@ export class LocalAIRuntimeService {
     }
   }
 
+  /**
+   * Checks whether a model is loaded and ready for generation.
+   *
+   * @param modelId - When provided, verifies that the currently loaded model
+   *   matches this ID.
+   */
   isModelLoaded(modelId?: string): boolean {
     if (!this.initialized) return false;
     if (!this.currentModel) return false;
@@ -192,10 +276,16 @@ export class LocalAIRuntimeService {
     return this.currentModel.isLoaded;
   }
 
+  /** Returns the currently loaded model metadata, or `null`. */
   getCurrentModel(): LlamaModel | null {
     return this.currentModel;
   }
 
+  /**
+   * Tokenizes a string using the currently loaded model.
+   *
+   * @returns An array of token IDs.
+   */
   async tokenize(text: string): Promise<Result<number[]>> {
     try {
       const modelResult = await this.ensureDefaultModelLoaded();
@@ -217,6 +307,17 @@ export class LocalAIRuntimeService {
     }
   }
 
+  /**
+   * Generates a completion for the given chat messages.
+   *
+   * Messages are automatically truncated if their combined token count
+   * exceeds the effective context window (3584 tokens). The system prompt
+   * is always preserved.
+   *
+   * @param messages - Chat history in OpenAI-compatible format.
+   * @param options  - Optional generation parameters (maxTokens, timeout,
+   *   onToken callback).
+   */
   async generateCompletion(
     messages: ChatMessage[],
     options?: CompletionOptions,
@@ -231,7 +332,13 @@ export class LocalAIRuntimeService {
         return err(modelResult.error);
       }
 
-      const promptText = messages
+      // Truncate messages to fit within the effective context window.
+      const windowedMessages = await truncateToContextWindow(
+        messages,
+        this.context!,
+      );
+
+      const promptText = windowedMessages
         .map((message) => `${message.role}: ${message.content}`)
         .join("\n");
 
@@ -257,7 +364,7 @@ export class LocalAIRuntimeService {
       let streamed = "";
       const completionPromise = this.context!.completion(
         {
-          messages,
+          messages: windowedMessages,
           n_predict: maxTokens,
           stop: ["</s>", "<|end|>", "\nUser:"],
         },
@@ -323,6 +430,7 @@ export class LocalAIRuntimeService {
     }
   }
 
+  /** Returns the current runtime status snapshot. */
   async getStatus(): Promise<LocalAIRuntimeStatus> {
     return {
       initialized: this.initialized,
@@ -332,6 +440,10 @@ export class LocalAIRuntimeService {
     };
   }
 
+  /**
+   * Unloads the current model and releases the native context, freeing
+   * memory held by llama.rn.
+   */
   async unloadModel(): Promise<Result<void>> {
     try {
       if (!this.currentModel || !this.context) {
@@ -350,6 +462,7 @@ export class LocalAIRuntimeService {
     }
   }
 
+  /** Whether the runtime has been initialized (regardless of model state). */
   isAvailable(): boolean {
     return this.initialized;
   }
@@ -373,8 +486,15 @@ export class LocalAIRuntimeService {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Singleton
+// ---------------------------------------------------------------------------
+
 let runtimeInstance: LocalAIRuntimeService;
 
+/**
+ * Returns the singleton instance of `LocalAIRuntimeService`.
+ */
 export function getLocalAIRuntime(): LocalAIRuntimeService {
   if (!runtimeInstance) {
     runtimeInstance = new LocalAIRuntimeService();

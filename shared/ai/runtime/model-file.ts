@@ -1,11 +1,21 @@
+/**
+ * Model file utilities: path resolution and diagnostics.
+ *
+ * Handles GGUF model file path normalization and validates that the file
+ * exists on disk with a non-zero size before attempting to load it.
+ */
+
 import * as FileSystem from "expo-file-system/legacy";
 
-export interface ModelFileDiagnostics {
-  isValid: boolean;
-  errorMessage: string;
-  details: Record<string, unknown>;
-}
+import type { ModelFileDiagnostics } from "../types";
 
+/**
+ * Ensures a model path has the `file://` URI scheme prefix required by
+ * `llama.rn` and `expo-file-system`.
+ *
+ * @param modelPath - Absolute path or `file://` URI to the GGUF model file.
+ * @returns The path guaranteed to start with `file://`.
+ */
 export function resolveModelPath(modelPath: string): string {
   if (!modelPath) {
     return modelPath;
@@ -18,6 +28,14 @@ export function resolveModelPath(modelPath: string): string {
   return `file://${modelPath}`;
 }
 
+/**
+ * Diagnoses a model file at the given path, checking for existence and
+ * minimum valid size.
+ *
+ * @param filePath - The `file://` URI of the GGUF model to validate.
+ * @returns A `ModelFileDiagnostics` object indicating whether the file is
+ *          valid and providing error details when it is not.
+ */
 export async function diagnoseModelFile(
   filePath: string,
 ): Promise<ModelFileDiagnostics> {
