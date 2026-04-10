@@ -1,4 +1,8 @@
-import { Icon } from "@/components/ui/icon";
+/**
+ * T006/T008: Root layout — routes to (tabs)/ group
+ *
+ * No legacy screen registrations. Only (tabs)/ route group.
+ */
 import { ThemeProvider } from "@/context/themes";
 import { PortalHost } from "@rn-primitives/portal";
 import { Stack } from "expo-router";
@@ -20,7 +24,7 @@ export default function RootLayout() {
   if (!isReady) {
     return (
       <View className="flex-1 bg-background items-center justify-center">
-        <Icon as={Loader2} className="text-primary size-6" />
+        <Loader2 size={24} color="#3b82f6" />
       </View>
     );
   }
@@ -31,17 +35,15 @@ export default function RootLayout() {
         <ThemeProvider>
           <Stack
             screenOptions={{
-              contentStyle: {
-                backgroundColor: "transparent",
-              },
+              contentStyle: { backgroundColor: "transparent" },
               headerShown: false,
             }}
           >
-            <Stack.Screen name="(chat)" />
+            <Stack.Screen name="(tabs)" />
           </Stack>
+          <PortalHost />
+          <Toaster />
         </ThemeProvider>
-        <PortalHost />
-        <Toaster />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

@@ -23,14 +23,14 @@ description: "Task list for AI Chat App Restructure — regenerated with new arc
 
 **Purpose**: Remove onboarding feature entirely, clean up deprecated files, create new shared/ai/ structure, update route group.
 
-- [ ] T001 [P] Delete `features/onboarding/` directory and all subfiles
-- [ ] T002 [P] Remove `app/onboarding.tsx` route and any onboarding references from `_layout.tsx`
-- [ ] T003 Grep-sweep: verify zero imports of `onboarding`, `reflection`, `review`, `export` in remaining code. Run `npx tsc --noEmit` and `npm test` to confirm clean
-- [ ] T004 [P] Move `features/onboarding/service/model-manager.ts` → `shared/ai/model-manager.ts`. Update all import paths across codebase
-- [ ] T005 [P] Create `shared/ai/model-catalog.ts` with MODEL_CATALOG array (moved from inline in components)
-- [ ] T006 [P] Delete root `components/chat/`, `components/history/` directories (components move to feature modules)
-- [ ] T007 [P] Create feature component directories: `features/chat/components/`, `features/history/components/`, `features/model-management/components/`
-- [ ] T008 [P] Configure bottom tab navigator: install `expo-router` tabs or `@react-navigation/bottom-tabs`, create `(tabs)/` route group with 3 tabs: `chat` (Chat), `models` (Model Management), `history` (History)
+- [x] T001 [P] Delete `features/onboarding/` directory and all subfiles
+- [x] T002 [P] Remove `app/onboarding.tsx` route and any onboarding references from `_layout.tsx`
+- [x] T003 Grep-sweep: verify zero imports of `onboarding`, `reflection`, `review`, `export` in remaining code. Run `npx tsc --noEmit` and `npm test` to confirm clean
+- [x] T004 [P] Move `features/onboarding/service/model-manager.ts` → `shared/ai/model-manager.ts`. Update all import paths across codebase
+- [x] T005 [P] Create `shared/ai/model-catalog.ts` with MODEL_CATALOG array (moved from inline in components)
+- [x] T006 [P] Delete root `components/chat/`, `components/history/` directories (components move to feature modules)
+- [x] T007 [P] Create feature component directories: `features/chat/components/`, `features/history/components/`, `features/model-management/components/`
+- [x] T008 [P] Configure bottom tab navigator: install `expo-router` tabs or `@react-navigation/bottom-tabs`, create `(tabs)/` route group with 3 tabs: `chat` (Chat), `models` (Model Management), `history` (History)
 
 **Checkpoint**: Onboarding removed. shared/ai/ owns model lifecycle + catalog. No legacy imports. Feature component dirs ready.
 
