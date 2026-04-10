@@ -13,13 +13,13 @@
  *
  * Actions: browseModels(), downloadModel(), loadModel(), unloadModel(), refreshStatus()
  */
-import { getLocalAIRuntime } from "@/shared/ai/runtime/local-ai-runtime.service";
 import {
   findModelById,
   MODEL_CATALOG,
   type ModelCatalogEntry,
 } from "@/shared/ai/catalog";
 import { getModelManager } from "@/shared/ai/manager/model-manager.service";
+import { getLocalAIRuntime } from "@/shared/ai/runtime/local-ai-runtime.service";
 import { observable, Observable } from "@legendapp/state";
 import DeviceInfo from "react-native-device-info";
 
