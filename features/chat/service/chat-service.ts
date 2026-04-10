@@ -7,10 +7,11 @@
  */
 
 import { Result, createError, err, ok } from "@/shared/utils/app-error";
+import { randomUUID } from "expo-crypto";
 import { createMMKV, type MMKV } from "react-native-mmkv";
 import type {
-    ChatConversation,
-    ChatConversationIndex,
+  ChatConversation,
+  ChatConversationIndex,
 } from "../model/chat-conversation";
 import { autoGenerateTitle, validateTitle } from "../model/chat-conversation";
 import { createChatMessage } from "../model/chat-message";
@@ -30,7 +31,7 @@ function getStorage(): MMKV {
 export function createConversation(modelId: string): ChatConversation {
   const now = new Date().toISOString();
   return {
-    id: crypto.randomUUID(),
+    id: randomUUID(),
     title: "Nova conversa",
     createdAt: now,
     updatedAt: now,
