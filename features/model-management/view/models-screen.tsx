@@ -1,13 +1,3 @@
-/**
- * T044: Models screen — wrapped with Legend State observer
- *
- * Model Management tab content.
- * Shows catalog of available models with download/load/unload actions.
- * 5 UX states: no models, browsing, downloading, loading, failed.
- *
- * Fix: Wrapped in observer() to prevent infinite re-renders.
- * Removed polling setInterval — observer tracks observables automatically.
- */
 import { syncModelStatus } from "@/features/chat/view-model/use-chat-vm";
 import { DownloadProgress } from "@/features/model-management/components/download-progress";
 import { ModelCatalog } from "@/features/model-management/components/model-catalog";
@@ -84,9 +74,6 @@ const ModelsScreenInner = observer(function ModelsScreenInner() {
       <View className="px-5 py-4 border-b border-border">
         <Text className="text-foreground text-xl font-bold">
           Gerenciar Modelos
-        </Text>
-        <Text className="text-muted text-sm mt-1">
-          Baixe e carregue modelos GGUF para inferência local.
         </Text>
       </View>
 

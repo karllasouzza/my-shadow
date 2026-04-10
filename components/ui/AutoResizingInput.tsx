@@ -1,14 +1,14 @@
-import React, { useState, useRef } from 'react';
+import React, { useRef, useState } from "react";
 import {
-  View,
-  TextInput,
-  Platform,
-  StyleProp,
-  ViewStyle,
-  TextStyle,
-  NativeSyntheticEvent,
-  TextInputContentSizeChangeEventData,
-} from 'react-native';
+    NativeSyntheticEvent,
+    Platform,
+    StyleProp,
+    TextInput,
+    TextInputContentSizeChangeEventData,
+    TextStyle,
+    View,
+    ViewStyle,
+} from "react-native";
 
 interface AutoResizingInputProps {
   onSend?: (text: string) => void;
@@ -21,34 +21,45 @@ interface AutoResizingInputProps {
 
 const AutoResizingInput: React.FC<AutoResizingInputProps> = ({
   onSend,
-  placeholder = 'Type your message...',
+  placeholder = "Type your message...",
   minHeight = 36,
   maxHeight = 140,
   containerStyle,
   inputStyle,
 }) => {
-  const [text, setText] = useState('');
+  const [text, setText] = useState("");
   const [height, setHeight] = useState(minHeight);
   const inputRef = useRef<TextInput | null>(null);
 
-  const handleContentSizeChange = (e: NativeSyntheticEvent<TextInputContentSizeChangeEventData>) => {
-    const newHeight = Math.min(maxHeight, Math.max(minHeight, e.nativeEvent.contentSize.height));
+  const handleContentSizeChange = (
+    e: NativeSyntheticEvent<TextInputContentSizeChangeEventData>,
+  ) => {
+    const newHeight = Math.min(
+      maxHeight,
+      Math.max(minHeight, e.nativeEvent.contentSize.height),
+    );
     setHeight(newHeight);
   };
 
   const handleKeyPress = (e: any) => {
-    if (Platform.OS === 'web' && e.nativeEvent.key === 'Enter' && !e.nativeEvent.shiftKey) {
+    if (
+      Platform.OS === "web" &&
+      e.nativeEvent.key === "Enter" &&
+      !e.nativeEvent.shiftKey
+    ) {
       e.preventDefault();
       if (text.trim()) {
         onSend?.(text.trim());
-        setText('');
+        setText("");
         setHeight(minHeight);
       }
     }
   };
 
   return (
-    <View style={[{ paddingHorizontal: 16, paddingVertical: 8 }, containerStyle]}>
+    <View
+      style={[{ paddingHorizontal: 16, paddingVertical: 8 }, containerStyle]}
+    >
       <TextInput
         ref={inputRef}
         value={text}
@@ -63,8 +74,8 @@ const AutoResizingInput: React.FC<AutoResizingInputProps> = ({
             fontSize: 16,
             lineHeight: 20,
             height: Math.max(minHeight, height),
-            color: '#FFFFFF',
-            backgroundColor: '#111827',
+            color: "#FFFFFF",
+            backgroundColor: "#111827",
             borderRadius: 12,
             paddingHorizontal: 12,
             paddingVertical: 8,

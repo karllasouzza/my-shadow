@@ -1,26 +1,15 @@
-/**
- * T056/T058/T061/T062/T064: History screen with manage (rename/delete)
- *
- * ConversationList or EmptyHistoryState, loading spinner.
- * Auto-refresh on focus via useFocusEffect.
- * Tap → switch to Chat tab + load conversation.
- * Long-press → rename/delete confirmation dialogs.
- *
- * Fix: Wrapped in observer() to prevent infinite re-renders.
- * Removed polling setInterval — observer tracks observables automatically.
- */
 import type { ChatConversationIndex } from "@/features/chat/model/chat-conversation";
 import {
-    loadConversation as loadChatConversation,
-    resetChatState,
+  loadConversation as loadChatConversation,
+  resetChatState,
 } from "@/features/chat/view-model/use-chat-vm";
 import { ConversationList } from "@/features/history/components/conversation-list";
 import { EmptyHistory } from "@/features/history/components/empty-history";
 import {
-    deleteConversation,
-    getHistoryState,
-    loadConversations,
-    renameConversation,
+  deleteConversation,
+  getHistoryState,
+  loadConversations,
+  renameConversation,
 } from "@/features/history/view-model/use-history-vm";
 import { observer } from "@legendapp/state/react";
 import { router, useFocusEffect } from "expo-router";

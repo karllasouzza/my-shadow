@@ -98,10 +98,11 @@ export async function downloadModel(modelId: string): Promise<void> {
   state.errorMessage.set(null);
 
   const downloadResult = await manager.downloadModel(
+    modelId,
     model.downloadUrl,
     undefined,
     model.fileSizeBytes,
-    (progress) => {
+    (progress: number) => {
       state.downloadProgress.set(progress);
     },
   );
@@ -114,17 +115,7 @@ export async function downloadModel(modelId: string): Promise<void> {
     return;
   }
 
-  // Persist the downloaded model path
-  manager.setDownloadedModel(modelId, downloadResult.data);
-
-  // Update downloaded models list
-  const newDownloaded: DownloadedModelInfo = {
-    id: modelId,
-    localPath: downloadResult.data,
-    isLoaded: false,
-  };
-  state.downloadedModels.set([...state.downloadedModels.get(), newDownloaded]);
-  refreshStatus();
+  await refreshStatus();
 }
 
 /**
@@ -163,9 +154,19 @@ export async function loadModel(
   state.isLoading.set(true);
   state.errorMessage.set(null);
 
-  // Use persisted local path if available, otherwise fallback to convention
-  const downloadedPaths = manager.getDownloadedModels();
-  const localPath = downloadedPaths[modelId] ?? `file://${model.id}.gguf`;
+  const localPath = await manager.getDownloadedModelPath(
+    modelId,
+    model.downloadUrl,
+  );
+
+  if (!localPath) {
+    state.isLoading.set(false);
+    state.errorMessage.set(
+      "Arquivo do modelo nao encontrado no disco. Baixe o modelo novamente.",
+    );
+    return;
+  }
+
   const loadResult = await manager.loadModel(modelId, localPath);
 
   state.isLoading.set(false);
