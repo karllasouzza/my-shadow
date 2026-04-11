@@ -35,6 +35,7 @@ interface ChatBottomBarProps {
   quickActions?: QuickAction[];
   isGenerating?: boolean;
   isModelReady?: boolean;
+  isModelLoading?: boolean;
   className?: string;
 
   selectedModel: string | null;
@@ -77,6 +78,7 @@ function ChatBottomBar({
 
   className,
 
+  isModelLoading,
   selectedModel,
   availableModels,
   modelError,
@@ -89,9 +91,10 @@ function ChatBottomBar({
     onSend();
   };
 
+  if (availableModels.length === 0 && !isModelLoading) return null;
+
   return (
-    <View className={cn("bg-background", className)}>
-      {/* Quick Actions Row */}
+    <View className={cn("flex w-full bg-background", className)}>
       {quickActions.length > 0 && (
         <ScrollView
           horizontal
@@ -119,7 +122,7 @@ function ChatBottomBar({
         </ScrollView>
       )}
 
-      <View className="px-4 pt-3 pb-2">
+      <View className="flex w-full p-3 pt-3">
         <View className="bg-card border border-border rounded-2xl p-3 pt-3">
           {/* Text Input */}
           <AutoResizingInput
@@ -145,7 +148,7 @@ function ChatBottomBar({
             <ModelSelector
               models={availableModels}
               selectedModelId={selectedModel}
-              isLoading={isModelReady === false}
+              isLoading={isModelLoading ?? false}
               error={modelError}
               onSelect={handleModelSelect}
             />

@@ -120,15 +120,20 @@ export function useChat() {
     const runtime = getAIRuntime();
     if (runtime.isModelLoaded()) return;
 
-    setIsModelLoading(true);
     const result = await aiAutoLoadLastModel();
-    if (result?.success) {
+    if (!result) return; // No models downloaded, skip loading entirely
+
+    setIsModelLoading(true);
+    if (result.success) {
       setIsModelReady(true);
       setModelsRefresh((v) => v + 1);
       const models = getAvailableModels();
       const selected = getSelectedModelId();
       const entry = models.find((m) => m.id === selected);
       setModelSupportsReasoning(entry?.supportsReasoning ?? false);
+      setModelError(null);
+    } else {
+      setModelError(result.error ?? "Falha ao carregar modelo.");
     }
     setIsModelLoading(false);
   }, []);

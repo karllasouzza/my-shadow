@@ -1,6 +1,7 @@
-import { Icon } from "@/components/ui/icon";
+import { Button } from "@/components/ui/button";
 import { AIBubble } from "@/features/chat/components/ai-bubble";
 import { ChatBottomBar } from "@/features/chat/components/chat-bottom-bar";
+import { ConversationErrorState } from "@/features/chat/components/conversation-error-state";
 import { EmptyState } from "@/features/chat/components/empty-state";
 import { StreamingBubble } from "@/features/chat/components/streaming-bubble";
 import { ThinkingToggle } from "@/features/chat/components/thinking-toggle";
@@ -8,8 +9,13 @@ import { UserBubble } from "@/features/chat/components/user-bubble";
 import { useChat } from "@/features/chat/view-model/use-chat";
 import { LegendList } from "@legendapp/list";
 import { observer } from "@legendapp/state/react";
-import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { AlertCircle, Clock, Plus, Settings } from "lucide-react-native";
+import {
+  Link,
+  router,
+  useFocusEffect,
+  useLocalSearchParams,
+} from "expo-router";
+import { Clock, Plus, Settings } from "lucide-react-native";
 import React, { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
@@ -122,55 +128,35 @@ const ChatScreenInner = observer(function ChatScreenInner() {
         <View style={{ flex: 1 }}>
           {/* Conversation Error Overlay */}
           {chat.conversationError ? (
-            <View className="flex-1 items-center justify-center px-6">
-              <View className="w-full bg-card border border-border rounded-2xl p-6 items-center">
-                <View className="w-16 h-16 rounded-full bg-destructive/10 items-center justify-center mb-4">
-                  <Icon
-                    as={AlertCircle}
-                    size={32}
-                    className="text-destructive"
-                  />
-                </View>
-                <Text className="text-foreground text-lg font-semibold mb-2">
-                  {chat.conversationError}
-                </Text>
-                <Text className="text-muted text-center text-sm mb-6">
-                  Esta conversa não pôde ser carregada. Ela pode ter sido
-                  removida ou corrompida.
-                </Text>
-                <TouchableOpacity
-                  onPress={() => {
-                    chat.clearConversationError();
-                    router.push("/history");
-                  }}
-                  className="w-full flex-row items-center justify-center gap-2 py-3 bg-primary rounded-xl active:opacity-90"
-                  accessibilityRole="button"
-                  accessibilityLabel="Voltar ao histórico"
-                >
-                  <Icon
-                    as={Clock}
-                    size={18}
-                    className="text-primary-foreground"
-                  />
-                  <Text className="text-primary-foreground text-base font-medium">
-                    Voltar ao Histórico
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+            <ConversationErrorState
+              title={chat.conversationError}
+              onBackToHistory={() => {
+                chat.clearConversationError();
+                router.push("/history");
+              }}
+            />
           ) : !chat.hasContent ? (
             !chat.isModelReady ? (
               <View className="flex-1 items-center justify-center px-8">
-                <Text className="text-foreground text-xl font-semibold mb-2">
+                <Text className="text-foreground text-2xl font-semibold">
                   {chat.availableModels.length === 0
                     ? "Nenhum modelo baixado"
                     : "Nenhum modelo carregado"}
                 </Text>
-                <Text className="text-muted text-center text-base">
+                <Text className="text-foreground/75 text-center text-base">
                   {chat.availableModels.length === 0
-                    ? "Vá para Modelos para baixar um modelo."
+                    ? "Baixe um modelo para começar a conversar."
                     : "Selecione um modelo no seletor acima."}
                 </Text>
+                {chat.availableModels.length === 0 && (
+                  <Link href="/models" asChild>
+                    <Button className="mt-6">
+                      <Text className="text-sm text-primary-foreground">
+                        Baixar Modelos
+                      </Text>
+                    </Button>
+                  </Link>
+                )}
               </View>
             ) : (
               <EmptyState />
@@ -215,6 +201,7 @@ const ChatScreenInner = observer(function ChatScreenInner() {
           handleCancel={chat.cancelGeneration}
           isGenerating={chat.isGenerating}
           isModelReady={chat.isModelReady}
+          isModelLoading={chat.isModelLoading}
           // Model selector props
           selectedModel={chat.selectedModelId}
           availableModels={chat.availableModels}
