@@ -38,7 +38,6 @@ export function useChat() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [streamingMessage, setStreamingMessage] =
     useState<StreamingMessage | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showCancelOption, setShowCancelOption] = useState(false);
   const [thinkingEnabled, setThinkingEnabledState] = useState(() =>
     getThinkingEnabled(),
@@ -47,11 +46,19 @@ export function useChat() {
   const [isModelLoading, setIsModelLoading] = useState(false);
   const [modelError, setModelError] = useState<string | null>(null);
 
+  // Global conversation error (shown as overlay, not in chat)
+  const [conversationError, setConversationError] = useState<string | null>(
+    null,
+  );
+
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Refs to avoid stale closures in async callbacks (onToken, abort)
   const streamingMessageRef = useRef<StreamingMessage | null>(null);
   const streamingKeyRef = useRef<string>("");
+
+  // Ref to store last user message for retry functionality
+  const lastUserMessageRef = useRef<string>("");
 
   // Unique key generator for LegendList — guarantees no duplicates
   const keyCounterRef = useRef(0);
@@ -135,6 +142,7 @@ export function useChat() {
     setIsGenerating(false);
     setShowCancelOption(false);
     setThinkingEnabledState(getThinkingEnabled());
+    setConversationError(null);
 
     const model = getAIRuntime().getCurrentModel();
     const catalog = getAvailableModels();
@@ -145,7 +153,6 @@ export function useChat() {
     // If no ID, just reset and return
     if (!id) {
       setConversationId(null);
-      setErrorMessage(null);
       return;
     }
 
@@ -153,16 +160,34 @@ export function useChat() {
     const loadResult = DatabaseChat.loadConversation(id);
     if (!loadResult.success || !loadResult.data) {
       setConversationId(null);
-      setErrorMessage(
-        "Conversa não encontrada. Ela pode ter sido removida ou corrompida.",
-      );
+      setConversationError("Conversa não encontrada");
       return;
     }
 
     // Conversation exists, set it
     setConversationId(id);
-    setErrorMessage(null);
   }, []);
+
+  /** Helper to add error message to conversation */
+  const addErrorMessageToConversation = useCallback(
+    (convId: string, errorMessage: string, errorCode?: string) => {
+      const result = DatabaseChat.loadConversation(convId);
+      if (!result.success || !result.data) return;
+
+      result.data.messages.push(
+        createChatMessage(
+          "error",
+          errorMessage,
+          undefined,
+          undefined,
+          errorCode,
+        ),
+      );
+      result.data.updatedAt = new Date().toISOString();
+      DatabaseChat.saveConversation(result.data);
+    },
+    [],
+  );
 
   const syncModelStatus = useCallback(() => {
     const loaded = getAIRuntime().isModelLoaded();
@@ -178,18 +203,29 @@ export function useChat() {
 
   const sendMessage = useCallback(
     async (content: string) => {
-      setErrorMessage(null);
+      // Store for retry functionality
+      lastUserMessageRef.current = content;
 
       const validation = validateChatMessage(content);
       if (!validation.isValid) {
-        setErrorMessage(validation.error ?? "Mensagem inválida.");
+        if (conversationId) {
+          addErrorMessageToConversation(
+            conversationId,
+            validation.error ?? "Mensagem inválida.",
+            "VALIDATION_ERROR",
+          );
+        }
         return;
       }
 
       if (!isModelReady) {
-        setErrorMessage(
-          "Nenhum modelo carregado. Selecione um modelo no seletor acima.",
-        );
+        if (conversationId) {
+          addErrorMessageToConversation(
+            conversationId,
+            "Nenhum modelo carregado. Selecione um modelo no seletor acima.",
+            "MODEL_NOT_LOADED",
+          );
+        }
         return;
       }
 
@@ -204,7 +240,11 @@ export function useChat() {
 
       const loadResult = DatabaseChat.loadConversation(convId);
       if (!loadResult.success || !loadResult.data) {
-        setErrorMessage("Falha ao carregar conversa.");
+        addErrorMessageToConversation(
+          convId,
+          "Falha ao carregar conversa.",
+          "CONVERSATION_LOAD_FAILED",
+        );
         return;
       }
       const conv = loadResult.data;
@@ -340,11 +380,13 @@ export function useChat() {
         setStreamingMessage(null);
         abortControllerRef.current = null;
 
-        // Only set error if there's no user-visible content
+        const errorCode = streamResult.error?.code ?? "GENERATION_FAILED";
+        const errorMsg =
+          streamResult.error?.message ?? "Falha ao gerar resposta.";
+
+        // Only add error message if there's no user-visible content
         if (!outputText.trim() && !thinkingText.trim()) {
-          setErrorMessage(
-            streamResult.error?.message ?? "Falha ao gerar resposta.",
-          );
+          addErrorMessageToConversation(convId!, errorMsg, errorCode);
           return;
         }
 
@@ -387,6 +429,27 @@ export function useChat() {
     [conversationId, isModelReady, thinkingEnabled, makeKey],
   );
 
+  /** Retry last message by re-sending the last user message */
+  const retryLastMessage = useCallback(async () => {
+    const lastMessage = lastUserMessageRef.current;
+    if (!lastMessage) return;
+
+    // Remove the last error message before retrying
+    if (conversationId) {
+      const result = DatabaseChat.loadConversation(conversationId);
+      if (result.success && result.data) {
+        const lastMsg = result.data.messages[result.data.messages.length - 1];
+        if (lastMsg?.role === "error") {
+          result.data.messages.pop();
+          result.data.updatedAt = new Date().toISOString();
+          DatabaseChat.saveConversation(result.data);
+        }
+      }
+    }
+
+    await sendMessage(lastMessage);
+  }, [conversationId, sendMessage]);
+
   const cancelGeneration = useCallback(() => {
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
@@ -408,7 +471,6 @@ export function useChat() {
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
     setConversationId(null);
-    setErrorMessage(null);
     setIsGenerating(false);
     setStreamingMessage(null);
     setShowCancelOption(false);
@@ -451,8 +513,8 @@ export function useChat() {
       isModelReady,
       isGenerating,
       streamingMessage,
-      errorMessage,
       modelError,
+      conversationError,
       showCancelOption: showCancelOption && isGenerating,
       thinkingEnabled,
       modelSupportsReasoning,
@@ -470,6 +532,8 @@ export function useChat() {
       cancelGeneration,
       toggleThinking,
       resetChatState,
+      retryLastMessage,
+      clearConversationError: () => setConversationError(null),
 
       // Model Actions
       loadModel,
@@ -481,8 +545,8 @@ export function useChat() {
       isModelReady,
       isGenerating,
       streamingMessage,
-      errorMessage,
       modelError,
+      conversationError,
       showCancelOption,
       thinkingEnabled,
       modelSupportsReasoning,

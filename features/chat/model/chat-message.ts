@@ -4,13 +4,14 @@
  * Individual message within a conversation. Embedded in ChatConversation.messages.
  */
 
-export type MessageRole = "user" | "assistant" | "system";
+export type MessageRole = "user" | "assistant" | "system" | "error";
 
 export interface ChatMessage {
   role: MessageRole;
   content: string;
   thinking?: string; // Seção "Thoughts" — processo de raciocínio da IA (expansível)
   modelId?: string; // Qual modelo gerou esta mensagem
+  errorCode?: string; // Código do erro (para mensagens de erro)
   timestamp: string; // ISO 8601
 }
 
@@ -37,12 +38,14 @@ export function createChatMessage(
   content: string,
   thinking?: string,
   modelId?: string,
+  errorCode?: string,
 ): ChatMessage {
   return {
     role,
     content,
     thinking: thinking ?? undefined,
     modelId: modelId ?? undefined,
+    errorCode: errorCode ?? undefined,
     timestamp: new Date().toISOString(),
   };
 }
