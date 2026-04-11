@@ -32,8 +32,7 @@ const ChatScreenInner = observer(function ChatScreenInner() {
   // Enable resize mode for proper keyboard handling on Android
   useResizeMode();
 
-  const ScreenContainer =
-    Platform.OS === "ios" ? KeyboardAvoidingView : View;
+  const ScreenContainer = Platform.OS === "ios" ? KeyboardAvoidingView : View;
   const insets = useSafeAreaInsets();
 
   const flatListRef = useRef<any>(null);
