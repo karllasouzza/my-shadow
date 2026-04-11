@@ -159,7 +159,6 @@ function ChatBottomBar({
               }
               variant={isGenerating ? "destructive" : "default"}
               size="icon"
-              disabled={isGenerating && !onVoiceMode}
               accessibilityRole="button"
               accessibilityLabel={
                 isGenerating
