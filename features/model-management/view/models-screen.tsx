@@ -1,18 +1,14 @@
-/**
- * Models Screen
- *
- * Apenas catálogo de downloads — load/unload é feito na Chat Screen.
- */
-
-import { DownloadProgress } from "@/features/model-management/components/download-progress";
+import { TopBar } from "@/components/top-bar";
 import { ModelCatalog } from "@/features/model-management/components/model-catalog";
 import type { ModelStatus } from "@/features/model-management/components/model-item";
 import { useModels } from "@/features/model-management/view-model/use-models";
 import { observer } from "@legendapp/state/react";
+import { useRouter } from "expo-router";
 import React, { useCallback, useMemo } from "react";
 import { Text, View } from "react-native";
 
 const ModelsScreenInner = observer(function ModelsScreenInner() {
+  const router = useRouter();
   const {
     catalog,
     isLoading,
@@ -20,6 +16,8 @@ const ModelsScreenInner = observer(function ModelsScreenInner() {
     downloadProgress,
     errorMessage,
     downloadedModels,
+    searchQuery,
+    setSearchQuery,
     downloadModel,
   } = useModels();
 
@@ -37,7 +35,6 @@ const ModelsScreenInner = observer(function ModelsScreenInner() {
     [handleDownload],
   );
 
-  // Build statuses — modelos na tela de models são apenas downloaded/not-downloaded
   const statuses: Record<
     string,
     { status: ModelStatus; progress: number; isLowRam: boolean }
@@ -68,28 +65,21 @@ const ModelsScreenInner = observer(function ModelsScreenInner() {
   return (
     <View className="flex-1 bg-background">
       {/* Header */}
-      <View className="px-5 py-4 border-b border-border">
-        <Text className="text-foreground text-xl font-bold">
-          Catálogo de Modelos
-        </Text>
-        <Text className="text-muted text-xs mt-1">
-          Baixe modelos para usar no chat. Selecione e carregue na tela de chat.
-        </Text>
-      </View>
+      <TopBar
+        title="Gerenciamento de Modelos"
+        showBack
+        onBack={() => router.back()}
+        showSearch
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Buscar modelo..."
+      />
 
       {/* Error */}
       {errorMessage && (
         <View className="mx-5 mt-3 px-4 py-3 bg-destructive/10 border border-destructive/30 rounded-lg">
           <Text className="text-destructive text-sm">{errorMessage}</Text>
         </View>
-      )}
-
-      {/* Download Progress */}
-      {downloadingModelId && (
-        <DownloadProgress
-          progress={downloadProgress}
-          modelName={downloadingModelId}
-        />
       )}
 
       {/* Model Catalog */}

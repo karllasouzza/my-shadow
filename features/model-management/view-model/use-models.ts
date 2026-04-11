@@ -30,6 +30,7 @@ export function useModels() {
   );
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const catalog = useMemo(() => getAllModels(), []);
   const manager = useMemo(() => getModelManager(), []);
@@ -38,6 +39,19 @@ export function useModels() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [manager, downloadingModelId],
   );
+
+  // Filtered catalog based on search query
+  const filteredCatalog = useMemo(() => {
+    if (!searchQuery.trim()) return catalog;
+    const query = searchQuery.toLowerCase();
+    return catalog.filter(
+      (model) =>
+        model.displayName.toLowerCase().includes(query) ||
+        model.description.toLowerCase().includes(query) ||
+        model.bytes.toLowerCase().includes(query) ||
+        model.quantization.toLowerCase().includes(query),
+    );
+  }, [catalog, searchQuery]);
 
   // ==========================================================================
   // Actions
@@ -67,7 +81,12 @@ export function useModels() {
 
         const { downloadModel: downloadModelFromHF } =
           await import("@react-native-ai/llama");
-        const localPath = await downloadModelFromHF(model.huggingFaceId);
+        const localPath = await downloadModelFromHF(
+          model.huggingFaceId,
+          (progress) => {
+            setDownloadProgress(Math.round(progress.percentage));
+          },
+        );
 
         manager.setDownloadedModelPath(modelId, localPath);
         setDownloadProgress(100);
@@ -85,23 +104,26 @@ export function useModels() {
   return useMemo(
     () => ({
       // State
-      catalog,
+      catalog: filteredCatalog,
       isLoading,
       downloadingModelId,
       downloadProgress,
       errorMessage,
       downloadedModels,
+      searchQuery,
 
       // Actions
       downloadModel,
+      setSearchQuery,
     }),
     [
-      catalog,
+      filteredCatalog,
       isLoading,
       downloadingModelId,
       downloadProgress,
       errorMessage,
       downloadedModels,
+      searchQuery,
       downloadModel,
     ],
   );
