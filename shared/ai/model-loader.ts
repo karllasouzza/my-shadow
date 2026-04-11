@@ -88,18 +88,11 @@ export function getAvailableModels(): AvailableModel[] {
   return Object.keys(downloaded)
     .map((id) => {
       const entry = catalog.find((m: { id: string }) => m.id === id);
-      const supportsReasoning =
-        (entry?.tags as string[])?.some(
-          (t: string) =>
-            t.includes("reasoning") ||
-            t.includes("thinking") ||
-            t.includes("chain"),
-        ) ?? false;
       return {
         id,
         displayName: entry?.displayName ?? id,
         isLoaded: id === loadedId,
-        supportsReasoning,
+        supportsReasoning: entry?.supportsReasoning ?? false,
       };
     })
     .sort((a, b) => a.displayName.localeCompare(b.displayName));
