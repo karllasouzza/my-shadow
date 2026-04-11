@@ -1,14 +1,15 @@
-/**
- * Model Selector
- *
- * Dropdown simples no header do chat para selecionar/carregar modelos baixados.
- * Usa TouchableOpacity + lista inline ao invés do Select component complexo.
- */
-
+import {
+  AppModal,
+  AppModalContent,
+  AppModalHandle,
+  AppModalHeader,
+} from "@/components/molecules/app-modal";
+import { Icon } from "@/components/ui/icon";
+import { Text } from "@/components/ui/text";
 import type { AvailableModel } from "@/shared/ai";
-import { ChevronDown, ChevronUp, Cpu, Loader2 } from "lucide-react-native";
-import React, { useCallback, useState } from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import { Check, ChevronUp, Cpu } from "lucide-react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Keyboard, Pressable, ScrollView, View } from "react-native";
 
 interface ModelSelectorProps {
   models: AvailableModel[];
@@ -26,6 +27,45 @@ export function ModelSelector({
   onSelect,
 }: ModelSelectorProps) {
   const [open, setOpen] = useState(false);
+  const isKeyboardVisibleRef = useRef(false);
+  const pendingOpenRef = useRef(false);
+
+  const selectedModel = useMemo(
+    () => models.find((model) => model.id === selectedModelId),
+    [models, selectedModelId],
+  );
+
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener("keyboardDidShow", () => {
+      isKeyboardVisibleRef.current = true;
+    });
+
+    const hideSubscription = Keyboard.addListener("keyboardDidHide", () => {
+      isKeyboardVisibleRef.current = false;
+
+      if (pendingOpenRef.current) {
+        pendingOpenRef.current = false;
+        setOpen(true);
+      }
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
+
+  const handleOpen = useCallback(() => {
+    if (isKeyboardVisibleRef.current) {
+      pendingOpenRef.current = true;
+      Keyboard.dismiss();
+      return;
+    }
+
+    setOpen(true);
+  }, []);
+
+  const displayText = selectedModel?.displayName ?? "Selecionar modelo";
 
   const handleSelect = useCallback(
     (modelId: string) => {
@@ -35,78 +75,102 @@ export function ModelSelector({
     [onSelect],
   );
 
-  const selectedModel = models.find((m) => m.id === selectedModelId);
-  const displayText = selectedModel?.displayName ?? "Selecionar modelo";
+  const handleOpenChange = useCallback((nextOpen: boolean) => {
+    pendingOpenRef.current = false;
+    setOpen(nextOpen);
+  }, []);
 
-  if (models.length === 0) {
+  if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center px-2">
-        <Text className="text-muted text-xs text-center">
-          Nenhum modelo baixado
-        </Text>
+      <View className="flex-row items-center justify-center px-3">
+        <Icon
+          as={require("lucide-react-native").Loader2}
+          className="text-muted-foreground animate-spin"
+        />
       </View>
     );
   }
 
+  if (models.length === 0) return null;
+
   return (
-    <View className="flex-1 px-2">
-      {/* Trigger button */}
-      <TouchableOpacity
-        onPress={() => setOpen(!open)}
-        className="flex-row items-center justify-center gap-1 py-1"
+    <>
+      <Pressable
+        onPress={handleOpen}
+        className="flex-row items-center gap-1 px-2 py-1"
+        accessibilityRole="button"
+        accessibilityLabel="Selecionar modelo"
       >
-        {isLoading ? (
-          <>
-            <Loader2 size={14} color="#a1a1aa" />
-            <Text className="text-muted text-xs">Carregando...</Text>
-          </>
-        ) : (
-          <>
-            <Cpu size={14} color={selectedModelId ? "#22c55e" : "#a1a1aa"} />
-            <Text
-              className="text-foreground text-xs font-medium flex-1 text-center"
-              numberOfLines={1}
-            >
-              {displayText}
-            </Text>
-            {open ? (
-              <ChevronUp size={14} color="#a1a1aa" />
-            ) : (
-              <ChevronDown size={14} color="#a1a1aa" />
-            )}
-          </>
-        )}
-      </TouchableOpacity>
+        <Text className="text-foreground text-sm font-medium" numberOfLines={1}>
+          {displayText}
+        </Text>
+        <Icon as={ChevronUp} className="text-muted-foreground size-4" />
+      </Pressable>
 
-      {/* Dropdown list */}
-      {open && (
-        <View className="absolute top-8 left-0 right-0 bg-popover rounded-lg border border-border shadow-lg shadow-black/5 z-50">
-          {models.map((model) => (
-            <TouchableOpacity
-              key={model.id}
-              onPress={() => handleSelect(model.id)}
-              className={`flex-row items-center gap-2 px-3 py-2.5 border-b border-border/50 last:border-b-0 ${
-                model.id === selectedModelId ? "bg-accent/50" : ""
-              }`}
-            >
-              <Cpu size={14} color={model.isLoaded ? "#22c55e" : "#a1a1aa"} />
-              <Text
-                className={`flex-1 text-sm ${
-                  model.isLoaded
-                    ? "text-green-600 font-medium"
-                    : "text-foreground"
-                }`}
-                numberOfLines={1}
-              >
-                {model.displayName}
-                {model.isLoaded ? " (ativo)" : ""}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
+      <AppModal open={open} onOpenChange={handleOpenChange}>
+        <AppModalContent>
+          <AppModalHandle />
+          <AppModalHeader title="Selecionar modelo" />
 
-      {error && <Text className="text-destructive text-xs mt-1">{error}</Text>}
-    </View>
+          <ScrollView className="max-h-80 px-4">
+            <View className="gap-2 pb-4">
+              {models.map((model) => {
+                const isSelected = model.id === selectedModelId;
+
+                return (
+                  <Pressable
+                    key={model.id}
+                    onPress={() => handleSelect(model.id)}
+                    className={[
+                      "flex-row items-center gap-3 rounded-2xl border px-4 py-3",
+                      isSelected
+                        ? "border-primary bg-primary/10"
+                        : "border-border bg-card",
+                    ].join(" ")}
+                    accessibilityRole="button"
+                    accessibilityLabel={model.displayName}
+                  >
+                    <View className="size-8 items-center justify-center rounded-full bg-muted">
+                      <Icon
+                        as={Cpu}
+                        className={
+                          isSelected
+                            ? "text-primary size-4"
+                            : "text-muted-foreground size-4"
+                        }
+                      />
+                    </View>
+
+                    <View className="flex-1">
+                      <Text
+                        className="text-foreground font-medium"
+                        numberOfLines={1}
+                      >
+                        {model.displayName}
+                      </Text>
+                      {model.isLoaded && (
+                        <Text className="text-xs text-muted-foreground">
+                          Modelo carregado
+                        </Text>
+                      )}
+                    </View>
+
+                    {isSelected && (
+                      <Icon as={Check} className="text-primary size-4" />
+                    )}
+                  </Pressable>
+                );
+              })}
+
+              {!!error && (
+                <Text className="px-1 pt-1 text-sm text-destructive">
+                  {error}
+                </Text>
+              )}
+            </View>
+          </ScrollView>
+        </AppModalContent>
+      </AppModal>
+    </>
   );
 }
