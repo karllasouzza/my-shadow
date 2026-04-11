@@ -1,16 +1,11 @@
 /**
  * useModels
  *
- * Hook exclusivo da ModelsScreen — zero Legend State.
- * Estado volátil com useState. Persistência via database/actions.
+ * Hook exclusivo da ModelsScreen — apenas download de modelos.
+ * Load/Unload agora é feito pela Chat Screen.
  */
 
-import {
-    findModelById,
-    getAIRuntime,
-    getAllModels,
-    getModelManager,
-} from "@/shared/ai";
+import { findModelById, getAllModels, getModelManager } from "@/shared/ai";
 import { useCallback, useMemo, useState } from "react";
 import DeviceInfo from "react-native-device-info";
 
@@ -35,11 +30,6 @@ export function useModels() {
   );
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [ramWarning, setRamWarning] = useState<{
-    modelId: string;
-    requiredMB: number;
-    availableMB: number;
-  } | null>(null);
 
   const catalog = useMemo(() => getAllModels(), []);
   const manager = useMemo(() => getModelManager(), []);
@@ -92,63 +82,6 @@ export function useModels() {
     [manager],
   );
 
-  const loadModel = useCallback(
-    async (modelId: string) => {
-      const model = findModelById(modelId);
-      if (!model) {
-        setErrorMessage("Modelo não encontrado no catálogo.");
-        return;
-      }
-
-      const totalRam = await DeviceInfo.getTotalMemory();
-      if (totalRam < model.estimatedRamBytes) {
-        setRamWarning({
-          modelId,
-          requiredMB: Math.round(model.estimatedRamBytes / 1024 / 1024),
-          availableMB: Math.round(totalRam / 1024 / 1024),
-        });
-        setErrorMessage(
-          `RAM insuficiente: ${Math.round(totalRam / 1024 / 1024)}MB disponível, ${Math.round(model.estimatedRamBytes / 1024 / 1024)}MB necessário.`,
-        );
-        return;
-      }
-
-      setRamWarning(null);
-      setIsLoading(true);
-      setErrorMessage(null);
-
-      const localPath = manager.getModelLocalPath(modelId);
-      if (!localPath) {
-        setIsLoading(false);
-        setErrorMessage(
-          "Arquivo do modelo não encontrado no disco. Baixe o modelo novamente.",
-        );
-        return;
-      }
-
-      const runtime = getAIRuntime();
-      const result = await runtime.loadModel(modelId, localPath);
-
-      setIsLoading(false);
-
-      if (!result.success) {
-        setErrorMessage(result.error.message);
-      }
-    },
-    [manager],
-  );
-
-  const unloadModel = useCallback(async () => {
-    const runtime = getAIRuntime();
-    setIsLoading(true);
-    const result = await runtime.unloadModel();
-    setIsLoading(false);
-
-    if (!result.success) {
-      setErrorMessage(result.error.message);
-    }
-  }, []);
-
   return useMemo(
     () => ({
       // State
@@ -157,13 +90,10 @@ export function useModels() {
       downloadingModelId,
       downloadProgress,
       errorMessage,
-      ramWarning,
       downloadedModels,
 
       // Actions
       downloadModel,
-      loadModel,
-      unloadModel,
     }),
     [
       catalog,
@@ -171,11 +101,8 @@ export function useModels() {
       downloadingModelId,
       downloadProgress,
       errorMessage,
-      ramWarning,
       downloadedModels,
       downloadModel,
-      loadModel,
-      unloadModel,
     ],
   );
 }

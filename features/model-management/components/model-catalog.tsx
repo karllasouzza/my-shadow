@@ -19,8 +19,6 @@ interface ModelCatalogProps {
     { status: ModelStatus; progress: number; isLowRam: boolean }
   >;
   onDownload: (id: string) => void;
-  onLoad: (id: string) => void;
-  onUnload: () => void;
   onRetry: (id: string) => void;
 }
 
@@ -28,8 +26,6 @@ export function ModelCatalog({
   models,
   statuses,
   onDownload,
-  onLoad,
-  onUnload,
   onRetry,
 }: ModelCatalogProps) {
   if (models.length === 0) {
@@ -62,8 +58,6 @@ export function ModelCatalog({
             progress={s.progress}
             isLowRam={s.isLowRam}
             onDownload={() => onDownload(item.id)}
-            onLoad={() => onLoad(item.id)}
-            onUnload={() => onUnload()}
             onRetry={() => onRetry(item.id)}
           />
         );

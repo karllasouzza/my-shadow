@@ -1,15 +1,13 @@
 /**
  * Models Screen
  *
- * Gerenciamento de modelos com useState hook.
+ * Apenas catálogo de downloads — load/unload é feito na Chat Screen.
  */
 
 import { DownloadProgress } from "@/features/model-management/components/download-progress";
 import { ModelCatalog } from "@/features/model-management/components/model-catalog";
 import type { ModelStatus } from "@/features/model-management/components/model-item";
-import { RamWarning } from "@/features/model-management/components/ram-warning";
 import { useModels } from "@/features/model-management/view-model/use-models";
-import { getAIRuntime } from "@/shared/ai";
 import { observer } from "@legendapp/state/react";
 import React, { useCallback, useMemo } from "react";
 import { Text, View } from "react-native";
@@ -21,11 +19,8 @@ const ModelsScreenInner = observer(function ModelsScreenInner() {
     downloadingModelId,
     downloadProgress,
     errorMessage,
-    ramWarning,
     downloadedModels,
     downloadModel,
-    loadModel,
-    unloadModel,
   } = useModels();
 
   const handleDownload = useCallback(
@@ -35,17 +30,6 @@ const ModelsScreenInner = observer(function ModelsScreenInner() {
     [downloadModel],
   );
 
-  const handleLoad = useCallback(
-    async (modelId: string) => {
-      await loadModel(modelId);
-    },
-    [loadModel],
-  );
-
-  const handleUnload = useCallback(async () => {
-    await unloadModel();
-  }, [unloadModel]);
-
   const handleRetry = useCallback(
     async (modelId: string) => {
       await handleDownload(modelId);
@@ -53,13 +37,11 @@ const ModelsScreenInner = observer(function ModelsScreenInner() {
     [handleDownload],
   );
 
-  // Build statuses — runtime é fonte da verdade para "loaded"
+  // Build statuses — modelos na tela de models são apenas downloaded/not-downloaded
   const statuses: Record<
     string,
     { status: ModelStatus; progress: number; isLowRam: boolean }
   > = useMemo(() => {
-    const runtime = getAIRuntime();
-    const loadedModel = runtime.getCurrentModel();
     const map: Record<
       string,
       { status: ModelStatus; progress: number; isLowRam: boolean }
@@ -71,8 +53,6 @@ const ModelsScreenInner = observer(function ModelsScreenInner() {
           progress: downloadProgress,
           isLowRam: false,
         };
-      } else if (loadedModel && loadedModel.id === model.id) {
-        map[model.id] = { status: "loaded", progress: 100, isLowRam: false };
       } else {
         const isDownloaded = model.id in downloadedModels;
         map[model.id] = {
@@ -90,7 +70,10 @@ const ModelsScreenInner = observer(function ModelsScreenInner() {
       {/* Header */}
       <View className="px-5 py-4 border-b border-border">
         <Text className="text-foreground text-xl font-bold">
-          Gerenciar Modelos
+          Catálogo de Modelos
+        </Text>
+        <Text className="text-muted text-xs mt-1">
+          Baixe modelos para usar no chat. Selecione e carregue na tela de chat.
         </Text>
       </View>
 
@@ -99,14 +82,6 @@ const ModelsScreenInner = observer(function ModelsScreenInner() {
         <View className="mx-5 mt-3 px-4 py-3 bg-destructive/10 border border-destructive/30 rounded-lg">
           <Text className="text-destructive text-sm">{errorMessage}</Text>
         </View>
-      )}
-
-      {/* RAM Warning */}
-      {ramWarning && (
-        <RamWarning
-          requiredMB={ramWarning.requiredMB}
-          availableMB={ramWarning.availableMB}
-        />
       )}
 
       {/* Download Progress */}
@@ -122,8 +97,6 @@ const ModelsScreenInner = observer(function ModelsScreenInner() {
         models={catalog}
         statuses={statuses}
         onDownload={handleDownload}
-        onLoad={handleLoad}
-        onUnload={handleUnload}
         onRetry={handleRetry}
       />
 
