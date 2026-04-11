@@ -49,15 +49,15 @@ export function useChat() {
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // Refs to avoid stale closures in async callbacks (onToken, abort)
+  const streamingMessageRef = useRef<StreamingMessage | null>(null);
+  const streamingKeyRef = useRef<string>("");
+
   // Unique key generator for LegendList — guarantees no duplicates
   const keyCounterRef = useRef(0);
   const makeKey = useCallback(() => {
     return `msg-${Date.now()}-${++keyCounterRef.current}`;
   }, []);
-
-  // ==========================================================================
-  // Available models (delegated to shared/ai)
-  // ==========================================================================
 
   // Refresh available models when model state changes
   const [modelsRefresh, setModelsRefresh] = useState(0);
@@ -72,10 +72,6 @@ export function useChat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [isModelReady, modelsRefresh],
   );
-
-  // ==========================================================================
-  // Model Actions (delegated to shared/ai/model-loader)
-  // ==========================================================================
 
   const loadModel = useCallback(async (modelId: string) => {
     setIsModelLoading(true);
@@ -226,15 +222,21 @@ export function useChat() {
       const currentModelId = getAIRuntime().getCurrentModel()?.id ?? "unknown";
 
       setIsGenerating(true);
-      setStreamingMessage({
+      const stableKey = makeKey();
+      streamingKeyRef.current = stableKey;
+
+      const initialMsg: StreamingMessage = {
         role: "assistant",
         content: "",
         thinking: "",
         modelId: currentModelId,
         timestamp: new Date().toISOString(),
         _isStreaming: true,
-        _key: makeKey(),
-      });
+        _key: stableKey,
+      };
+
+      streamingMessageRef.current = initialMsg;
+      setStreamingMessage(initialMsg);
       setShowCancelOption(false);
 
       const controller = new AbortController();
@@ -288,16 +290,18 @@ export function useChat() {
             outputText = fullResponse;
           }
 
-          const current = streamingMessage;
-          setStreamingMessage({
+          const updatedMsg: StreamingMessage = {
             role: "assistant",
             content: outputText,
             thinking: thinkingText || undefined,
             modelId: currentModelId,
             timestamp: new Date().toISOString(),
             _isStreaming: true,
-            _key: current?._key ?? makeKey(),
-          });
+            _key: streamingKeyRef.current, // Use stable key from ref
+          };
+
+          streamingMessageRef.current = updatedMsg;
+          setStreamingMessage(updatedMsg);
           setShowCancelOption(true);
         },
         abortSignal: controller.signal,
@@ -307,15 +311,15 @@ export function useChat() {
       setShowCancelOption(false);
 
       if (controller.signal.aborted) {
-        const current = streamingMessage;
-        if (current && (current.thinking || current.content)) {
+        const partial = streamingMessageRef.current;
+        if (partial && (partial.thinking || partial.content)) {
           const conv2 = DatabaseChat.loadConversation(convId!);
           if (conv2.success && conv2.data) {
             conv2.data.messages.push(
               createChatMessage(
                 "assistant",
-                current.content + " [cancelado]",
-                current.thinking,
+                partial.content + " [cancelado]",
+                partial.thinking,
                 currentModelId,
               ),
             );
@@ -323,6 +327,7 @@ export function useChat() {
             DatabaseChat.saveConversation(conv2.data);
           }
         }
+        streamingMessageRef.current = null;
         setStreamingMessage(null);
         abortControllerRef.current = null;
         return;
@@ -343,14 +348,16 @@ export function useChat() {
       }
 
       setStreamingMessage(null);
+      streamingMessageRef.current = null;
       abortControllerRef.current = null;
     },
-    [conversationId, isModelReady, thinkingEnabled, streamingMessage, makeKey],
+    [conversationId, isModelReady, thinkingEnabled, makeKey],
   );
 
   const cancelGeneration = useCallback(() => {
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
+    streamingMessageRef.current = null;
     setIsGenerating(false);
     setShowCancelOption(false);
     setStreamingMessage(null);
