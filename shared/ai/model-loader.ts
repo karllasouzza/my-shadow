@@ -105,12 +105,17 @@ export function getSelectedModelId(): string | null {
 
 /** Carrega último modelo usado automaticamente */
 export async function autoLoadLastModel(): Promise<ModelLoadResult | null> {
+  const manager = getModelManager();
+
+  // Verifica se existe algum modelo baixado
+  const downloadedModels = Object.keys(manager.getDownloadedModels());
+  if (downloadedModels.length === 0) return null;
+
   const { getLastUsedModelId } =
     await import("@/database/actions/chat-actions");
   const lastModelId = getLastUsedModelId();
   if (!lastModelId) return null;
 
-  const manager = getModelManager();
   if (!manager.isModelDownloaded(lastModelId)) return null;
 
   const runtime = getAIRuntime();
