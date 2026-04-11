@@ -22,7 +22,7 @@ const HistoryScreenInner = observer(function HistoryScreenInner() {
     async (id: string) => {
       await loadFullConversation(id);
       router.push({
-        pathname: "/(tabs)/chat",
+        pathname: "/chat",
         params: { conversationId: id },
       });
     },
