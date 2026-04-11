@@ -1,30 +1,25 @@
 /**
- * T029/T034: Chat screen — wrapped with Legend State observer
+ * Chat Screen
  *
- * FlatList of messages + streaming text.
- * ChatInput at bottom. GeneratingIndicator during generation.
- * Cancel button after 30s (PF-005).
- *
- * T034: 6 UX states — empty, no model loaded, model loading, generating, error, populated
- *
- * Fix: Wrapped in observer() from @legendapp/state/react to prevent infinite re-renders.
- * Removed polling setInterval — observer tracks observables automatically.
+ * Layout estilo ChatGPT:
+ * - Header com navegação + thinking toggle
+ * - LegendList com mensagens (user + AI com thinking)
+ * - Carrega conversa pelo route ID
  */
+
+import { AIBubble } from "@/features/chat/components/ai-bubble";
 import { ChatInput } from "@/features/chat/components/chat-input";
-import { EmptyChat } from "@/features/chat/components/empty-chat";
-import { GeneratingIndicator } from "@/features/chat/components/generating-indicator";
-import { MessageBubble } from "@/features/chat/components/message-bubble";
-import {
-    cancelGeneration,
-    getChatState,
-    sendMessage,
-    syncModelStatus,
-} from "@/features/chat/view-model/use-chat-vm";
+import { EmptyState } from "@/features/chat/components/empty-state";
+import { StreamingBubble } from "@/features/chat/components/streaming-bubble";
+import { ThinkingToggle } from "@/features/chat/components/thinking-toggle";
+import { UserBubble } from "@/features/chat/components/user-bubble";
+import { useChat } from "@/features/chat/view-model/use-chat";
+import { LegendList } from "@legendapp/list";
 import { observer } from "@legendapp/state/react";
-import { Square } from "lucide-react-native";
-import React, { useCallback, useEffect, useRef } from "react";
+import { router, useLocalSearchParams } from "expo-router";
+import { Clock, Plus, Settings, Square } from "lucide-react-native";
+import React, { memo, useCallback, useEffect, useRef } from "react";
 import {
-    FlatList,
     KeyboardAvoidingView,
     Platform,
     Text,
@@ -33,62 +28,60 @@ import {
 } from "react-native";
 
 const ChatScreenInner = observer(function ChatScreenInner() {
-  const state = getChatState();
-  const flatListRef = useRef<FlatList>(null);
+  const flatListRef = useRef<any>(null);
+  const prevCountRef = useRef(0);
 
-  // Read observables — observer() tracks them automatically
-  // IMPORTANT: Destructure the observable itself, not the value
-  const currentConv = state.currentConversation.get();
-  const messages = currentConv?.messages ?? [];
-  const isModelReady = state.isModelReady.get();
-  const isGenerating = state.isGenerating.get();
-  const streamingText = state.streamingText.get();
-  const errorMessage = state.errorMessage.get();
-  const showCancelOption = state.showCancelOption.get();
+  const params = useLocalSearchParams<{ conversationId?: string }>();
+  const chat = useChat();
 
-  // Debug logging
-  console.log(
-    "[ChatScreen] Render — messages:",
-    messages.length,
-    "ready:",
-    isModelReady,
-    "generating:",
-    isGenerating,
-    "streaming:",
-    !!streamingText,
-  );
-
-  // Sync model status on mount
+  // Init chat with route ID on mount
   useEffect(() => {
-    syncModelStatus();
+    chat.initChat(params.conversationId ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Sync model status
+  useEffect(() => {
+    chat.syncModelStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Auto-scroll on new messages
-  const prevCount = useRef(0);
   useEffect(() => {
-    if (messages.length > prevCount.current && messages.length > 0) {
-      prevCount.current = messages.length;
-      setTimeout(
-        () => flatListRef.current?.scrollToEnd({ animated: true }),
-        100,
-      );
+    if (
+      chat.displayMessages.length > prevCountRef.current &&
+      chat.displayMessages.length > 0
+    ) {
+      prevCountRef.current = chat.displayMessages.length;
+      requestAnimationFrame(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      });
     }
-  }, [messages.length]);
+  }, [chat.displayMessages.length]);
 
   // Auto-scroll during streaming
   useEffect(() => {
-    if (streamingText) {
-      flatListRef.current?.scrollToEnd({ animated: true });
+    if (chat.isGenerating) {
+      const interval = setInterval(() => {
+        requestAnimationFrame(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        });
+      }, 200);
+      return () => clearInterval(interval);
     }
-  }, [streamingText]);
+  }, [chat.isGenerating]);
 
-  const handleSend = useCallback(async (text: string) => {
-    console.log("[ChatScreen] handleSend:", text);
-    await sendMessage(text);
-  }, []);
+  const handleSend = useCallback(
+    async (text: string) => {
+      await chat.sendMessage(text);
+    },
+    [chat.sendMessage],
+  );
 
-  // Determine which state to show
-  const hasContent = messages.length > 0 || !!streamingText || isGenerating;
+  const handleNewConversation = useCallback(() => {
+    chat.resetChatState();
+    flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+  }, [chat.resetChatState]);
 
   return (
     <KeyboardAvoidingView
@@ -96,95 +89,118 @@ const ChatScreenInner = observer(function ChatScreenInner() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
     >
-      {/* T034: UX States */}
-      {!hasContent ? (
-        /* State: empty OR no model loaded */
-        !isModelReady ? (
+      {/* Header */}
+      <View className="flex-row items-center justify-between px-4 py-3 bg-background border-b border-border">
+        {/* Settings */}
+        <TouchableOpacity
+          onPress={() => router.push("/(tabs)/models")}
+          className="p-2"
+          accessibilityLabel="Gerenciar Modelos"
+        >
+          <Settings size={20} color="#a1a1aa" />
+        </TouchableOpacity>
+
+        {/* Model name */}
+        <Text
+          className="text-foreground text-sm font-semibold flex-1 text-center"
+          numberOfLines={1}
+        >
+          {chat.activeModelName ?? "Nenhum modelo"}
+        </Text>
+
+        {/* Thinking Toggle (only for reasoning models) */}
+        {chat.modelSupportsReasoning && (
+          <ThinkingToggle
+            enabled={chat.thinkingEnabled}
+            onToggle={chat.toggleThinking}
+          />
+        )}
+
+        {/* History */}
+        <TouchableOpacity
+          onPress={() => router.push("/(tabs)/history")}
+          className="p-2"
+          accessibilityLabel="Histórico"
+        >
+          <Clock size={20} color="#a1a1aa" />
+        </TouchableOpacity>
+
+        {/* New Conversation */}
+        <TouchableOpacity
+          onPress={handleNewConversation}
+          className="p-2"
+          accessibilityLabel="Nova Conversa"
+        >
+          <Plus size={20} color="#a1a1aa" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Messages List */}
+      {!chat.hasContent ? (
+        !chat.isModelReady ? (
           <View className="flex-1 items-center justify-center px-8">
             <Text className="text-foreground text-xl font-semibold mb-2">
               Nenhum modelo carregado
             </Text>
             <Text className="text-muted text-center text-base">
-              Vá para a aba Modelos para selecionar e carregar um modelo GGUF.
+              Vá para a aba Modelos para selecionar e carregar um modelo.
             </Text>
           </View>
         ) : (
-          <EmptyChat />
+          <EmptyState />
         )
       ) : (
-        <FlatList
+        <LegendList
           ref={flatListRef}
-          data={messages}
-          renderItem={({ item }) => {
-            console.log(
-              "[ChatScreen] Render message:",
-              item.role,
-              item.content.slice(0, 40),
-            );
-            return <MessageBubble message={item} />;
-          }}
-          keyExtractor={(_, index) => `msg-${index}`}
-          contentContainerClassName="py-4"
-          ListEmptyComponent={
-            isGenerating ? (
-              <View className="py-8 items-center">
-                <GeneratingIndicator />
-              </View>
-            ) : null
+          data={chat.displayMessages}
+          renderItem={({ item }) =>
+            (item as any)._isStreaming ? (
+              <StreamingBubble message={item} />
+            ) : item.role === "user" ? (
+              <UserBubble message={item} />
+            ) : (
+              <AIBubble message={item} />
+            )
           }
+          keyExtractor={(item, index) =>
+            item.timestamp ? `msg-${item.timestamp}` : `msg-${index}`
+          }
+          contentContainerClassName="py-4"
           ListFooterComponent={
-            <View>
-              {/* Streaming text display */}
-              {streamingText ? (
-                <View className="mx-4 mt-1 px-4 py-3 rounded-2xl rounded-bl-md bg-secondary">
-                  <Text className="text-foreground text-base">
-                    {streamingText}
-                  </Text>
-                </View>
-              ) : null}
-              {/* T033: Cancel generation button (after 30s) */}
-              {showCancelOption && isGenerating && (
-                <TouchableOpacity
-                  onPress={cancelGeneration}
-                  accessible
-                  accessibilityLabel="Cancelar geração"
-                  className="mx-4 my-2 flex-row items-center justify-center gap-2 py-2 border border-destructive rounded-lg"
-                >
-                  <Square size={14} color="#ef4444" />
-                  <Text className="text-destructive text-sm font-medium">
-                    Cancelar geração
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
+            chat.showCancelOption ? (
+              <TouchableOpacity
+                onPress={chat.cancelGeneration}
+                accessible
+                accessibilityLabel="Cancelar geração"
+                className="mx-4 my-2 flex-row items-center justify-center gap-2 py-2 border border-destructive rounded-lg"
+              >
+                <Square size={14} color="#ef4444" />
+                <Text className="text-destructive text-sm font-medium">
+                  Cancelar geração
+                </Text>
+              </TouchableOpacity>
+            ) : null
           }
         />
       )}
 
-      {/* State: error */}
-      {errorMessage && (
+      {/* Error */}
+      {chat.errorMessage && (
         <View className="mx-4 mb-2 px-4 py-3 bg-destructive/10 border border-destructive/30 rounded-lg">
-          <Text className="text-destructive text-sm">{errorMessage}</Text>
+          <Text className="text-destructive text-sm">{chat.errorMessage}</Text>
         </View>
       )}
 
-      {/* Chat input */}
+      {/* Input */}
       <ChatInput
         onSendMessage={handleSend}
-        isModelReady={isModelReady}
-        isGenerating={isGenerating}
+        isModelReady={chat.isModelReady}
+        isGenerating={chat.isGenerating}
       />
     </KeyboardAvoidingView>
   );
 });
 
-/**
- * Exported ChatScreen wrapped in observer.
- *
- * Legend State observer() automatically tracks which observables
- * are accessed during render, and only re-renders when they change.
- * This replaces the polling setInterval approach which caused infinite re-renders.
- */
-export function ChatScreen() {
+export const ChatScreen = memo(function ChatScreen() {
   return <ChatScreenInner />;
-}
+});

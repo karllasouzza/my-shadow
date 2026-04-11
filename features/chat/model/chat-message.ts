@@ -9,6 +9,7 @@ export type MessageRole = "user" | "assistant" | "system";
 export interface ChatMessage {
   role: MessageRole;
   content: string;
+  thinking?: string; // Seção "Thoughts" — processo de raciocínio da IA (expansível)
   timestamp: string; // ISO 8601
 }
 
@@ -33,10 +34,12 @@ export function validateChatMessage(content: string): {
 export function createChatMessage(
   role: MessageRole,
   content: string,
+  thinking?: string,
 ): ChatMessage {
   return {
     role,
     content,
+    thinking: thinking ?? undefined,
     timestamp: new Date().toISOString(),
   };
 }
