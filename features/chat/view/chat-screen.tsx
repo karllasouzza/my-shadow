@@ -2,23 +2,24 @@
  * Chat Screen
  *
  * Layout estilo ChatGPT:
- * - Header com navegação + thinking toggle
- * - LegendList com mensagens (user + AI com thinking)
- * - Carrega conversa pelo route ID
+ * - Header com Model Selector + navegação
+ * - LegendList com mensagens (user + AI com thinking + modelId)
+ * - Carrega último modelo automaticamente
  */
 
 import { AIBubble } from "@/features/chat/components/ai-bubble";
 import { ChatInput } from "@/features/chat/components/chat-input";
 import { EmptyState } from "@/features/chat/components/empty-state";
+import { ModelSelector } from "@/features/chat/components/model-selector";
 import { StreamingBubble } from "@/features/chat/components/streaming-bubble";
 import { ThinkingToggle } from "@/features/chat/components/thinking-toggle";
 import { UserBubble } from "@/features/chat/components/user-bubble";
 import { useChat } from "@/features/chat/view-model/use-chat";
 import { LegendList } from "@legendapp/list";
 import { observer } from "@legendapp/state/react";
-import { router, useLocalSearchParams } from "expo-router";
-import { Clock, Plus, Settings, Square } from "lucide-react-native";
-import React, { memo, useCallback, useEffect, useRef } from "react";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { ArrowDown, Clock, Plus, Settings, Square } from "lucide-react-native";
+import React, { memo, useCallback, useEffect, useRef, useState } from "react";
 import {
     KeyboardAvoidingView,
     Platform,
@@ -30,23 +31,23 @@ import {
 const ChatScreenInner = observer(function ChatScreenInner() {
   const flatListRef = useRef<any>(null);
   const prevCountRef = useRef(0);
+  const scrollOffsetRef = useRef(0);
+  const [showScrollButton, setShowScrollButton] = useState(false);
 
   const params = useLocalSearchParams<{ conversationId?: string }>();
   const chat = useChat();
 
-  // Init chat with route ID on mount
-  useEffect(() => {
-    chat.initChat(params.conversationId ?? null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Init chat with route ID on mount AND on focus (handles navigation from history)
+  useFocusEffect(
+    useCallback(() => {
+      chat.initChat(params.conversationId ?? null);
+      chat.autoLoadLastModel();
+      chat.syncModelStatus();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [params.conversationId]),
+  );
 
-  // Sync model status
-  useEffect(() => {
-    chat.syncModelStatus();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Auto-scroll on new messages
+  // Scroll to bottom only when a NEW message arrives (not during streaming)
   useEffect(() => {
     if (
       chat.displayMessages.length > prevCountRef.current &&
@@ -56,20 +57,27 @@ const ChatScreenInner = observer(function ChatScreenInner() {
       requestAnimationFrame(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       });
+      setShowScrollButton(false);
     }
   }, [chat.displayMessages.length]);
 
-  // Auto-scroll during streaming
-  useEffect(() => {
-    if (chat.isGenerating) {
-      const interval = setInterval(() => {
-        requestAnimationFrame(() => {
-          flatListRef.current?.scrollToEnd({ animated: true });
-        });
-      }, 200);
-      return () => clearInterval(interval);
-    }
-  }, [chat.isGenerating]);
+  // Track scroll position
+  const handleScroll = useCallback((event: any) => {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    scrollOffsetRef.current = contentOffset.y;
+
+    const contentHeight = contentSize.height;
+    const visibleHeight = layoutMeasurement.height;
+    const distanceFromBottom = contentHeight - contentOffset.y - visibleHeight;
+
+    // Show button when user scrolled up more than 1 screen
+    setShowScrollButton(distanceFromBottom > visibleHeight);
+  }, []);
+
+  const scrollToBottom = useCallback(() => {
+    flatListRef.current?.scrollToEnd({ animated: true });
+    setShowScrollButton(false);
+  }, []);
 
   const handleSend = useCallback(
     async (text: string) => {
@@ -83,6 +91,13 @@ const ChatScreenInner = observer(function ChatScreenInner() {
     flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
   }, [chat.resetChatState]);
 
+  const handleModelSelect = useCallback(
+    (modelId: string) => {
+      chat.loadModel(modelId);
+    },
+    [chat.loadModel],
+  );
+
   return (
     <KeyboardAvoidingView
       className="flex-1 bg-background"
@@ -90,7 +105,7 @@ const ChatScreenInner = observer(function ChatScreenInner() {
       keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
     >
       {/* Header */}
-      <View className="flex-row items-center justify-between px-4 py-3 bg-background border-b border-border">
+      <View className="flex-row items-center justify-between px-3 py-2 bg-background border-b border-border">
         {/* Settings */}
         <TouchableOpacity
           onPress={() => router.push("/(tabs)/models")}
@@ -100,13 +115,14 @@ const ChatScreenInner = observer(function ChatScreenInner() {
           <Settings size={20} color="#a1a1aa" />
         </TouchableOpacity>
 
-        {/* Model name */}
-        <Text
-          className="text-foreground text-sm font-semibold flex-1 text-center"
-          numberOfLines={1}
-        >
-          {chat.activeModelName ?? "Nenhum modelo"}
-        </Text>
+        {/* Model Selector */}
+        <ModelSelector
+          models={chat.availableModels}
+          selectedModelId={chat.selectedModelId}
+          isLoading={chat.isModelLoading}
+          error={chat.modelError}
+          onSelect={handleModelSelect}
+        />
 
         {/* Thinking Toggle (only for reasoning models) */}
         {chat.modelSupportsReasoning && (
@@ -140,10 +156,14 @@ const ChatScreenInner = observer(function ChatScreenInner() {
         !chat.isModelReady ? (
           <View className="flex-1 items-center justify-center px-8">
             <Text className="text-foreground text-xl font-semibold mb-2">
-              Nenhum modelo carregado
+              {chat.availableModels.length === 0
+                ? "Nenhum modelo baixado"
+                : "Nenhum modelo carregado"}
             </Text>
             <Text className="text-muted text-center text-base">
-              Vá para a aba Modelos para selecionar e carregar um modelo.
+              {chat.availableModels.length === 0
+                ? "Vá para Modelos para baixar um modelo."
+                : "Selecione um modelo no seletor acima."}
             </Text>
           </View>
         ) : (
@@ -163,9 +183,11 @@ const ChatScreenInner = observer(function ChatScreenInner() {
             )
           }
           keyExtractor={(item, index) =>
-            item.timestamp ? `msg-${item.timestamp}` : `msg-${index}`
+            (item as any)._key ?? `msg-${item.timestamp ?? index}-${index}`
           }
           contentContainerClassName="py-4"
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
           ListFooterComponent={
             chat.showCancelOption ? (
               <TouchableOpacity
@@ -182,6 +204,17 @@ const ChatScreenInner = observer(function ChatScreenInner() {
             ) : null
           }
         />
+      )}
+
+      {/* Scroll to bottom button */}
+      {showScrollButton && (
+        <TouchableOpacity
+          onPress={scrollToBottom}
+          className="absolute right-4 bottom-24 w-10 h-10 rounded-full bg-primary items-center justify-center shadow-lg"
+          accessibilityLabel="Ir para última mensagem"
+        >
+          <ArrowDown size={20} color="white" />
+        </TouchableOpacity>
       )}
 
       {/* Error */}
