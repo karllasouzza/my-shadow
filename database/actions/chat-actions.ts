@@ -59,3 +59,31 @@ export function setLastConversationId(id: string | null): void {
     // Ignore
   }
 }
+
+// ============================================================================
+// Last Used Model — persistido para restaurar sessão e chat novo
+// ============================================================================
+
+const LAST_MODEL_KEY = "chat:last_model";
+
+export function getLastUsedModelId(): string | null {
+  try {
+    const store = getStorage();
+    return store.getString(LAST_MODEL_KEY) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export function setLastUsedModelId(id: string | null): void {
+  try {
+    const store = getStorage();
+    if (id) {
+      store.set(LAST_MODEL_KEY, id);
+    } else {
+      store.remove(LAST_MODEL_KEY);
+    }
+  } catch {
+    // Ignore
+  }
+}
