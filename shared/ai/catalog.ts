@@ -47,6 +47,42 @@ export const MODEL_CATALOG: ModelCatalogEntry[] = [
     params: "3B",
     tags: ["high-quality", "instruct", "high-ram"],
   },
+  {
+    id: "qwen3-0.6b",
+    displayName: "Qwen 3 0.6B",
+    description:
+      "Modelo extremamente leve da família Qwen 3 para dispositivos com pouca RAM.",
+    huggingFaceId: "bartowski/Qwen_Qwen3-0.6B-GGUF/Qwen3-0.6B-Q4_0.gguf",
+    fileSizeBytes: 430 * 1024 * 1024, // ~0.42 GB
+    estimatedRamBytes: 800 * 1024 * 1024, // ~0.8 GB
+    quantization: "Q4_0",
+    params: "0.6B",
+    tags: ["lightweight", "instruct", "low-ram"],
+  },
+  {
+    id: "qwen3-1.7b",
+    displayName: "Qwen 3 1.7B",
+    description:
+      "Boa opção intermediária da família Qwen 3 para uso geral local.",
+    huggingFaceId: "bartowski/Qwen_Qwen3-1.7B-GGUF/Qwen3-1.7B-Q4_0.gguf",
+    fileSizeBytes: 1100 * 1024 * 1024, // ~1.1 GB
+    estimatedRamBytes: 2200 * 1024 * 1024, // ~2.2 GB
+    quantization: "Q4_0",
+    params: "1.7B",
+    tags: ["balanced", "instruct", "mid-range"],
+  },
+  {
+    id: "qwen3-4b",
+    displayName: "Qwen 3 4B",
+    description:
+      "Modelo maior da família Qwen 3, com melhor qualidade e maior exigência de memória.",
+    huggingFaceId: "bartowski/Qwen_Qwen3-4B-GGUF/Qwen3-4B-Q4_0.gguf",
+    fileSizeBytes: 2380 * 1024 * 1024, // ~2.38 GB
+    estimatedRamBytes: 4500 * 1024 * 1024, // ~4.5 GB
+    quantization: "Q4_0",
+    params: "4B",
+    tags: ["high-quality", "instruct", "high-ram"],
+  },
 ];
 
 /** Retorna todos os modelos do catálogo */
