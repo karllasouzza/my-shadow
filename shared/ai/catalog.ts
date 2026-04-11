@@ -58,6 +58,7 @@ export const MODEL_CATALOG: ModelCatalogEntry[] = [
     quantization: "Q4_0",
     params: "0.6B",
     tags: ["lightweight", "instruct", "low-ram"],
+    supportsReasoning: true,
   },
   {
     id: "qwen3-1.7b",
@@ -70,6 +71,7 @@ export const MODEL_CATALOG: ModelCatalogEntry[] = [
     quantization: "Q4_0",
     params: "1.7B",
     tags: ["balanced", "instruct", "mid-range"],
+    supportsReasoning: true,
   },
   {
     id: "qwen3-4b",
@@ -82,6 +84,7 @@ export const MODEL_CATALOG: ModelCatalogEntry[] = [
     quantization: "Q4_0",
     params: "4B",
     tags: ["high-quality", "instruct", "high-ram"],
+    supportsReasoning: true,
   },
 ];
 

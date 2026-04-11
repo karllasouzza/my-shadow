@@ -262,7 +262,7 @@ export function useChat() {
       let outputText = "";
       let inThinking = false;
 
-      await runtime.streamCompletion(messages, {
+      const streamResult = await runtime.streamCompletion(messages, {
         onToken: (token: string) => {
           if (controller.signal.aborted) return;
 
@@ -310,6 +310,7 @@ export function useChat() {
       setIsGenerating(false);
       setShowCancelOption(false);
 
+      // Handle cancellation (user-initiated)
       if (controller.signal.aborted) {
         const partial = streamingMessageRef.current;
         if (partial && (partial.thinking || partial.content)) {
@@ -333,6 +334,38 @@ export function useChat() {
         return;
       }
 
+      // Handle streaming errors (runtime failures, empty response, etc.)
+      if (!streamResult.success) {
+        streamingMessageRef.current = null;
+        setStreamingMessage(null);
+        abortControllerRef.current = null;
+
+        // Only set error if there's no user-visible content
+        if (!outputText.trim() && !thinkingText.trim()) {
+          setErrorMessage(
+            streamResult.error?.message ?? "Falha ao gerar resposta.",
+          );
+          return;
+        }
+
+        // If we have partial content, persist it despite the error
+        const conv3 = DatabaseChat.loadConversation(convId!);
+        if (conv3.success && conv3.data) {
+          conv3.data.messages.push(
+            createChatMessage(
+              "assistant",
+              outputText + " [erro na geração]",
+              thinkingText || undefined,
+              currentModelId,
+            ),
+          );
+          conv3.data.updatedAt = new Date().toISOString();
+          DatabaseChat.saveConversation(conv3.data);
+        }
+        return;
+      }
+
+      // Success: persist the assistant message
       const conv3 = DatabaseChat.loadConversation(convId!);
       if (conv3.success && conv3.data) {
         conv3.data.messages.push(
