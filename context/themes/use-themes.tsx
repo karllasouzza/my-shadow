@@ -1,5 +1,5 @@
 import { FocusAwareBars } from "@/components/focus-aware-bars";
-import { mmkvStorage } from "@/lib/mmkv/storage";
+import { mmkvStorage } from "@/database/theme";
 import { getThemeColorSafe } from "@/lib/tailwind-color";
 import { useColorScheme } from "nativewind";
 import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
