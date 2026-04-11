@@ -1,40 +1,45 @@
 /**
- * T044: Models screen — wrapped with Legend State observer
+ * Models Screen
  *
- * Model Management tab content.
- * Shows catalog of available models with download/load/unload actions.
- * 5 UX states: no models, browsing, downloading, loading, failed.
- *
- * Fix: Wrapped in observer() to prevent infinite re-renders.
- * Removed polling setInterval — observer tracks observables automatically.
+ * Gerenciamento de modelos com synced() store.
  */
+
 import { syncModelStatus } from "@/features/chat/view-model/use-chat-vm";
 import { DownloadProgress } from "@/features/model-management/components/download-progress";
 import { ModelCatalog } from "@/features/model-management/components/model-catalog";
 import type { ModelStatus } from "@/features/model-management/components/model-item";
 import { RamWarning } from "@/features/model-management/components/ram-warning";
 import {
-  browseModels,
-  downloadModel,
-  getModelsState,
-  loadModel,
+    browseModels,
+    downloadModel,
+    getActiveModelId,
+    getCatalog,
+    getDownloadProgress,
+    getDownloadingModelId,
+    getErrorMessage,
+    getIsLoading,
+    getRamWarning,
+    loadModel,
 } from "@/features/model-management/view-model/use-models-vm";
-import { MODEL_CATALOG } from "@/shared/ai/model-catalog";
+import { getModelManager } from "@/shared/ai";
 import { observer } from "@legendapp/state/react";
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
 import { Text, View } from "react-native";
 
 const ModelsScreenInner = observer(function ModelsScreenInner() {
-  const state = getModelsState();
+  const catalog = getCatalog();
+  const downloadingId = getDownloadingModelId();
+  const progress = getDownloadProgress();
+  const activeModelId = getActiveModelId();
+  const errorMsg = getErrorMessage();
+  const ramWarning = getRamWarning();
+  const isLoading = getIsLoading();
 
-  // Read observables directly — observer() tracks them
-  const downloadingId = state.downloadingModelId.get();
-  const progress = state.downloadProgress.get();
-  const activeModelId = state.activeModel.get();
-  const errorMessage = state.errorMessage.get();
-  const ramWarning = state.ramWarning.get();
-  const downloadedModels = state.downloadedModels.get();
-  const isLoading = state.isLoading.get();
+  const manager = useMemo(() => getModelManager(), []);
+  const downloadedModels = useMemo(
+    () => manager.getDownloadedModels(),
+    [manager, downloadingId, activeModelId],
+  );
 
   useEffect(() => {
     browseModels();
@@ -57,26 +62,31 @@ const ModelsScreenInner = observer(function ModelsScreenInner() {
     [handleDownload],
   );
 
-  // Build statuses map from observables
+  // Build statuses map
   const statuses: Record<
     string,
     { status: ModelStatus; progress: number; isLowRam: boolean }
-  > = {};
-  for (const model of MODEL_CATALOG) {
-    if (downloadingId === model.id) {
-      statuses[model.id] = { status: "downloading", progress, isLowRam: false };
-    } else if (activeModelId === model.id) {
-      statuses[model.id] = { status: "loaded", progress: 100, isLowRam: false };
-    } else {
-      const dl = downloadedModels.find((d) => d.id === model.id);
-      const isDownloaded = dl?.localPath != null && dl.localPath.length > 0;
-      statuses[model.id] = {
-        status: isDownloaded ? "downloaded" : "not-downloaded",
-        progress: isDownloaded ? 100 : 0,
-        isLowRam: false,
-      };
+  > = useMemo(() => {
+    const map: Record<
+      string,
+      { status: ModelStatus; progress: number; isLowRam: boolean }
+    > = {};
+    for (const model of catalog) {
+      if (downloadingId === model.id) {
+        map[model.id] = { status: "downloading", progress, isLowRam: false };
+      } else if (activeModelId === model.id) {
+        map[model.id] = { status: "loaded", progress: 100, isLowRam: false };
+      } else {
+        const isDownloaded = model.id in downloadedModels;
+        map[model.id] = {
+          status: isDownloaded ? "downloaded" : "not-downloaded",
+          progress: isDownloaded ? 100 : 0,
+          isLowRam: false,
+        };
+      }
     }
-  }
+    return map;
+  }, [catalog, downloadingId, progress, activeModelId, downloadedModels]);
 
   return (
     <View className="flex-1 bg-background">
@@ -85,15 +95,12 @@ const ModelsScreenInner = observer(function ModelsScreenInner() {
         <Text className="text-foreground text-xl font-bold">
           Gerenciar Modelos
         </Text>
-        <Text className="text-muted text-sm mt-1">
-          Baixe e carregue modelos GGUF para inferência local.
-        </Text>
       </View>
 
       {/* Error */}
-      {errorMessage && (
+      {errorMsg && (
         <View className="mx-5 mt-3 px-4 py-3 bg-destructive/10 border border-destructive/30 rounded-lg">
-          <Text className="text-destructive text-sm">{errorMessage}</Text>
+          <Text className="text-destructive text-sm">{errorMsg}</Text>
         </View>
       )}
 
@@ -112,7 +119,7 @@ const ModelsScreenInner = observer(function ModelsScreenInner() {
 
       {/* Model Catalog */}
       <ModelCatalog
-        models={MODEL_CATALOG}
+        models={catalog}
         statuses={statuses}
         onDownload={handleDownload}
         onLoad={handleLoad}

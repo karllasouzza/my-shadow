@@ -13,7 +13,8 @@ export type AppErrorCode =
   | "SECURITY_LOCK_REQUIRED"
   | "NOT_FOUND"
   | "STORAGE_ERROR"
-  | "UNKNOWN_ERROR";
+  | "UNKNOWN_ERROR"
+  | "ABORTED";
 
 export interface AppError {
   code: AppErrorCode;

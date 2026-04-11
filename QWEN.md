@@ -1,17 +1,16 @@
 # my-shadow Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-04-09
+Auto-generated from all feature plans. Last updated: 2026-04-10
 
 ## Active Technologies
-- TypeScript 5.9 + React 19.1, React Native 0.81.5, Expo SDK 54, Expo Router 6, llama.rn (native inference), Legend State 3.0-beta (reactivity), NativeWind 4.2 (styling), @rn-primitives (UI components), react-native-mmkv 4.3 (local persistence), expo-file-system (model downloads) (002-ai-chat-app)
-- react-native-mmkv for chat conversations + model config; expo-file-system for GGUF model downloads (002-ai-chat-app)
 
-- TypeScript 5.9 + React 19.1, React Native 0.81.5, Expo SDK 54, Expo Router 6, llama.rn (native inference), Legend State 3.0-beta (reactivity), NativeWind 4.2 (styling), @rn-primitives (UI components), react-native-mmkv 4.3 (local persistence) (002-ai-chat-app)
+- TypeScript 5.9, React 19.1, React Native 0.81.5, Expo SDK 54 (003-local-ai-chat-app)
 
 ## Project Structure
 
 ```text
-src/
+backend/
+frontend/
 tests/
 ```
 
@@ -21,12 +20,11 @@ npm test && npm run lint
 
 ## Code Style
 
-TypeScript 5.9: Follow standard conventions
+TypeScript 5.9, React 19.1, React Native 0.81.5, Expo SDK 54: Follow standard conventions
 
 ## Recent Changes
-- 002-ai-chat-app: Added TypeScript 5.9 + React 19.1, React Native 0.81.5, Expo SDK 54, Expo Router 6, llama.rn (native inference), Legend State 3.0-beta (reactivity), NativeWind 4.2 (styling), @rn-primitives (UI components), react-native-mmkv 4.3 (local persistence), expo-file-system (model downloads)
 
-- 002-ai-chat-app: Added TypeScript 5.9 + React 19.1, React Native 0.81.5, Expo SDK 54, Expo Router 6, llama.rn (native inference), Legend State 3.0-beta (reactivity), NativeWind 4.2 (styling), @rn-primitives (UI components), react-native-mmkv 4.3 (local persistence)
+- 003-local-ai-chat-app: Added TypeScript 5.9, React 19.1, React Native 0.81.5, Expo SDK 54
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

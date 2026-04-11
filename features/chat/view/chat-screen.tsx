@@ -15,34 +15,48 @@ import { EmptyChat } from "@/features/chat/components/empty-chat";
 import { GeneratingIndicator } from "@/features/chat/components/generating-indicator";
 import { MessageBubble } from "@/features/chat/components/message-bubble";
 import {
-  cancelGeneration,
-  getChatState,
-  sendMessage,
-  syncModelStatus,
+    cancelGeneration,
+    getChatState,
+    sendMessage,
+    syncModelStatus,
 } from "@/features/chat/view-model/use-chat-vm";
 import { observer } from "@legendapp/state/react";
 import { Square } from "lucide-react-native";
 import React, { useCallback, useEffect, useRef } from "react";
 import {
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
-  Text,
-  TouchableOpacity,
-  View,
+    FlatList,
+    KeyboardAvoidingView,
+    Platform,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 const ChatScreenInner = observer(function ChatScreenInner() {
   const state = getChatState();
   const flatListRef = useRef<FlatList>(null);
 
-  // Read observables directly — observer() tracks them automatically
-  const messages = state.currentConversation.get()?.messages ?? [];
+  // Read observables — observer() tracks them automatically
+  // IMPORTANT: Destructure the observable itself, not the value
+  const currentConv = state.currentConversation.get();
+  const messages = currentConv?.messages ?? [];
   const isModelReady = state.isModelReady.get();
   const isGenerating = state.isGenerating.get();
   const streamingText = state.streamingText.get();
   const errorMessage = state.errorMessage.get();
   const showCancelOption = state.showCancelOption.get();
+
+  // Debug logging
+  console.log(
+    "[ChatScreen] Render — messages:",
+    messages.length,
+    "ready:",
+    isModelReady,
+    "generating:",
+    isGenerating,
+    "streaming:",
+    !!streamingText,
+  );
 
   // Sync model status on mount
   useEffect(() => {
@@ -69,8 +83,12 @@ const ChatScreenInner = observer(function ChatScreenInner() {
   }, [streamingText]);
 
   const handleSend = useCallback(async (text: string) => {
+    console.log("[ChatScreen] handleSend:", text);
     await sendMessage(text);
   }, []);
+
+  // Determine which state to show
+  const hasContent = messages.length > 0 || !!streamingText || isGenerating;
 
   return (
     <KeyboardAvoidingView
@@ -79,7 +97,7 @@ const ChatScreenInner = observer(function ChatScreenInner() {
       keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
     >
       {/* T034: UX States */}
-      {messages.length === 0 && !streamingText && !isGenerating ? (
+      {!hasContent ? (
         /* State: empty OR no model loaded */
         !isModelReady ? (
           <View className="flex-1 items-center justify-center px-8">
@@ -97,13 +115,25 @@ const ChatScreenInner = observer(function ChatScreenInner() {
         <FlatList
           ref={flatListRef}
           data={messages}
-          renderItem={({ item }) => <MessageBubble message={item} />}
+          renderItem={({ item }) => {
+            console.log(
+              "[ChatScreen] Render message:",
+              item.role,
+              item.content.slice(0, 40),
+            );
+            return <MessageBubble message={item} />;
+          }}
           keyExtractor={(_, index) => `msg-${index}`}
           contentContainerClassName="py-4"
+          ListEmptyComponent={
+            isGenerating ? (
+              <View className="py-8 items-center">
+                <GeneratingIndicator />
+              </View>
+            ) : null
+          }
           ListFooterComponent={
             <View>
-              {/* State: generating */}
-              {isGenerating && <GeneratingIndicator />}
               {/* Streaming text display */}
               {streamingText ? (
                 <View className="mx-4 mt-1 px-4 py-3 rounded-2xl rounded-bl-md bg-secondary">
