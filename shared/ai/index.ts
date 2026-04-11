@@ -1,47 +1,24 @@
 /**
- * T034: Main barrel file for shared/ai/
+ * Shared AI - Barrel File
  *
- * Re-exports all AI modules from their respective subdirectories.
- * This is the single entry point for all AI functionality.
+ * Ponto único de entrada para todo o módulo shared/ai/
  */
 
-// Catalog layer
-export * from "./catalog";
+// Types
+export type {
+    ChatMessage, CompletionOptions,
+    CompletionOutput, DownloadProgress,
+    DownloadState, LoadedModel, ModelCatalogEntry, ModelStatus, OnTokenCallback,
+    StreamCompletionOptions
+} from "./types";
 
-// Storage layer
+// Catalog
 export {
-  setActiveModelId,
-  clearActiveModelId,
-  getActiveModelId,
-  getDownloadedModelMap,
-  replaceDownloadedModelMap,
-  setDownloadedModelPath,
-  removeDownloadedModelKey,
-} from "./manager/storage";
+    findModelById, getAllModels, getModelsByRam, MODEL_CATALOG
+} from "./catalog";
 
-// Path resolution
-export * from "./manager/paths";
+// Manager
+export { getModelManager, ModelManager } from "./manager";
 
-// Download engine
-export { downloadFileAtomically, ensureDirectoryExists } from "./manager/download";
-
-// Validation engine
-export {
-  fileExists,
-  verifyModelFile,
-  hasEnoughDiskSpace,
-  hasEnoughRam,
-} from "./manager/validation";
-
-// Manager (orchestrator)
-export { ModelManager, getModelManager } from "./manager/model-manager.service";
-
-// Runtime layer
-export { LocalAIRuntimeService, getLocalAIRuntime } from "./runtime/local-ai-runtime.service";
-
-// Types & Constants (unified)
-export * from "./types";
-export * from "./constants";
-
-// Error system
-export * from "./errors";
+// Runtime
+export { AIRuntime, getAIRuntime } from "./runtime";
