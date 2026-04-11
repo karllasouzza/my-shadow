@@ -4,20 +4,32 @@
  * FlatList of ModelItem components. Shows all available models from catalog.
  * Empty state when catalog is empty (shouldn't happen).
  */
+import {
+    ModelItem,
+    type ModelStatus,
+} from "@/features/model-management/components/model-item";
+import type { ModelCatalogEntry } from "@/shared/ai";
 import React from "react";
-import { FlatList, View, Text } from "react-native";
-import { ModelItem, type ModelStatus } from "@/features/model-management/components/model-item";
-import type { ModelCatalogEntry } from "@/shared/ai/catalog";
+import { FlatList, Text, View } from "react-native";
 
 interface ModelCatalogProps {
   models: ModelCatalogEntry[];
-  statuses: Record<string, { status: ModelStatus; progress: number; isLowRam: boolean }>;
+  statuses: Record<
+    string,
+    { status: ModelStatus; progress: number; isLowRam: boolean }
+  >;
   onDownload: (id: string) => void;
   onLoad: (id: string) => void;
   onRetry: (id: string) => void;
 }
 
-export function ModelCatalog({ models, statuses, onDownload, onLoad, onRetry }: ModelCatalogProps) {
+export function ModelCatalog({
+  models,
+  statuses,
+  onDownload,
+  onLoad,
+  onRetry,
+}: ModelCatalogProps) {
   if (models.length === 0) {
     return (
       <View className="flex-1 items-center justify-center p-8">
@@ -33,7 +45,11 @@ export function ModelCatalog({ models, statuses, onDownload, onLoad, onRetry }: 
       data={models}
       keyExtractor={(item) => item.id}
       renderItem={({ item }) => {
-        const s = statuses[item.id] ?? { status: "not-downloaded" as ModelStatus, progress: 0, isLowRam: false };
+        const s = statuses[item.id] ?? {
+          status: "not-downloaded" as ModelStatus,
+          progress: 0,
+          isLowRam: false,
+        };
         return (
           <ModelItem
             name={item.displayName}
