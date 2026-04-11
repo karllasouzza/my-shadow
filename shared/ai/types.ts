@@ -15,7 +15,7 @@ export interface ModelCatalogEntry {
   fileSizeBytes: number;
   estimatedRamBytes: number;
   quantization: string;
-  params: string;
+  bytes: string;
   tags: string[];
   supportsReasoning?: boolean;
 }
