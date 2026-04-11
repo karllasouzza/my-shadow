@@ -4,59 +4,97 @@
 
 @layer base {
   :root {
-    /* Shadow Jung Theme - Dark by default (Carl Jung inspired) */
-    --background: 240 5% 3%;
-    --foreground: 240 5% 96%;
-    --card: 240 4% 7%;
-    --card-foreground: 240 5% 96%;
-    --popover: 240 4% 7%;
-    --popover-foreground: 240 5% 96%;
-    --primary: 277 65% 40%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 240 4% 14%;
-    --secondary-foreground: 240 5% 90%;
-    --muted: 240 3% 12%;
-    --muted-foreground: 240 5% 60%;
-    --accent: 40 60% 55%;
-    --accent-foreground: 240 5% 8%;
+    /* === MINIMALIST LIGHT THEME (Default) ===
+     * Inspired by modern AI chat interfaces
+     * Rule 60-30-10: 60% white, 30% soft grey, 10% lavender (#999ff3)
+     */
+
+    /* === CORE === */
+    --background: 0 0% 98%; /* #FAFAFA - Near white */
+    --foreground: 240 10% 12%; /* #1A1A2E - Dark text */
+    --card: 0 0% 100%; /* #FFFFFF - Pure white */
+    --card-foreground: 240 10% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 12%;
+
+    /* === PRIMARY - Lavender (#999ff3 → HSL 238 78% 83%) === */
+    --primary: 238 78% 73%; /* #999ff3 */
+    --primary-foreground: 240 10% 12%; /* Dark text on lavender for contrast */
+
+    /* === SECONDARY === */
+    --secondary: 240 5% 96%; /* #F5F5F7 - Soft grey */
+    --secondary-foreground: 240 10% 12%;
+
+    /* === MUTED === */
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 5% 50%; /* Medium grey for secondary text */
+
+    /* === ACCENT === */
+    --accent: 238 78% 93%; /* Very light lavender tint */
+    --accent-foreground: 240 10% 12%;
+
+    /* === DESTRUCTIVE === */
     --destructive: 0 70% 55%;
     --destructive-foreground: 0 0% 100%;
-    --border: 240 4% 16%;
-    --input: 240 4% 16%;
-    --ring: 277 65% 50%;
-    --radius: 0.75rem;
-    --chart-1: 277 65% 40%;
-    --chart-2: 40 60% 55%;
-    --chart-3: 200 50% 45%;
-    --chart-4: 160 40% 45%;
-    --chart-5: 320 50% 50%;
+
+    /* === BORDERS & INPUTS === */
+    --border: 240 5% 90%; /* #E5E5E5 - Light border */
+    --input: 240 5% 90%;
+    --ring: 238 78% 73%; /* Matches primary */
+    --radius: 0.75rem; /* Rounded corners */
+
+    /* === CHART COLORS === */
+    --chart-1: 238 78% 73%; /* Lavender */
+    --chart-2: 200 60% 65%; /* Soft blue */
+    --chart-3: 160 45% 55%; /* Soft green */
+    --chart-4: 40 70% 65%; /* Soft amber */
+    --chart-5: 320 50% 70%; /* Soft pink */
   }
 
   .dark:root {
-    --background: 240 5% 3%;
-    --foreground: 240 5% 96%;
-    --card: 240 4% 7%;
-    --card-foreground: 240 5% 96%;
-    --popover: 240 4% 7%;
-    --popover-foreground: 240 5% 96%;
-    --primary: 277 70% 48%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 240 4% 14%;
-    --secondary-foreground: 240 5% 90%;
-    --muted: 240 3% 12%;
-    --muted-foreground: 240 5% 60%;
-    --accent: 40 65% 58%;
-    --accent-foreground: 240 5% 8%;
+    /* === MINIMALIST DARK THEME ===
+     * Inverted for dark mode with lavender accents
+     */
+
+    /* === CORE === */
+    --background: 240 10% 8%; /* #111118 - Near black */
+    --foreground: 0 0% 95%; /* #F2F2F2 - Light text */
+    --card: 240 8% 12%; /* #1A1A24 - Dark card */
+    --card-foreground: 0 0% 95%;
+    --popover: 240 8% 12%;
+    --popover-foreground: 0 0% 95%;
+
+    /* === PRIMARY - Lighter lavender for dark mode === */
+    --primary: 238 78% 78%; /* #A5AAF4 - Slightly brighter */
+    --primary-foreground: 240 10% 12%;
+
+    /* === SECONDARY === */
+    --secondary: 240 5% 16%; /* #28282F */
+    --secondary-foreground: 0 0% 95%;
+
+    /* === MUTED === */
+    --muted: 240 5% 16%;
+    --muted-foreground: 240 5% 55%;
+
+    /* === ACCENT === */
+    --accent: 238 78% 20%; /* Subtle lavender tint on dark */
+    --accent-foreground: 0 0% 95%;
+
+    /* === DESTRUCTIVE === */
     --destructive: 0 70% 55%;
     --destructive-foreground: 0 0% 100%;
-    --border: 240 4% 16%;
-    --input: 240 4% 16%;
-    --ring: 277 70% 55%;
-    --chart-1: 277 70% 48%;
-    --chart-2: 40 65% 58%;
-    --chart-3: 200 50% 50%;
-    --chart-4: 160 40% 50%;
-    --chart-5: 320 50% 55%;
+
+    /* === BORDERS & INPUTS === */
+    --border: 240 5% 20%; /* #333340 */
+    --input: 240 5% 20%;
+    --ring: 238 78% 78%;
+
+    /* === CHART COLORS === */
+    --chart-1: 238 78% 78%;
+    --chart-2: 200 60% 65%;
+    --chart-3: 160 45% 55%;
+    --chart-4: 40 70% 65%;
+    --chart-5: 320 50% 70%;
   }
 }
 
