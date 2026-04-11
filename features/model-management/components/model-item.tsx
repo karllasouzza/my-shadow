@@ -4,9 +4,9 @@
  * Shows model name, size, RAM estimate, and action button
  * (download / load / retry based on status).
  */
+import { AlertTriangle, Cpu, Download, XCircle } from "lucide-react-native";
 import React from "react";
-import { View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
-import { Download, Cpu, AlertTriangle, CheckCircle } from "lucide-react-native";
+import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
 
 export type ModelStatus =
   | "not-downloaded"
@@ -24,6 +24,7 @@ interface ModelItemProps {
   progress?: number;
   onDownload?: () => void;
   onLoad?: () => void;
+  onUnload?: () => void;
   onRetry?: () => void;
   isLowRam?: boolean;
 }
@@ -37,6 +38,7 @@ export function ModelItem({
   progress = 0,
   onDownload,
   onLoad,
+  onUnload,
   onRetry,
   isLowRam = false,
 }: ModelItemProps) {
@@ -56,10 +58,15 @@ export function ModelItem({
 
         {/* Action button based on status */}
         {status === "loaded" ? (
-          <View className="flex-row items-center gap-1 px-3 py-2 bg-green-500/10 rounded-lg">
-            <CheckCircle size={14} color="#22c55e" />
-            <Text className="text-green-600 text-xs font-medium">Carregado</Text>
-          </View>
+          <TouchableOpacity
+            onPress={onUnload}
+            className="flex-row items-center gap-1 px-3 py-2 bg-destructive/10 rounded-lg"
+          >
+            <XCircle size={14} color="#ef4444" />
+            <Text className="text-destructive text-xs font-medium">
+              Descarregar
+            </Text>
+          </TouchableOpacity>
         ) : status === "downloading" ? (
           <View className="items-center justify-center px-4 py-2">
             <ActivityIndicator size="small" color="#3b82f6" />

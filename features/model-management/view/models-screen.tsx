@@ -1,59 +1,50 @@
 /**
  * Models Screen
  *
- * Gerenciamento de modelos com synced() store.
+ * Gerenciamento de modelos com useState hook.
  */
 
-import { syncModelStatus } from "@/features/chat/view-model/use-chat-vm";
 import { DownloadProgress } from "@/features/model-management/components/download-progress";
 import { ModelCatalog } from "@/features/model-management/components/model-catalog";
 import type { ModelStatus } from "@/features/model-management/components/model-item";
 import { RamWarning } from "@/features/model-management/components/ram-warning";
-import {
-    browseModels,
-    downloadModel,
-    getActiveModelId,
-    getCatalog,
-    getDownloadProgress,
-    getDownloadingModelId,
-    getErrorMessage,
-    getIsLoading,
-    getRamWarning,
-    loadModel,
-} from "@/features/model-management/view-model/use-models-vm";
-import { getModelManager } from "@/shared/ai";
+import { useModels } from "@/features/model-management/view-model/use-models";
+import { getAIRuntime } from "@/shared/ai";
 import { observer } from "@legendapp/state/react";
-import React, { useCallback, useEffect, useMemo } from "react";
+import React, { useCallback, useMemo } from "react";
 import { Text, View } from "react-native";
 
 const ModelsScreenInner = observer(function ModelsScreenInner() {
-  const catalog = getCatalog();
-  const downloadingId = getDownloadingModelId();
-  const progress = getDownloadProgress();
-  const activeModelId = getActiveModelId();
-  const errorMsg = getErrorMessage();
-  const ramWarning = getRamWarning();
-  const isLoading = getIsLoading();
+  const {
+    catalog,
+    isLoading,
+    downloadingModelId,
+    downloadProgress,
+    errorMessage,
+    ramWarning,
+    downloadedModels,
+    downloadModel,
+    loadModel,
+    unloadModel,
+  } = useModels();
 
-  const manager = useMemo(() => getModelManager(), []);
-  const downloadedModels = useMemo(
-    () => manager.getDownloadedModels(),
-    [manager, downloadingId, activeModelId],
+  const handleDownload = useCallback(
+    async (modelId: string) => {
+      await downloadModel(modelId);
+    },
+    [downloadModel],
   );
 
-  useEffect(() => {
-    browseModels();
-  }, []);
+  const handleLoad = useCallback(
+    async (modelId: string) => {
+      await loadModel(modelId);
+    },
+    [loadModel],
+  );
 
-  const handleDownload = useCallback(async (modelId: string) => {
-    await downloadModel(modelId);
-  }, []);
-
-  const handleLoad = useCallback(async (modelId: string) => {
-    await loadModel(modelId, async () => {
-      await syncModelStatus();
-    });
-  }, []);
+  const handleUnload = useCallback(async () => {
+    await unloadModel();
+  }, [unloadModel]);
 
   const handleRetry = useCallback(
     async (modelId: string) => {
@@ -62,19 +53,25 @@ const ModelsScreenInner = observer(function ModelsScreenInner() {
     [handleDownload],
   );
 
-  // Build statuses map
+  // Build statuses — runtime é fonte da verdade para "loaded"
   const statuses: Record<
     string,
     { status: ModelStatus; progress: number; isLowRam: boolean }
   > = useMemo(() => {
+    const runtime = getAIRuntime();
+    const loadedModel = runtime.getCurrentModel();
     const map: Record<
       string,
       { status: ModelStatus; progress: number; isLowRam: boolean }
     > = {};
     for (const model of catalog) {
-      if (downloadingId === model.id) {
-        map[model.id] = { status: "downloading", progress, isLowRam: false };
-      } else if (activeModelId === model.id) {
+      if (downloadingModelId === model.id) {
+        map[model.id] = {
+          status: "downloading",
+          progress: downloadProgress,
+          isLowRam: false,
+        };
+      } else if (loadedModel && loadedModel.id === model.id) {
         map[model.id] = { status: "loaded", progress: 100, isLowRam: false };
       } else {
         const isDownloaded = model.id in downloadedModels;
@@ -86,7 +83,7 @@ const ModelsScreenInner = observer(function ModelsScreenInner() {
       }
     }
     return map;
-  }, [catalog, downloadingId, progress, activeModelId, downloadedModels]);
+  }, [catalog, downloadingModelId, downloadProgress, downloadedModels]);
 
   return (
     <View className="flex-1 bg-background">
@@ -98,9 +95,9 @@ const ModelsScreenInner = observer(function ModelsScreenInner() {
       </View>
 
       {/* Error */}
-      {errorMsg && (
+      {errorMessage && (
         <View className="mx-5 mt-3 px-4 py-3 bg-destructive/10 border border-destructive/30 rounded-lg">
-          <Text className="text-destructive text-sm">{errorMsg}</Text>
+          <Text className="text-destructive text-sm">{errorMessage}</Text>
         </View>
       )}
 
@@ -113,8 +110,11 @@ const ModelsScreenInner = observer(function ModelsScreenInner() {
       )}
 
       {/* Download Progress */}
-      {downloadingId && (
-        <DownloadProgress progress={progress} modelName={downloadingId} />
+      {downloadingModelId && (
+        <DownloadProgress
+          progress={downloadProgress}
+          modelName={downloadingModelId}
+        />
       )}
 
       {/* Model Catalog */}
@@ -123,11 +123,12 @@ const ModelsScreenInner = observer(function ModelsScreenInner() {
         statuses={statuses}
         onDownload={handleDownload}
         onLoad={handleLoad}
+        onUnload={handleUnload}
         onRetry={handleRetry}
       />
 
       {/* Loading overlay */}
-      {isLoading && !downloadingId && (
+      {isLoading && !downloadingModelId && (
         <View className="absolute inset-0 bg-background/80 items-center justify-center">
           <Text className="text-muted text-base">Carregando...</Text>
         </View>
@@ -136,6 +137,6 @@ const ModelsScreenInner = observer(function ModelsScreenInner() {
   );
 });
 
-export function ModelsScreen() {
+export const ModelsScreen = React.memo(function ModelsScreen() {
   return <ModelsScreenInner />;
-}
+});
