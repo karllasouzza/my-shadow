@@ -1,15 +1,17 @@
 import type { ChatConversationIndex } from "@/features/chat/model/chat-conversation";
 import {
-  loadConversation as loadChatConversation,
-  resetChatState,
+    loadConversation as loadChatConversation,
+    resetChatState,
 } from "@/features/chat/view-model/use-chat-vm";
 import { ConversationList } from "@/features/history/components/conversation-list";
 import { EmptyHistory } from "@/features/history/components/empty-history";
 import {
-  deleteConversation,
-  getHistoryState,
-  loadConversations,
-  renameConversation,
+    deleteConversation,
+    getConversations,
+    getHistoryErrorMessage,
+    getHistoryIsLoading,
+    loadConversations,
+    renameConversationFn,
 } from "@/features/history/view-model/use-history-vm";
 import { observer } from "@legendapp/state/react";
 import { router, useFocusEffect } from "expo-router";
@@ -17,31 +19,25 @@ import React, { useCallback } from "react";
 import { ActivityIndicator, Alert, Text, View } from "react-native";
 
 const HistoryScreenInner = observer(function HistoryScreenInner() {
-  const historyState = getHistoryState();
+  const conversations = getConversations();
+  const isLoading = getHistoryIsLoading();
+  const errorMsg = getHistoryErrorMessage();
 
-  // Read observables directly — observer() tracks them
-  const conversations = historyState.conversations.get();
-  const isLoading = historyState.isLoading.get();
-  const errorMessage = historyState.errorMessage.get();
-
-  // Track currently loaded conversation in chat for T064 edge case
   const [currentChatId, setCurrentChatId] = React.useState<string | null>(null);
 
-  // T058: Handle conversation tap → switch to Chat tab + load conversation
   const handleConversationPress = useCallback(async (id: string) => {
     setCurrentChatId(id);
     await loadChatConversation(id);
     router.push("/(tabs)/chat");
   }, []);
 
-  // T061: Rename flow — long-press → Alert.prompt
   const handleRename = useCallback(async (conv: ChatConversationIndex) => {
     Alert.prompt(
       "Renomear Conversa",
       "Novo título:",
       async (newTitle) => {
         if (newTitle && newTitle.trim()) {
-          const result = await renameConversation(conv.id, newTitle.trim());
+          const result = await renameConversationFn(conv.id, newTitle.trim());
           if (result.success) {
             await refreshList();
           } else {
@@ -54,12 +50,11 @@ const HistoryScreenInner = observer(function HistoryScreenInner() {
     );
   }, []);
 
-  // T062: Delete flow — long-press → Alert.alert confirmation
   const handleDelete = useCallback(
     async (conv: ChatConversationIndex) => {
       Alert.alert(
         "Excluir Conversa",
-        `Tem certeza que deseja excluir "${conv.title}"? Esta ação não pode ser desfeita.`,
+        `Tem certeza que deseja excluir "${conv.title}"?`,
         [
           { text: "Cancelar", style: "cancel" },
           {
@@ -71,7 +66,6 @@ const HistoryScreenInner = observer(function HistoryScreenInner() {
                 Alert.alert("Erro", result.error.message);
                 return;
               }
-              // T064: If deleted conversation is currently open in chat, reset chat
               if (currentChatId === conv.id) {
                 resetChatState();
                 setCurrentChatId(null);
@@ -85,7 +79,6 @@ const HistoryScreenInner = observer(function HistoryScreenInner() {
     [currentChatId],
   );
 
-  // Long-press handler — shows action sheet (rename/delete)
   const handleLongPress = useCallback(
     (conv: ChatConversationIndex) => {
       Alert.alert(conv.title, "O que deseja fazer?", [
@@ -101,12 +94,10 @@ const HistoryScreenInner = observer(function HistoryScreenInner() {
     [handleRename, handleDelete],
   );
 
-  // Refresh list
   const refreshList = useCallback(async () => {
     await loadConversations();
   }, []);
 
-  // Refresh on focus
   useFocusEffect(
     useCallback(() => {
       refreshList();
@@ -122,10 +113,10 @@ const HistoryScreenInner = observer(function HistoryScreenInner() {
     );
   }
 
-  if (errorMessage && conversations.length === 0) {
+  if (errorMsg && conversations.length === 0) {
     return (
       <View className="flex-1 items-center justify-center p-8">
-        <Text className="text-destructive text-center">{errorMessage}</Text>
+        <Text className="text-destructive text-center">{errorMsg}</Text>
       </View>
     );
   }
