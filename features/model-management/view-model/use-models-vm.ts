@@ -1,27 +1,25 @@
 /**
- * T038/T039/T040/T041/T042: Model Management view-model
+ * Models Store & View-Model
  *
- * Legend State observables:
- * - catalog: ModelCatalogEntry[]
- * - downloadedModels: { id, localPath, isLoaded }[]
- * - activeModel: string | null
- * - isLoading: boolean
- * - downloadProgress: number (0-100)
- * - downloadingModelId: string | null
- * - errorMessage: string | null
- * - ramWarning: { modelId, requiredMB, availableMB } | null
- *
- * Actions: browseModels(), downloadModel(), loadModel(), unloadModel(), refreshStatus()
+ * Padrão synced() com persistência automática via MMKV.
+ * Usa @react-native-ai/llama para download e carregamento.
  */
-import { getLocalAIRuntime } from "@/shared/ai/local-ai-runtime";
+
 import {
-  findModelById,
-  MODEL_CATALOG,
-  type ModelCatalogEntry,
-} from "@/shared/ai/model-catalog";
-import { getModelManager } from "@/shared/ai/model-manager";
-import { observable, Observable } from "@legendapp/state";
+    findModelById,
+    getAIRuntime,
+    getAllModels,
+    getModelManager,
+    type ModelCatalogEntry,
+} from "@/shared/ai";
+import { observable } from "@legendapp/state";
+import { ObservablePersistMMKV } from "@legendapp/state/persist-plugins/mmkv";
+import { synced } from "@legendapp/state/sync";
 import DeviceInfo from "react-native-device-info";
+
+// ============================================================================
+// Tipos
+// ============================================================================
 
 export interface DownloadedModelInfo {
   id: string;
@@ -29,198 +27,222 @@ export interface DownloadedModelInfo {
   isLoaded: boolean;
 }
 
-export interface ModelsState {
-  catalog: Observable<ModelCatalogEntry[]>;
-  downloadedModels: Observable<DownloadedModelInfo[]>;
-  activeModel: Observable<string | null>;
-  isLoading: Observable<boolean>;
-  downloadProgress: Observable<number>;
-  downloadingModelId: Observable<string | null>;
-  errorMessage: Observable<string | null>;
-  ramWarning: Observable<{
+interface ModelsState {
+  catalog: ModelCatalogEntry[];
+  activeModelId: string | null;
+  isLoading: boolean;
+  downloadingModelId: string | null;
+  downloadProgress: number;
+  errorMessage: string | null;
+  ramWarning: {
     modelId: string;
     requiredMB: number;
     availableMB: number;
-  } | null>;
+  } | null;
 }
 
-let modelsState: ModelsState | null = null;
+const INITIAL_STATE: ModelsState = {
+  catalog: getAllModels(),
+  activeModelId: null,
+  isLoading: false,
+  downloadingModelId: null,
+  downloadProgress: 0,
+  errorMessage: null,
+  ramWarning: null,
+};
 
-export function getModelsState(): ModelsState {
-  if (!modelsState) {
-    modelsState = {
-      catalog: observable<ModelCatalogEntry[]>(MODEL_CATALOG),
-      downloadedModels: observable<DownloadedModelInfo[]>([]),
-      activeModel: observable<string | null>(null),
-      isLoading: observable(false),
-      downloadProgress: observable(0),
-      downloadingModelId: observable<string | null>(null),
-      errorMessage: observable<string | null>(null),
-      ramWarning: observable<{
-        modelId: string;
-        requiredMB: number;
-        availableMB: number;
-      } | null>(null),
-    };
-  }
-  return modelsState;
-}
+// ============================================================================
+// Store com synced() — persistência automática
+// ============================================================================
 
-/** T038: Browse available models (catalog is static, just display) */
+export const modelsStore$ = observable(
+  synced<ModelsState>({
+    initial: INITIAL_STATE,
+    persist: {
+      name: "models_state",
+      plugin: new ObservablePersistMMKV({ id: "myAppStorage" }),
+    },
+  }),
+);
+
+// ============================================================================
+// Actions
+// ============================================================================
+
+/** Busca modelos disponíveis no catálogo */
 export function browseModels(): void {
-  const state = getModelsState();
-  state.catalog.set(MODEL_CATALOG);
+  modelsStore$.catalog.set(getAllModels());
 }
 
-/**
- * T039: Download a model with progress callback.
- * Validates disk space before starting.
- */
+/** Download de modelo com progresso */
 export async function downloadModel(modelId: string): Promise<void> {
-  const state = getModelsState();
   const model = findModelById(modelId);
   if (!model) {
-    state.errorMessage.set("Modelo não encontrado no catálogo.");
+    modelsStore$.errorMessage.set("Modelo não encontrado no catálogo.");
     return;
   }
 
-  // T041: Disk space validation
-  const manager = getModelManager();
-  const diskResult = await manager.hasEnoughDisk(model.fileSizeBytes);
-  if (!diskResult.success) {
-    state.errorMessage.set(diskResult.error.message);
-    return;
+  modelsStore$.isLoading.set(true);
+  modelsStore$.downloadingModelId.set(modelId);
+  modelsStore$.downloadProgress.set(0);
+  modelsStore$.errorMessage.set(null);
+
+  try {
+    // Validação de espaço em disco
+    const freeDisk = await DeviceInfo.getFreeDiskStorage("important");
+    if (freeDisk < model.fileSizeBytes) {
+      modelsStore$.errorMessage.set("Espaço em disco insuficiente.");
+      modelsStore$.isLoading.set(false);
+      modelsStore$.downloadingModelId.set(null);
+      return;
+    }
+
+    // @react-native-ai/llama: download retorna caminho local
+    const { downloadModel: downloadModelFromHF } =
+      await import("@react-native-ai/llama");
+    const localPath = await downloadModelFromHF(model.huggingFaceId);
+
+    // Persiste caminho do modelo baixado
+    const manager = getModelManager();
+    manager.setDownloadedModelPath(modelId, localPath);
+
+    modelsStore$.downloadProgress.set(100);
+    modelsStore$.isLoading.set(false);
+    modelsStore$.downloadingModelId.set(null);
+
+    await refreshStatus();
+  } catch (error: any) {
+    modelsStore$.isLoading.set(false);
+    modelsStore$.downloadingModelId.set(null);
+    modelsStore$.errorMessage.set(error?.message ?? "Falha ao baixar modelo.");
   }
-
-  state.isLoading.set(true);
-  state.downloadingModelId.set(modelId);
-  state.downloadProgress.set(0);
-  state.errorMessage.set(null);
-
-  const downloadResult = await manager.downloadModel(
-    model.downloadUrl,
-    undefined,
-    model.fileSizeBytes,
-    (progress) => {
-      state.downloadProgress.set(progress);
-    },
-  );
-
-  state.isLoading.set(false);
-  state.downloadingModelId.set(null);
-
-  if (!downloadResult.success) {
-    state.errorMessage.set(downloadResult.error.message);
-    return;
-  }
-
-  // Persist the downloaded model path
-  manager.setDownloadedModel(modelId, downloadResult.data);
-
-  // Update downloaded models list
-  const newDownloaded: DownloadedModelInfo = {
-    id: modelId,
-    localPath: downloadResult.data,
-    isLoaded: false,
-  };
-  state.downloadedModels.set([...state.downloadedModels.get(), newDownloaded]);
-  refreshStatus();
 }
 
-/**
- * T040: Load a model into runtime.
- * - Calls model-manager.loadModel()
- * - Calls model-manager.setActiveModel() for persistence
- * - Broadcasts to chat VM's isModelReady
- */
+/** Carrega modelo na memória */
 export async function loadModel(
   modelId: string,
   onChatReady?: () => void,
 ): Promise<void> {
-  const state = getModelsState();
   const model = findModelById(modelId);
   if (!model) {
-    state.errorMessage.set("Modelo não encontrado no catálogo.");
+    modelsStore$.errorMessage.set("Modelo não encontrado no catálogo.");
     return;
   }
 
-  // T042: RAM warning check
-  const manager = getModelManager();
-  const ramResult = await manager.hasEnoughRam(model.estimatedRamBytes);
-  if (!ramResult.success) {
-    state.ramWarning.set({
+  // Validação de RAM
+  const totalRam = await DeviceInfo.getTotalMemory();
+  if (totalRam < model.estimatedRamBytes) {
+    modelsStore$.ramWarning.set({
       modelId,
       requiredMB: Math.round(model.estimatedRamBytes / 1024 / 1024),
-      availableMB: Math.round(
-        (await DeviceInfo.getTotalMemory()) / 1024 / 1024,
-      ),
+      availableMB: Math.round(totalRam / 1024 / 1024),
     });
-    state.errorMessage.set(ramResult.error.message);
+    modelsStore$.errorMessage.set(
+      `RAM insuficiente: ${Math.round(totalRam / 1024 / 1024)}MB disponível, ${Math.round(model.estimatedRamBytes / 1024 / 1024)}MB necessário.`,
+    );
     return;
   }
 
-  state.ramWarning.set(null);
-  state.isLoading.set(true);
-  state.errorMessage.set(null);
+  modelsStore$.ramWarning.set(null);
+  modelsStore$.isLoading.set(true);
+  modelsStore$.errorMessage.set(null);
 
-  // Use persisted local path if available, otherwise fallback to convention
-  const downloadedPaths = manager.getDownloadedModels();
-  const localPath = downloadedPaths[modelId] ?? `file://${model.id}.gguf`;
-  const loadResult = await manager.loadModel(modelId, localPath);
+  const runtime = getAIRuntime();
+  const manager = getModelManager();
+  const localPath = manager.getModelLocalPath(modelId);
 
-  state.isLoading.set(false);
+  if (!localPath) {
+    modelsStore$.isLoading.set(false);
+    modelsStore$.errorMessage.set(
+      "Arquivo do modelo não encontrado no disco. Baixe o modelo novamente.",
+    );
+    return;
+  }
+
+  const loadResult = await runtime.loadModel(modelId, localPath);
+
+  modelsStore$.isLoading.set(false);
 
   if (!loadResult.success) {
-    state.errorMessage.set(loadResult.error.message);
+    modelsStore$.errorMessage.set(loadResult.error.message);
     return;
   }
 
-  // T040: Persist active model
-  manager.setActiveModel(modelId);
-  state.activeModel.set(modelId);
+  modelsStore$.activeModelId.set(modelId);
 
-  // Broadcast to chat VM
-  if (onChatReady) {
-    onChatReady();
-  }
-
+  if (onChatReady) onChatReady();
   refreshStatus();
 }
 
-/** Unload current model */
+/** Descarrega modelo da memória */
 export async function unloadModel(): Promise<void> {
-  const state = getModelsState();
-  const manager = getModelManager();
-
-  state.isLoading.set(true);
-  const result = await manager.unloadModel();
-  state.isLoading.set(false);
+  const runtime = getAIRuntime();
+  modelsStore$.isLoading.set(true);
+  const result = await runtime.unloadModel();
+  modelsStore$.isLoading.set(false);
 
   if (!result.success) {
-    state.errorMessage.set(result.error.message);
+    modelsStore$.errorMessage.set(result.error.message);
     return;
   }
 
   refreshStatus();
 }
 
-/** Refresh downloaded/loaded model status */
+/** Atualiza status de modelos baixados/carregados */
 export async function refreshStatus(): Promise<void> {
-  const state = getModelsState();
-  const runtime = getLocalAIRuntime();
-  const currentModel = runtime.getCurrentModel();
+  const runtime = getAIRuntime();
   const manager = getModelManager();
-
-  state.activeModel.set(currentModel?.id ?? null);
-
-  // Read persisted downloaded model paths
+  const currentModel = runtime.getCurrentModel();
   const downloadedPaths = manager.getDownloadedModels();
 
-  const downloaded: DownloadedModelInfo[] = MODEL_CATALOG.map((m) => ({
+  const activeModelId = currentModel?.id ?? null;
+  modelsStore$.activeModelId.set(activeModelId);
+
+  const catalog = getAllModels();
+  const downloaded = catalog.map((m) => ({
     id: m.id,
     localPath: downloadedPaths[m.id] ?? null,
     isLoaded: m.id === currentModel?.id,
   }));
 
-  state.downloadedModels.set(downloaded);
+  // Persiste info de downloads
+  catalog.forEach((m) => {
+    const info = downloaded.find((d) => d.id === m.id);
+    if (info?.localPath) {
+      manager.setDownloadedModelPath(m.id, info.localPath);
+    }
+  });
+}
+
+// ============================================================================
+// Helpers para acesso rápido
+// ============================================================================
+
+export function getCatalog() {
+  return modelsStore$.catalog.get();
+}
+
+export function getActiveModelId() {
+  return modelsStore$.activeModelId.get();
+}
+
+export function getIsLoading() {
+  return modelsStore$.isLoading.get();
+}
+
+export function getDownloadingModelId() {
+  return modelsStore$.downloadingModelId.get();
+}
+
+export function getDownloadProgress() {
+  return modelsStore$.downloadProgress.get();
+}
+
+export function getErrorMessage() {
+  return modelsStore$.errorMessage.get();
+}
+
+export function getRamWarning() {
+  return modelsStore$.ramWarning.get();
 }

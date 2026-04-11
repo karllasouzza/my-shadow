@@ -1,89 +1,50 @@
-<!--
-Sync Impact Report
-Version change: 0.0.0 (template) -> 1.0.0
-Modified principles:
-- Initial ratification (all principles defined from template placeholders)
-Added sections:
-- Core Principles with four enforceable principles
-- Engineering Standards
-- Delivery Workflow & Quality Gates
-Removed sections:
-- Placeholder Principle V section from template
-Templates requiring updates:
-- .specify/templates/plan-template.md ✅ updated
-- .specify/templates/spec-template.md ✅ updated
-- .specify/templates/tasks-template.md ✅ updated
-- .specify/templates/commands/*.md ⚠ pending (directory not present in repository)
-Follow-up TODOs:
-- None
--->
-
-# My Shadow Constitution
+# [PROJECT_NAME] Constitution
+<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
 
 ## Core Principles
 
-### I. Code Quality Is A Release Requirement
+### [PRINCIPLE_1_NAME]
+<!-- Example: I. Library-First -->
+[PRINCIPLE_1_DESCRIPTION]
+<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
 
-All production code changes MUST pass linting, type checks, and peer review before merge.
-Code MUST favor small composable units, clear naming, and reuse of existing shared utilities
-or components before introducing new abstractions. New abstractions MUST include a short
-justification in the plan or PR notes when complexity increases.
-Rationale: Consistent internal quality reduces regression risk and keeps feature velocity high.
+### [PRINCIPLE_2_NAME]
+<!-- Example: II. CLI Interface -->
+[PRINCIPLE_2_DESCRIPTION]
+<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
 
-### II. Testing Standards Are Non-Negotiable
+### [PRINCIPLE_3_NAME]
+<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
+[PRINCIPLE_3_DESCRIPTION]
+<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
 
-Every behavior change MUST include automated tests at the appropriate level (unit,
-integration, or end-to-end) and those tests MUST fail before implementation and pass before
-merge. Bug fixes MUST include a regression test. Changes without executable validation MUST
-not be merged unless explicitly approved with documented risk acceptance.
-Rationale: Reliable tests are the primary control against shipping regressions.
+### [PRINCIPLE_4_NAME]
+<!-- Example: IV. Integration Testing -->
+[PRINCIPLE_4_DESCRIPTION]
+<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
 
-### III. User Experience Must Remain Consistent
+### [PRINCIPLE_5_NAME]
+<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
+[PRINCIPLE_5_DESCRIPTION]
+<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
 
-User-facing changes MUST follow established interaction patterns, theme tokens, and component
-primitives already used in the app. Every flow MUST define loading, empty, success, and error
-states, and MUST satisfy baseline accessibility expectations for labels, contrast, and input
-feedback. Deviations require explicit product and engineering approval.
-Rationale: UX consistency builds trust and lowers cognitive load for users.
+## [SECTION_2_NAME]
+<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
 
-### IV. Performance Budgets Must Be Explicit
+[SECTION_2_CONTENT]
+<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
 
-Each feature MUST declare measurable performance expectations before implementation and MUST
-verify results after implementation. For mobile interactions, changed flows SHOULD target
-responsive interactions and avoid avoidable re-renders, blocking work on the main thread, or
-unbounded memory growth. Regressions beyond agreed thresholds MUST be fixed or formally waived.
-Rationale: Performance is part of product quality, not a post-release activity.
+## [SECTION_3_NAME]
+<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
 
-## Engineering Standards
-
-- Language and tooling baseline MUST remain TypeScript + Expo Router + React Native with lint
-  and formatting checks enabled in local development and CI.
-- Shared theming and UI primitives MUST be used for new screens and components unless a
-  documented exception is approved.
-- New dependencies MUST be justified by clear value, maintenance posture, and bundle/runtime
-  impact.
-- All externally visible behavior changes MUST include documentation updates in the relevant
-  feature spec, quickstart, or README section.
-
-## Delivery Workflow & Quality Gates
-
-- Planning MUST include a constitution check for code quality, testing scope, UX consistency,
-  and performance budgets.
-- Implementation MUST proceed in independently testable slices aligned to user stories.
-- Reviews MUST verify tests, UX states, and performance evidence before approval.
-- Releases MUST block on unresolved critical defects, failing tests, or unapproved performance
-  regressions.
+[SECTION_3_CONTENT]
+<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
 
 ## Governance
+<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-- This constitution overrides conflicting local conventions in planning and delivery artifacts.
-- Amendments require: (1) proposed text change, (2) rationale, (3) impacted template updates,
-  and (4) approval from maintainers responsible for the affected areas.
-- Versioning policy: MAJOR for incompatible governance changes or principle removal/redefinition;
-  MINOR for new principles/sections or materially expanded obligations; PATCH for clarifications
-  that do not change required behavior.
-- Compliance review is mandatory for every plan and PR, and reviewers MUST explicitly confirm
-  constitution adherence or document approved exceptions.
-- Runtime development guidance lives in README.md and feature docs under specs/.
+[GOVERNANCE_RULES]
+<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
 
-**Version**: 1.0.0 | **Ratified**: 2026-04-07 | **Last Amended**: 2026-04-07
+**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
+<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->

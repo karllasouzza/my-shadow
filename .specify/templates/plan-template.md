@@ -29,20 +29,9 @@
 
 ## Constitution Check
 
-_GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
+*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-- **Code Quality Gate**: Identify lint, typing, architectural, and reuse constraints for this
-  feature. Document any expected complexity increase and why simpler alternatives are
-  insufficient.
-- **Testing Gate**: Define required automated tests (unit/integration/end-to-end) per user
-  story, including regression tests for known bugs.
-- **UX Consistency Gate**: Define affected user journeys and required loading, empty, success,
-  and error states. Confirm alignment with existing theme tokens and shared UI primitives.
-- **Performance Gate**: State measurable budgets (for example response time, render latency,
-  frame stability, memory usage) and how they will be validated before release.
-
-Record gate outcomes in the plan before implementation begins. If any gate fails, execution
-MUST pause until remediation tasks are added.
+[Gates determined based on constitution file]
 
 ## Project Structure
 
@@ -59,7 +48,6 @@ specs/[###-feature]/
 ```
 
 ### Source Code (repository root)
-
 <!--
   ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
   for this feature. Delete unused options and expand the chosen structure with
@@ -110,7 +98,7 @@ directories captured above]
 
 > **Fill ONLY if Constitution Check has violations that must be justified**
 
-| Violation                  | Why Needed         | Simpler Alternative Rejected Because |
-| -------------------------- | ------------------ | ------------------------------------ |
-| [e.g., 4th project]        | [current need]     | [why 3 projects insufficient]        |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient]  |
+| Violation | Why Needed | Simpler Alternative Rejected Because |
+|-----------|------------|-------------------------------------|
+| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
+| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |

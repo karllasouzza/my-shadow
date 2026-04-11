@@ -1,76 +1,89 @@
 /**
- * T048: History view-model using Legend State observables
+ * History Store & View-Model
  *
- * Manages history screen state: conversation list, loading state.
+ * Padrão synced() com persistência automática via MMKV.
  */
-import {
+
+import type {
     ChatConversation,
     ChatConversationIndex,
 } from "@/features/chat/model/chat-conversation";
 import * as ChatService from "@/features/chat/service/chat-service";
 import { Result } from "@/shared/utils/app-error";
-import { observable, Observable } from "@legendapp/state";
+import { observable } from "@legendapp/state";
+import { ObservablePersistMMKV } from "@legendapp/state/persist-plugins/mmkv";
+import { synced } from "@legendapp/state/sync";
 
-export interface HistoryState {
-  /** List of conversations for display */
-  conversations: Observable<ChatConversationIndex[]>;
-  /** Whether data is being loaded */
-  isLoading: Observable<boolean>;
-  /** Error message if any */
-  errorMessage: Observable<string | null>;
+// ============================================================================
+// Tipos
+// ============================================================================
+
+interface HistoryState {
+  conversations: ChatConversationIndex[];
+  isLoading: boolean;
+  errorMessage: string | null;
 }
 
-let historyState: HistoryState | null = null;
+const INITIAL_STATE: HistoryState = {
+  conversations: [],
+  isLoading: false,
+  errorMessage: null,
+};
 
-export function getHistoryState(): HistoryState {
-  if (!historyState) {
-    historyState = {
-      conversations: observable<ChatConversationIndex[]>([]),
-      isLoading: observable(false),
-      errorMessage: observable<string | null>(null),
-    };
-  }
-  return historyState;
-}
+// ============================================================================
+// Store com synced() — persistência automática
+// ============================================================================
 
-/** Load conversation index from storage */
+export const historyStore$ = observable(
+  synced<HistoryState>({
+    initial: INITIAL_STATE,
+    persist: {
+      name: "history_state",
+      plugin: new ObservablePersistMMKV({ id: "myAppStorage" }),
+    },
+  }),
+);
+
+// ============================================================================
+// Actions
+// ============================================================================
+
+/** Carrega lista de conversas do MMKV */
 export async function loadConversations(): Promise<
   Result<ChatConversationIndex[]>
 > {
-  const state = getHistoryState();
-  state.isLoading.set(true);
-  state.errorMessage.set(null);
+  historyStore$.isLoading.set(true);
+  historyStore$.errorMessage.set(null);
 
   const result = ChatService.listConversations();
   if (result.success) {
-    state.conversations.set(result.data);
+    historyStore$.conversations.set(result.data);
   } else {
-    state.errorMessage.set(result.error.message);
+    historyStore$.errorMessage.set(result.error.message);
   }
 
-  state.isLoading.set(false);
+  historyStore$.isLoading.set(false);
   return result;
 }
 
-/** Load full conversation and return it */
+/** Carrega conversa completa e retorna */
 export async function loadFullConversation(
   id: string,
 ): Promise<Result<ChatConversation | null>> {
   return ChatService.loadConversation(id);
 }
 
-/** Delete a conversation */
+/** Deleta conversa e atualiza lista */
 export async function deleteConversation(id: string): Promise<Result<void>> {
   const result = ChatService.deleteConversation(id);
   if (result.success) {
-    // Refresh list
     await loadConversations();
   }
   return result;
 }
 
-/** Rename a conversation */
-export async function renameConversation(
+/** Renomeia conversa e atualiza lista */
+export async function renameConversationFn(
   id: string,
   newTitle: string,
 ): Promise<Result<ChatConversation | null>> {
@@ -79,4 +92,20 @@ export async function renameConversation(
     await loadConversations();
   }
   return result;
+}
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+export function getConversations() {
+  return historyStore$.conversations.get();
+}
+
+export function getHistoryIsLoading() {
+  return historyStore$.isLoading.get();
+}
+
+export function getHistoryErrorMessage() {
+  return historyStore$.errorMessage.get();
 }

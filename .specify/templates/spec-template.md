@@ -5,13 +5,13 @@
 **Status**: Draft  
 **Input**: User description: "$ARGUMENTS"
 
-## User Scenarios & Testing _(mandatory)_
+## User Scenarios & Testing *(mandatory)*
 
 <!--
   IMPORTANT: User stories should be PRIORITIZED as user journeys ordered by importance.
   Each user story/journey must be INDEPENDENTLY TESTABLE - meaning if you implement just ONE of them,
   you should still have a viable MVP (Minimum Viable Product) that delivers value.
-
+  
   Assign priorities (P1, P2, P3, etc.) to each story, where P1 is the most critical.
   Think of each story as a standalone slice of functionality that can be:
   - Developed independently
@@ -65,12 +65,6 @@
 
 [Add more user stories as needed, each with an assigned priority]
 
-### Testing Strategy _(mandatory)_
-
-- Define the automated test levels required for this feature (unit, integration, end-to-end).
-- For each user story, state what must fail before implementation and pass before merge.
-- List any regression tests required due to defects, incident history, or high-risk changes.
-
 ### Edge Cases
 
 <!--
@@ -81,7 +75,7 @@
 - What happens when [boundary condition]?
 - How does system handle [error scenario]?
 
-## Requirements _(mandatory)_
+## Requirements *(mandatory)*
 
 <!--
   ACTION REQUIRED: The content in this section represents placeholders.
@@ -91,46 +85,22 @@
 ### Functional Requirements
 
 - **FR-001**: System MUST [specific capability, e.g., "allow users to create accounts"]
-- **FR-002**: System MUST [specific capability, e.g., "validate email addresses"]
+- **FR-002**: System MUST [specific capability, e.g., "validate email addresses"]  
 - **FR-003**: Users MUST be able to [key interaction, e.g., "reset their password"]
 - **FR-004**: System MUST [data requirement, e.g., "persist user preferences"]
 - **FR-005**: System MUST [behavior, e.g., "log all security events"]
 
-_Example of marking unclear requirements:_
+*Example of marking unclear requirements:*
 
 - **FR-006**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]
 - **FR-007**: System MUST retain user data for [NEEDS CLARIFICATION: retention period not specified]
 
-### Code Quality Requirements _(mandatory)_
-
-- **CQ-001**: Changes MUST pass linting and static type checks in CI.
-- **CQ-002**: New logic MUST reuse existing shared abstractions where feasible, or document why
-  a new abstraction is required.
-- **CQ-003**: Feature complexity risks MUST be documented with mitigation steps before
-  implementation.
-
-### UX Consistency Requirements _(mandatory for user-facing changes)_
-
-- **UX-001**: User-facing changes MUST use established design tokens, spacing, typography, and
-  shared UI primitives.
-- **UX-002**: Each affected flow MUST define loading, empty, success, and error states.
-- **UX-003**: Accessibility expectations (labels, readable contrast, input feedback) MUST be
-  specified for changed screens or interactions.
-
-### Performance Requirements _(mandatory)_
-
-- **PF-001**: Define at least one measurable budget for the critical path introduced or changed
-  by this feature.
-- **PF-002**: Specify how the budget will be validated (instrumentation, profiling, benchmark,
-  or synthetic test).
-- **PF-003**: Define rollback or mitigation expectations if measured performance misses budget.
-
-### Key Entities _(include if feature involves data)_
+### Key Entities *(include if feature involves data)*
 
 - **[Entity 1]**: [What it represents, key attributes without implementation]
 - **[Entity 2]**: [What it represents, relationships to other entities]
 
-## Success Criteria _(mandatory)_
+## Success Criteria *(mandatory)*
 
 <!--
   ACTION REQUIRED: Define measurable success criteria.
@@ -143,9 +113,6 @@ _Example of marking unclear requirements:_
 - **SC-002**: [Measurable metric, e.g., "System handles 1000 concurrent users without degradation"]
 - **SC-003**: [User satisfaction metric, e.g., "90% of users successfully complete primary task on first attempt"]
 - **SC-004**: [Business metric, e.g., "Reduce support tickets related to [X] by 50%"]
-- **SC-005**: [Code quality metric, e.g., "0 lint/type errors introduced and review findings resolved before merge"]
-- **SC-006**: [Test quality metric, e.g., "All required new tests fail-before-pass and run in CI"]
-- **SC-007**: [Performance metric, e.g., "Critical interaction p95 remains under agreed budget"]
 
 ## Assumptions
 
