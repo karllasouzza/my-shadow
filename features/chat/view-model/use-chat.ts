@@ -117,6 +117,7 @@ export function useChat() {
     const runtime = getAIRuntime();
     if (runtime.isModelLoaded()) return;
 
+    setIsModelLoading(true);
     const result = await aiAutoLoadLastModel();
     if (result?.success) {
       setIsModelReady(true);
@@ -126,15 +127,14 @@ export function useChat() {
       const entry = models.find((m) => m.id === selected);
       setModelSupportsReasoning(entry?.supportsReasoning ?? false);
     }
+    setIsModelLoading(false);
   }, []);
 
   // ==========================================================================
   // Chat Actions
   // ==========================================================================
 
-  const initChat = useCallback((id: string | null) => {
-    setConversationId(id);
-    setErrorMessage(null);
+  const initChat = useCallback(async (id: string | null) => {
     setStreamingMessage(null);
     setIsGenerating(false);
     setShowCancelOption(false);
@@ -145,6 +145,27 @@ export function useChat() {
     const entry = catalog.find((m) => m.id === model?.id);
     const supports = entry?.supportsReasoning ?? false;
     setModelSupportsReasoning(supports);
+
+    // If no ID, just reset and return
+    if (!id) {
+      setConversationId(null);
+      setErrorMessage(null);
+      return;
+    }
+
+    // Validate conversation exists in storage
+    const loadResult = DatabaseChat.loadConversation(id);
+    if (!loadResult.success || !loadResult.data) {
+      setConversationId(null);
+      setErrorMessage(
+        "Conversa não encontrada. Ela pode ter sido removida ou corrompida.",
+      );
+      return;
+    }
+
+    // Conversation exists, set it
+    setConversationId(id);
+    setErrorMessage(null);
   }, []);
 
   const syncModelStatus = useCallback(() => {
