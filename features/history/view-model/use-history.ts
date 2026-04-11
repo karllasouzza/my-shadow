@@ -1,21 +1,21 @@
-/**
- * useHistory
- *
- * Hook simples com useState — zero Legend State.
- * Exclusivo da HistoryScreen.
- */
-
-import type { ChatConversation, ChatConversationIndex } from "@/features/chat/model/chat-conversation";
 import * as DatabaseChat from "@/database/chat";
-import { useCallback, useMemo, useState } from "react";
+import type {
+  ChatConversation,
+  ChatConversationIndex,
+} from "@/features/chat/model/chat-conversation";
 import type { Result } from "@/shared/utils/app-error";
+import { useCallback, useMemo, useState } from "react";
 
 export function useHistory() {
-  const [conversations, setConversations] = useState<ChatConversationIndex[]>([]);
+  const [conversations, setConversations] = useState<ChatConversationIndex[]>(
+    [],
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const loadConversations = useCallback(async (): Promise<Result<ChatConversationIndex[]>> => {
+  const loadConversations = useCallback(async (): Promise<
+    Result<ChatConversationIndex[]>
+  > => {
     setIsLoading(true);
     setErrorMessage(null);
 
@@ -30,13 +30,6 @@ export function useHistory() {
     return result;
   }, []);
 
-  const loadFullConversation = useCallback(
-    async (id: string): Promise<Result<ChatConversation | null>> => {
-      return DatabaseChat.loadConversation(id);
-    },
-    [],
-  );
-
   const deleteConversation = useCallback(
     async (id: string): Promise<Result<void>> => {
       const result = DatabaseChat.deleteConversation(id);
@@ -49,7 +42,10 @@ export function useHistory() {
   );
 
   const renameConversation = useCallback(
-    async (id: string, newTitle: string): Promise<Result<ChatConversation | null>> => {
+    async (
+      id: string,
+      newTitle: string,
+    ): Promise<Result<ChatConversation | null>> => {
       const result = DatabaseChat.renameConversation(id, newTitle);
       if (result.success) {
         await loadConversations();
@@ -65,7 +61,6 @@ export function useHistory() {
       isLoading,
       errorMessage,
       loadConversations,
-      loadFullConversation,
       deleteConversation,
       renameConversation,
     }),
@@ -74,7 +69,6 @@ export function useHistory() {
       isLoading,
       errorMessage,
       loadConversations,
-      loadFullConversation,
       deleteConversation,
       renameConversation,
     ],

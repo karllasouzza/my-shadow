@@ -13,21 +13,16 @@ const HistoryScreenInner = observer(function HistoryScreenInner() {
     isLoading,
     errorMessage,
     loadConversations,
-    loadFullConversation,
     deleteConversation,
     renameConversation,
   } = useHistory();
 
-  const handleConversationPress = useCallback(
-    async (id: string) => {
-      await loadFullConversation(id);
-      router.push({
-        pathname: "/chat",
-        params: { conversationId: id },
-      });
-    },
-    [loadFullConversation],
-  );
+  const handleConversationPress = useCallback(async (id: string) => {
+    router.push({
+      pathname: "/",
+      params: { conversationId: id },
+    });
+  }, []);
 
   const handleRename = useCallback(
     async (conv: ChatConversationIndex) => {
