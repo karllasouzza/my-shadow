@@ -4,11 +4,6 @@
 
 @layer base {
   :root {
-    /* === MINIMALIST LIGHT THEME (Default) ===
-     * Inspired by modern AI chat interfaces
-     * Rule 60-30-10: 60% white, 30% soft grey, 10% lavender (#999ff3)
-     */
-
     /* === CORE === */
     --background: 0 0% 98%; /* #FAFAFA - Near white */
     --foreground: 240 10% 12%; /* #1A1A2E - Dark text */
