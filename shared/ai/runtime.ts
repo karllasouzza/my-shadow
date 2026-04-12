@@ -1,11 +1,3 @@
-/**
- * AI Runtime
- *
- * Runtime simplificado usando @react-native-ai/llama e AI SDK (streamText).
- * Gerencia carregamento de modelo e geração de texto com streaming.
- */
-
-import * as DatabaseModels from "@/database/models";
 import { Result, createError, err, ok } from "@/shared/utils/app-error";
 import { llama } from "@react-native-ai/llama";
 import { streamText } from "ai";
@@ -16,19 +8,26 @@ import type {
   StreamCompletionOptions,
 } from "./types";
 
-// ============================================================================
-// Singleton
-// ============================================================================
-
 let runtimeInstance: AIRuntime | null = null;
 
 export class AIRuntime {
   private currentModel: LoadedModel | null = null;
   private modelInstance: ReturnType<typeof llama.languageModel> | null = null;
   private abortController: AbortController | null = null;
+  private readonly STOP_WORDS = [
+    "</s>",
+    "<|end|>",
+    "<|eot_id|>",
+    "<|end_of_text|>",
+    "<|im_end|>",
+    "<|EOT|>",
+    "<|END_OF_TURN_TOKEN|>",
+    "<|end_of_turn|>",
+    "<|endoftext|>",
+  ];
 
   /**
-   * Carrega modelo na memória.
+   * Carrega modelo na memória. Se outro modelo já estiver carregado, ele será descarregado primeiro.
    * @param modelId - ID lógico do modelo
    * @param modelPath - Caminho local do arquivo GGUF
    */
@@ -37,24 +36,26 @@ export class AIRuntime {
     modelPath: string,
   ): Promise<Result<LoadedModel>> {
     try {
-      // Se já tem modelo carregado, descarrega primeiro
       if (this.modelInstance) {
         await this.unloadModel();
       }
+      this.modelInstance = llama.languageModel(modelPath, {
+        contextParams: {
+          n_ctx: 2048,
+          ctx_shift: true,
+          kv_unified: true,
+          n_gpu_layers: 99,
+          use_mlock: true,
+          swa_full: true,
+        },
+      });
 
-      // Cria instância do modelo
-      this.modelInstance = llama.languageModel(modelPath);
-
-      // Carrega na memória
       await this.modelInstance.prepare();
 
       this.currentModel = {
         id: modelId,
         isLoaded: true,
       };
-
-      // Persiste modelo ativo
-      DatabaseModels.setActiveModelId(modelId);
 
       return ok(this.currentModel);
     } catch (error) {
@@ -91,9 +92,6 @@ export class AIRuntime {
       this.modelInstance = null;
       this.currentModel = null;
 
-      // Limpa persistência
-      DatabaseModels.clearActiveModelId();
-
       return ok(undefined);
     } catch (error) {
       return err(
@@ -107,10 +105,6 @@ export class AIRuntime {
     }
   }
 
-  /**
-   * Gera completção com streaming usando AI SDK.
-   * Usa AbortController para cancelamento (sem setTimeout!).
-   */
   async streamCompletion(
     messages: ChatMessage[],
     options?: StreamCompletionOptions,
@@ -125,17 +119,17 @@ export class AIRuntime {
     }
 
     try {
-      // Cria AbortController para cancelamento
       this.abortController = new AbortController();
 
-      // Monta o prompt no formato de chat
-      const prompt = this.formatMessages(messages);
-
-      // Usa AI SDK para streaming
       const { textStream } = streamText({
         model: this.modelInstance,
-        prompt,
+        messages,
         abortSignal: options?.abortSignal ?? this.abortController.signal,
+        maxOutputTokens: options?.maxTokens || 2048,
+        temperature: options?.temperature || 0.7,
+        stopSequences: this.STOP_WORDS,
+        maxRetries: 3,
+        presencePenalty: 0.5,
       });
 
       let fullText = "";
@@ -159,7 +153,6 @@ export class AIRuntime {
 
       return ok({ text: fullText });
     } catch (error) {
-      // AbortError é esperado quando cancelado
       if (error instanceof Error && error.name === "AbortError") {
         return err(createError("ABORTED", "Geração cancelada pelo usuário."));
       }
@@ -167,7 +160,7 @@ export class AIRuntime {
       return err(
         createError(
           "LOCAL_GENERATION_UNAVAILABLE",
-          "Falha ao gerar completção.",
+          "Falha ao gerar texto.",
           {},
           error as Error,
         ),
@@ -199,13 +192,6 @@ export class AIRuntime {
    */
   getCurrentModel(): LoadedModel | null {
     return this.currentModel;
-  }
-
-  /**
-   * Formata mensagens no formato de prompt.
-   */
-  private formatMessages(messages: ChatMessage[]): string {
-    return messages.map((msg) => `${msg.role}: ${msg.content}`).join("\n");
   }
 }
 

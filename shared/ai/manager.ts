@@ -1,55 +1,58 @@
-/**
- * Model Manager
- *
- * Gerencia download, carregamento e descarregamento de modelos
- * usando @react-native-ai/llama com API simplificada.
- */
-
-import * as DatabaseModels from "@/database/models";
 import { Result, createError, err, ok } from "@/shared/utils/app-error";
 import { downloadModel } from "@react-native-ai/llama";
+import { Directory, File, Paths } from "expo-file-system";
 import DeviceInfo from "react-native-device-info";
 import type { DownloadState } from "./types";
 
-// ============================================================================
-// Singleton
-// ============================================================================
+/**
+ * Diretório onde os modelos GGUF são armazenados.
+ * Usa Paths.document (persistente, não é limpo pelo SO).
+ */
+const MODELS_DIR = new Directory(Paths.document, "llm_models");
 
 let managerInstance: ModelManager | null = null;
 
 export class ModelManager {
+  private abortController: AbortController | null = null;
   private downloadState: DownloadState = {
     modelId: null,
     progress: 0,
     isActive: false,
   };
 
+  // ============================================================================
+  // Download
+  // ============================================================================
+
   /**
    * Download de modelo do catálogo usando @react-native-ai/llama.
    * Retorna o caminho local do arquivo GGUF.
    */
-  async downloadModel(
+  async downloadModelById(
     modelId: string,
     huggingFaceId: string,
   ): Promise<Result<string>> {
     try {
+      this.abortController = new AbortController();
+
+      // Garante que o diretório de modelos existe
+      if (!MODELS_DIR.exists) {
+        MODELS_DIR.create();
+      }
+
       this.downloadState = {
         modelId,
         progress: 0,
         isActive: true,
       };
 
-      // @react-native-ai/llama retorna o caminho local automaticamente
-      const localPath = await downloadModel(huggingFaceId);
+      const localPath = await downloadModel(huggingFaceId, (progress) => {
+        this.downloadState.progress = progress.percentage;
+      });
 
-      // Persiste o caminho
-      DatabaseModels.setDownloadedModelPath(modelId, localPath);
-
-      this.downloadState = {
-        modelId: null,
-        progress: 100,
-        isActive: false,
-      };
+      this.downloadState.isActive = false;
+      this.downloadState.modelId = null;
+      this.abortController = null;
 
       return ok(localPath);
     } catch (error) {
@@ -74,14 +77,21 @@ export class ModelManager {
    * Cancela download ativo.
    */
   cancelDownload(): void {
-    // @react-native-ai/llama gerencia cancelamento internamente
-    // TODO: implementar cancelamento quando suportado
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
+    }
+
     this.downloadState = {
       modelId: null,
       progress: 0,
       isActive: false,
     };
   }
+
+  // ============================================================================
+  // Resource Validation
+  // ============================================================================
 
   /**
    * Verifica se há RAM suficiente para o modelo.
@@ -116,8 +126,6 @@ export class ModelManager {
    */
   async hasEnoughDisk(requiredBytes: number): Promise<Result<boolean>> {
     try {
-      // @react-native-ai/llama gerencia espaço automaticamente
-      // Apenas verificamos se temos pelo menos o dobro do tamanho como margem
       const freeDisk = await DeviceInfo.getFreeDiskStorage("important");
       return ok(freeDisk > requiredBytes * 2);
     } catch (error) {
@@ -133,39 +141,56 @@ export class ModelManager {
   }
 
   // ============================================================================
-  // Estado Persistido (delegado para database/models.ts)
+  // Estado Persistido (FileSystem-based)
+  // ============================================================================
+  // Modelos são detectados diretamente pelo arquivo no dispositivo.
+  // Convenção: {MODELS_DIR}/{modelId}.gguf
   // ============================================================================
 
-  setActiveModel(modelId: string): void {
-    DatabaseModels.setActiveModelId(modelId);
-  }
-
-  clearActiveModel(): void {
-    DatabaseModels.clearActiveModelId();
-  }
-
-  getActiveModel(): string | null {
-    return DatabaseModels.getActiveModelId();
-  }
-
+  /**
+   * Retorna mapa de modelos baixados: { modelId: filePath }.
+   * Lista arquivos no diretório e filtra por extensão .gguf.
+   */
   getDownloadedModels(): Record<string, string> {
-    return DatabaseModels.getDownloadedModelMap();
+    if (!MODELS_DIR.exists) return {};
+
+    const map: Record<string, string> = {};
+    const items = MODELS_DIR.list();
+
+    for (const item of items) {
+      if (item instanceof File && item.name.endsWith(".gguf")) {
+        const modelId = item.name.replace(/\.gguf$/, "");
+        map[modelId] = item.uri;
+      }
+    }
+
+    return map;
   }
 
+  /**
+   * Verifica se o modelo existe no dispositivo (checagem real de arquivo).
+   */
   isModelDownloaded(modelId: string): boolean {
-    return DatabaseModels.isModelDownloaded(modelId);
+    const file = new File(MODELS_DIR, `${modelId}.gguf`);
+    return file.exists;
   }
 
+  /**
+   * Retorna o caminho local do modelo, ou null se não existe.
+   */
   getModelLocalPath(modelId: string): string | null {
-    return DatabaseModels.getModelLocalPath(modelId);
+    const file = new File(MODELS_DIR, `${modelId}.gguf`);
+    return file.exists ? file.uri : null;
   }
 
-  setDownloadedModelPath(modelId: string, localPath: string): void {
-    DatabaseModels.setDownloadedModelPath(modelId, localPath);
-  }
-
+  /**
+   * Remove modelo do dispositivo (deleta arquivo).
+   */
   removeDownloadedModel(modelId: string): void {
-    DatabaseModels.removeDownloadedModel(modelId);
+    const file = new File(MODELS_DIR, `${modelId}.gguf`);
+    if (file.exists) {
+      file.delete();
+    }
   }
 
   // ============================================================================
