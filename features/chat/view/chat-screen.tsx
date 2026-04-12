@@ -36,7 +36,7 @@ const ChatScreenInner = observer(function ChatScreenInner() {
     useCallback(() => {
       const init = async () => {
         await chat.initChat(params.conversationId ?? null);
-        chat.autoLoadLastModel();
+        chat.handleAutoLoadLastModel();
         chat.syncModelStatus();
       };
       init();
@@ -72,9 +72,9 @@ const ChatScreenInner = observer(function ChatScreenInner() {
 
   const handleModelSelect = useCallback(
     (modelId: string) => {
-      chat.loadModel(modelId);
+      chat.handleLoadModel(modelId);
     },
-    [chat.loadModel],
+    [chat.handleLoadModel],
   );
 
   return (

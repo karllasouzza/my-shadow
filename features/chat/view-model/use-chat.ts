@@ -10,18 +10,14 @@ import {
   type ChatMessage,
 } from "@/features/chat/model/chat-message";
 import {
-  autoLoadLastModel as aiAutoLoadLastModel,
-  loadModel as aiLoadModel,
-  unloadModel as aiUnloadModel,
-  getAIRuntime,
+  autoLoadLastModel,
   getAvailableModels,
   getSelectedModelId,
-} from "@/shared/ai";
+  loadModel,
+  unloadModel,
+} from "@/shared/ai/model-loader";
+import { getAIRuntime } from "@/shared/ai/runtime";
 import { useCallback, useMemo, useRef, useState } from "react";
-
-// ============================================================================
-// Types
-// ============================================================================
 
 interface StreamingMessage extends ChatMessage {
   _isStreaming: true;
@@ -76,14 +72,13 @@ export function useChat() {
 
   const selectedModelId = useMemo(
     () => getSelectedModelId(),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [isModelReady, modelsRefresh],
   );
 
-  const loadModel = useCallback(async (modelId: string) => {
+  const handleLoadModel = useCallback(async (modelId: string) => {
     setIsModelLoading(true);
     setModelError(null);
-    const result = await aiLoadModel(modelId);
+    const result = await loadModel(modelId);
     setIsModelLoading(false);
 
     if (!result.success) {
@@ -100,9 +95,9 @@ export function useChat() {
     setModelSupportsReasoning(entry?.supportsReasoning ?? false);
   }, []);
 
-  const unloadModel = useCallback(async () => {
+  const handleUnloadModel = useCallback(async () => {
     setIsModelLoading(true);
-    const result = await aiUnloadModel();
+    const result = await unloadModel();
     setIsModelLoading(false);
 
     if (!result.success) {
@@ -116,12 +111,12 @@ export function useChat() {
   }, []);
 
   /** Auto-load last used model on init */
-  const autoLoadLastModel = useCallback(async () => {
+  const handleAutoLoadLastModel = useCallback(async () => {
     const runtime = getAIRuntime();
     if (runtime.isModelLoaded()) return;
 
-    const result = await aiAutoLoadLastModel();
-    if (!result) return; // No models downloaded, skip loading entirely
+    const result = await autoLoadLastModel();
+    if (!result) return;
 
     setIsModelLoading(true);
     if (result.success) {
@@ -541,9 +536,9 @@ export function useChat() {
       clearConversationError: () => setConversationError(null),
 
       // Model Actions
-      loadModel,
-      unloadModel,
-      autoLoadLastModel,
+      handleLoadModel,
+      handleUnloadModel,
+      handleAutoLoadLastModel,
     }),
     [
       conversationId,
@@ -567,9 +562,9 @@ export function useChat() {
       cancelGeneration,
       toggleThinking,
       resetChatState,
-      loadModel,
-      unloadModel,
-      autoLoadLastModel,
+      handleLoadModel,
+      handleUnloadModel,
+      handleAutoLoadLastModel,
     ],
   );
 }

@@ -8,18 +8,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { CircularProgress } from "@/features/model-management/components/circular-progress";
-import { ModelCatalogEntry } from "@/shared/ai";
+import { Model, ModelStatus } from "@/shared/ai/types/model";
 import React from "react";
 import { Text, View } from "react-native";
 
-export type ModelStatus =
-  | "not-downloaded"
-  | "downloading"
-  | "downloaded"
-  | "failed";
-
 interface ModelItemProps {
-  item: ModelCatalogEntry;
+  item: Model;
 
   onDownload?: () => void;
   onRetry?: () => void;
