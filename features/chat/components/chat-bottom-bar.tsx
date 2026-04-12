@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { Text } from "@/components/ui/text";
 import { cn } from "@/lib/utils";
-import { AvailableModel } from "@/shared/ai";
+import { AvailableModel } from "@/shared/ai/types/model-loader";
 import type { LucideIcon } from "lucide-react-native";
 import React from "react";
 import { Platform, ScrollView, View } from "react-native";
