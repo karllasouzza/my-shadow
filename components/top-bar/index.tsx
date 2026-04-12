@@ -1,9 +1,9 @@
 import { Icon } from "@/components/ui/icon";
 import { Input } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
-import { ArrowLeft, Search, X } from "lucide-react-native";
+import { cn } from "@/lib/utils";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { BackHandler, Pressable, TextInput, View } from "react-native";
+import { BackHandler, TextInput, View } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -87,7 +87,12 @@ export const TopBar = ({
   }, [isSearchActive, searchBarOpacity, titleOpacity, handleCloseSearch]);
 
   return (
-    <View className="z-40 flex-row justify-between items-center px-4 py-3 border-border border-b w-full">
+    <View
+      className={cn(
+        "z-40 flex-row justify-between items-center px-4 py-3 border-border border-b w-full",
+        className,
+      )}
+    >
       {/* Left Section */}
       <View className="flex-row items-center gap-3">
         {showBack && !isSearchActive && (
@@ -98,7 +103,11 @@ export const TopBar = ({
             className="active:opacity-70"
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Icon as={ArrowLeft} size={24} className="text-foreground" />
+            <Icon
+              as={require("lucide-react-native").ArrowLeft}
+              size={24}
+              className="text-foreground"
+            />
           </Button>
         )}
 
@@ -123,7 +132,11 @@ export const TopBar = ({
             onPress={handleCloseSearch}
             className="active:opacity-70"
           >
-            <Icon as={ArrowLeft} size={24} className="text-foreground" />
+            <Icon
+              as={require("lucide-react-native").ArrowLeft}
+              size={24}
+              className="text-foreground"
+            />
           </Button>
 
           <View className="flex-row flex-1 items-center gap-2 px-2 py-1 rounded-xl">
@@ -136,13 +149,19 @@ export const TopBar = ({
             />
 
             {searchQuery.length > 0 && (
-              <Pressable
+              <Button
+                variant="ghost"
+                size="icon"
                 onPress={handleClearSearch}
                 className="active:opacity-70"
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Icon as={X} size={20} className="text-muted-foreground" />
-              </Pressable>
+                <Icon
+                  as={require("lucide-react-native").X}
+                  size={20}
+                  className="text-muted-foreground"
+                />
+              </Button>
             )}
           </View>
         </Animated.View>
@@ -164,7 +183,11 @@ export const TopBar = ({
             className="bg-muted/50 active:opacity-70 p-2 rounded-full"
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Icon as={Search} size={20} className="text-foreground" />
+            <Icon
+              as={require("lucide-react-native").Search}
+              size={20}
+              className="text-foreground"
+            />
           </Button>
         )}
         {rightAction}
