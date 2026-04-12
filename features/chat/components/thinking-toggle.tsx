@@ -1,8 +1,8 @@
 /**
  * Thinking Toggle
  *
- * Botão para habilitar/desabilitar o processo de pensamento da IA.
- * Só aparece quando o modelo suportar reasoning.
+ * Button to enable/disable the AI's reasoning process.
+ * Only shown when the current model supports reasoning.
  */
 
 import { Brain } from "lucide-react-native";

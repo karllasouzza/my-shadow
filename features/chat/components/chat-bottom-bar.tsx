@@ -1,28 +1,17 @@
-/**
- * Chat Bottom Bar
- *
- * Bottom bar com ações rápidas e input de chat.
- * Design inspirado em interfaces modernas de AI assistants.
- *
- * Layout:
- * - Linha superior: Botões de ação rápida (Create Images, Edit Images, Voice Mode)
- * - Linha inferior: Input area com seletor de modelo e botão Speak
- */
 import AutoResizingInput from "@/components/ui/auto-resizing-input";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { Text } from "@/components/ui/text";
 import { cn } from "@/lib/utils";
 import { AvailableModel } from "@/shared/ai/types/model-loader";
-import type { LucideIcon } from "lucide-react-native";
 import React from "react";
 import { Platform, ScrollView, View } from "react-native";
 import { ModelSelector } from "./model-selector";
 
 interface QuickAction {
   id: string;
-  label: string;
-  icon: LucideIcon;
+  title: string;
+  subtitle: string;
   onPress: () => void;
 }
 
@@ -46,21 +35,21 @@ interface ChatBottomBarProps {
 
 const defaultQuickActions: QuickAction[] = [
   {
-    id: "create-images",
-    label: "Create Images",
-    icon: require("lucide-react-native").Image,
+    id: "explain",
+    title: "Explicação",
+    subtitle: "Me explique como calcular...",
     onPress: () => {},
   },
   {
-    id: "edit-images",
-    label: "Edit Images",
-    icon: require("lucide-react-native").Sparkles,
+    id: "plan",
+    title: "Planejamento",
+    subtitle: "Crie um plano para...",
     onPress: () => {},
   },
   {
-    id: "voice-mode",
-    label: "Voice Mode",
-    icon: require("lucide-react-native").Mic,
+    id: "brainstorm",
+    title: "Criatividade",
+    subtitle: "Me ajude dê ideias criativas para...",
     onPress: () => {},
   },
 ];
@@ -105,17 +94,15 @@ function ChatBottomBar({
             <Button
               key={action.id}
               onPress={action.onPress}
-              className="flex-row items-center gap-2 bg-card border border-border rounded-xl px-4 py-2.5 active:opacity-80"
+              className="flex flex-col items-center gap-2 bg-card border border-border rounded-xl px-4 py-2.5 active:opacity-80"
               accessibilityRole="button"
-              accessibilityLabel={action.label}
+              accessibilityLabel={action.title}
             >
-              <Icon
-                as={action.icon}
-                size={16}
-                className="text-muted-foreground"
-              />
               <Text className="text-sm text-foreground font-medium">
-                {action.label}
+                {action.title}
+              </Text>
+              <Text className="text-xs text-muted-foreground">
+                {action.subtitle}
               </Text>
             </Button>
           ))}
