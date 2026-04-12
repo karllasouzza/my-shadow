@@ -45,7 +45,7 @@ export function useModels() {
 
     const result = await downloadModelById(
       modelId,
-      model.huggingFaceId,
+      model.downloadLink,
       (info) => {
         setDownloadProgress(Math.round(info.progress));
       },
