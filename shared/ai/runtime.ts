@@ -2,7 +2,11 @@ import { Result, createError, err, ok } from "@/shared/utils/app-error";
 import { llama } from "@react-native-ai/llama";
 import { streamText } from "ai";
 import { ChatMessage } from "./types/chat";
-import { CompletionOutput, LoadedModel, StreamCompletionOptions } from "./types/runtime";
+import {
+  CompletionOutput,
+  LoadedModel,
+  StreamCompletionOptions,
+} from "./types/runtime";
 
 let runtimeInstance: AIRuntime | null = null;
 
@@ -23,9 +27,10 @@ export class AIRuntime {
   ];
 
   /**
-   * Carrega modelo na memória. Se outro modelo já estiver carregado, ele será descarregado primeiro.
-   * @param modelId - ID lógico do modelo
-   * @param modelPath - Caminho local do arquivo GGUF
+   * Loads a model into memory. If another model is already loaded, it will be unloaded first.
+   *
+   * @param modelId - Logical model ID
+   * @param modelPath - Local path to the GGUF file
    */
   async loadModel(
     modelId: string,
@@ -70,7 +75,7 @@ export class AIRuntime {
   }
 
   /**
-   * Descarrega modelo da memória, liberando RAM.
+   * Unloads the model from memory, freeing RAM.
    */
   async unloadModel(): Promise<Result<void>> {
     try {
@@ -165,7 +170,7 @@ export class AIRuntime {
   }
 
   /**
-   * Cancela geração em andamento.
+   * Cancels an ongoing generation.
    */
   cancelGeneration(): void {
     if (this.abortController) {
@@ -175,7 +180,7 @@ export class AIRuntime {
   }
 
   /**
-   * Verifica se modelo está carregado.
+   * Checks whether a model is loaded.
    */
   isModelLoaded(modelId?: string): boolean {
     if (!this.currentModel) return false;
@@ -184,14 +189,14 @@ export class AIRuntime {
   }
 
   /**
-   * Retorna modelo carregado atualmente.
+   * Returns the currently loaded model.
    */
   getCurrentModel(): LoadedModel | null {
     return this.currentModel;
   }
 }
 
-/** Retorna instância singleton do AIRuntime */
+/** Returns the singleton instance of AIRuntime */
 export function getAIRuntime(): AIRuntime {
   if (!runtimeInstance) {
     runtimeInstance = new AIRuntime();

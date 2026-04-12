@@ -6,7 +6,7 @@ import { OnDownloadProgress } from "./types/manager";
 const MODELS_DIR = new Directory(Paths.document, "models");
 
 /**
- * Garante que o diretório de modelos existe.
+ * Ensures the models directory exists.
  */
 function ensureModelsDir(): void {
   if (!MODELS_DIR.exists) {
@@ -15,22 +15,22 @@ function ensureModelsDir(): void {
 }
 
 /**
- * Retorna o File destino para um modelo.
+ * Returns the destination File for a given model ID.
  */
 function modelFileInstance(modelId: string): File {
   return new File(MODELS_DIR, `${modelId}.gguf`);
 }
 
 /**
- * Download de modelo usando createDownloadResumable (expo-file-system/legacy).
+ * Downloads a model using createDownloadResumable (expo-file-system/legacy).
  *
- * O arquivo é salvo em {MODELS_DIR}/{modelId}.gguf.
- * Suporta callback de progresso.
+ * The file is saved at {MODELS_DIR}/{modelId}.gguf.
+ * Supports an optional progress callback.
  *
- * @param modelId - ID lógico do modelo no catálogo
- * @param huggingFaceId - ID HuggingFace ("owner/repo/file.gguf")
- * @param onProgress - Callback de progresso chamado durante o download
- * @returns Result com caminho local do arquivo GGUF
+ * @param modelId - Logical model ID in the catalog
+ * @param link - Download URL or HuggingFace file identifier (e.g., "owner/repo/file.gguf")
+ * @param onProgress - Progress callback invoked during download
+ * @returns Result containing the local path to the GGUF file
  */
 export async function downloadModelById(
   modelId: string,
@@ -88,8 +88,8 @@ export async function downloadModelById(
 }
 
 /**
- * Retorna mapa de modelos baixados: { modelId: filePath }.
- * Lista arquivos no diretório e filtra por extensão .gguf.
+ * Returns a map of downloaded models: { modelId: filePath }.
+ * Lists files in the models directory and filters by the .gguf extension.
  */
 export function getDownloadedModels(): Record<string, string> {
   if (!MODELS_DIR.exists) return {};
@@ -108,14 +108,14 @@ export function getDownloadedModels(): Record<string, string> {
 }
 
 /**
- * Verifica se o modelo existe no dispositivo.
+ * Checks whether a model is present on the device.
  */
 export function isModelDownloaded(modelId: string): boolean {
   return modelFileInstance(modelId).exists;
 }
 
 /**
- * Retorna o caminho local do modelo, ou null se não existe.
+ * Returns the local path of the model, or null if it does not exist.
  */
 export function getModelLocalPath(modelId: string): string | null {
   const file = modelFileInstance(modelId);
@@ -123,7 +123,7 @@ export function getModelLocalPath(modelId: string): string | null {
 }
 
 /**
- * Remove modelo do dispositivo (deleta arquivo .gguf).
+ * Removes a downloaded model from the device (deletes the .gguf file).
  */
 export function removeDownloadedModel(modelId: string): void {
   const file = modelFileInstance(modelId);

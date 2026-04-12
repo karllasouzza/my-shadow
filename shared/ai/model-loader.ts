@@ -10,8 +10,8 @@ import { getAIRuntime } from "./runtime";
 import { AvailableModel, ModelLoadResult } from "./types/model-loader";
 
 /**
- * Carrega um modelo na memória.
- * Valida RAM, verifica path, delega para runtime.
+ * Loads a model into memory.
+ * Validates RAM, checks the local path, and delegates to the runtime.
  */
 export async function loadModel(modelId: string): Promise<ModelLoadResult> {
   const model = findModelById(modelId);
@@ -47,7 +47,7 @@ export async function loadModel(modelId: string): Promise<ModelLoadResult> {
 }
 
 /**
- * Descarrega modelo da memória.
+ * Unloads the model from memory.
  */
 export async function unloadModel(): Promise<ModelLoadResult> {
   const runtime = getAIRuntime();
@@ -61,7 +61,7 @@ export async function unloadModel(): Promise<ModelLoadResult> {
 }
 
 /**
- * Retorna modelos disponíveis para seleção (baixados).
+ * Returns available models for selection (downloaded).
  */
 export function getAvailableModels(): AvailableModel[] {
   const downloaded = getDownloadedModels();
@@ -82,7 +82,7 @@ export function getAvailableModels(): AvailableModel[] {
     .sort((a, b) => a.displayName.localeCompare(b.displayName));
 }
 
-/** Retorna modelo selecionado atual */
+/** Returns the currently selected model ID */
 export function getSelectedModelId(): string | null {
   return getAIRuntime().getCurrentModel()?.id ?? null;
 }
