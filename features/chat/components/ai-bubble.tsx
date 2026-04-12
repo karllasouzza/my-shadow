@@ -11,7 +11,7 @@
 import { StreamingIndicator } from "@/features/chat/components/streaming-indicator";
 import { ThinkingSection } from "@/features/chat/components/thinking-section";
 import type { ChatMessage } from "@/features/chat/model/chat-message";
-import { getAllModels } from "@/shared/ai";
+import { getAllModels } from "@/shared/ai/catalog";
 import React from "react";
 import { Text, View } from "react-native";
 
