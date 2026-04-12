@@ -1,0 +1,10 @@
+{
+  "name": "design-component-review",
+  "description": "Review created/updated design tokens, components, and page files for repository conventions (NativeWind, no web-only APIs, token-first styling).",
+  "events": ["PostToolUse", "SessionEnd"],
+  "mode": "run",
+  "blocking": true,
+  "runIn": "bash",
+  "script": "scripts/design_component_review.sh",
+  "args": []
+}
