@@ -17,7 +17,7 @@ type UserPreferences = {
 
 const ThemeProviderComponent = ({ children }: ThemeProviderProps) => {
   const [userPreferences, setUserPreferences] = useState<UserPreferences>({
-    theme: "shadow",
+    theme: "minimalist",
     colorScheme: "system",
     backgroundColor: "--color-background",
   });
@@ -33,7 +33,7 @@ const ThemeProviderComponent = ({ children }: ThemeProviderProps) => {
   }, [userPreferences, systemColorScheme]);
 
   const safeThemeName = useMemo(
-    () => userPreferences?.theme || "shadow",
+    () => userPreferences?.theme || "minimalist",
     [userPreferences],
   );
 
@@ -50,7 +50,7 @@ const ThemeProviderComponent = ({ children }: ThemeProviderProps) => {
     const theme: UserPreferences["theme"] =
       storedThemeName && storedThemeName in themes
         ? (storedThemeName as keyof typeof themes)
-        : "shadow";
+        : "minimalist";
 
     const backgroundColor = storedBackgroundColor ?? "--color-background";
 

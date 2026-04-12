@@ -1,13 +1,3 @@
-/**
- * Shared AI Types
- *
- * Tipos simplificados para uso com @react-native-ai/llama
- */
-
-// ============================================================================
-// Model Status Types
-// ============================================================================
-
 export type ModelStatus =
   | "not-downloaded"
   | "downloading"
@@ -16,21 +6,18 @@ export type ModelStatus =
   | "loaded"
   | "failed";
 
-// ============================================================================
-// Catalog Types
-// ============================================================================
-
 export interface ModelCatalogEntry {
   id: string;
   displayName: string;
   description: string;
-  /** HuggingFace model ID no formato: "owner/repo/file.gguf" */
+  /** HuggingFace model ID: "owner/repo/file.gguf" */
   huggingFaceId: string;
   fileSizeBytes: number;
   estimatedRamBytes: number;
   quantization: string;
-  params: string;
+  bytes: string;
   tags: string[];
+  supportsReasoning?: boolean;
 }
 
 // ============================================================================

@@ -52,3 +52,5 @@ coverage/
 Thumbs.db
 *.tmp
 *.swp
+.qwen/
+.agents/

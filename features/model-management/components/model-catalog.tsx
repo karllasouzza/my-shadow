@@ -5,8 +5,8 @@
  * Empty state when catalog is empty (shouldn't happen).
  */
 import {
-    ModelItem,
-    type ModelStatus,
+  ModelItem,
+  type ModelStatus,
 } from "@/features/model-management/components/model-item";
 import type { ModelCatalogEntry } from "@/shared/ai";
 import React from "react";
@@ -19,7 +19,6 @@ interface ModelCatalogProps {
     { status: ModelStatus; progress: number; isLowRam: boolean }
   >;
   onDownload: (id: string) => void;
-  onLoad: (id: string) => void;
   onRetry: (id: string) => void;
 }
 
@@ -27,7 +26,6 @@ export function ModelCatalog({
   models,
   statuses,
   onDownload,
-  onLoad,
   onRetry,
 }: ModelCatalogProps) {
   if (models.length === 0) {
@@ -45,22 +43,17 @@ export function ModelCatalog({
       data={models}
       keyExtractor={(item) => item.id}
       renderItem={({ item }) => {
-        const s = statuses[item.id] ?? {
+        const itemStatus = statuses[item.id] ?? {
           status: "not-downloaded" as ModelStatus,
           progress: 0,
           isLowRam: false,
         };
+
         return (
           <ModelItem
-            name={item.displayName}
-            description={item.description}
-            sizeMB={Math.round(item.fileSizeBytes / 1024 / 1024)}
-            ramMB={Math.round(item.estimatedRamBytes / 1024 / 1024)}
-            status={s.status}
-            progress={s.progress}
-            isLowRam={s.isLowRam}
+            item={item}
+            itemStatus={itemStatus}
             onDownload={() => onDownload(item.id)}
-            onLoad={() => onLoad(item.id)}
             onRetry={() => onRetry(item.id)}
           />
         );

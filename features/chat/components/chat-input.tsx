@@ -4,18 +4,32 @@
  * Text input + send button. Disabled when !isModelReady or isGenerating.
  * Accessibility labels for screen readers.
  */
-import React, { useState } from "react";
-import { View, TextInput, TouchableOpacity, Text, ActivityIndicator } from "react-native";
 import { Send } from "lucide-react-native";
+import React, { useState } from "react";
+import {
+  ActivityIndicator,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface ChatInputProps {
   onSendMessage: (message: string) => void;
   isModelReady: boolean;
   isGenerating: boolean;
+  bottomOffset?: number;
 }
 
-export function ChatInput({ onSendMessage, isModelReady, isGenerating }: ChatInputProps) {
+export function ChatInput({
+  onSendMessage,
+  isModelReady,
+  isGenerating,
+  bottomOffset = 0,
+}: ChatInputProps) {
   const [text, setText] = useState("");
+  const insets = useSafeAreaInsets();
 
   const isDisabled = !isModelReady || isGenerating || !text.trim();
 
@@ -27,7 +41,10 @@ export function ChatInput({ onSendMessage, isModelReady, isGenerating }: ChatInp
   };
 
   return (
-    <View className="bg-card border-t border-border px-4 py-3">
+    <View
+      className="flex bg-card border-t border-border px-4 pt-3"
+      style={{ paddingBottom: Math.max(insets.bottom, 12) + bottomOffset }}
+    >
       {/* Model not ready indicator */}
       {!isModelReady && (
         <View className="mb-2 px-3 py-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
