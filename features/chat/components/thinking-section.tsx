@@ -40,8 +40,8 @@ export const ThinkingSection = observer(function ThinkingSection({
         {isStreaming && !thinking && (
           <View className="flex-row gap-1 ml-2">
             <View className="w-1.5 h-1.5 rounded-full bg-muted animate-pulse" />
-            <View className="w-1.5 h-1.5 rounded-full bg-muted animate-pulse" style={{ animationDelay: 150 }} />
-            <View className="w-1.5 h-1.5 rounded-full bg-muted animate-pulse" style={{ animationDelay: 300 }} />
+            <View className="w-1.5 h-1.5 rounded-full bg-muted animate-pulse" />
+            <View className="w-1.5 h-1.5 rounded-full bg-muted animate-pulse" />
           </View>
         )}
       </TouchableOpacity>
