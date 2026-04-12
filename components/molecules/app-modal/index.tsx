@@ -1,4 +1,14 @@
+import type {
+  AppModalContextType,
+  AppModalDragContextType,
+  AppModalFooterProps,
+  AppModalHeaderProps,
+  AppModalProps,
+} from "@/components/molecules/app-modal/types";
+import { Button } from "@/components/ui/button";
+import { Icon } from "@/components/ui/icon";
 import { NativeOnlyAnimatedView } from "@/components/ui/native-only-animated-view";
+import { Text } from "@/components/ui/text";
 import { cn } from "@/lib/utils";
 import * as DialogPrimitive from "@rn-primitives/dialog";
 import * as React from "react";
@@ -22,17 +32,6 @@ import {
   withSpring,
 } from "react-native-reanimated";
 import { FullWindowOverlay as RNFullWindowOverlay } from "react-native-screens";
-
-import type {
-  AppModalContextType,
-  AppModalDragContextType,
-  AppModalFooterProps,
-  AppModalHeaderProps,
-  AppModalProps,
-} from "@/components/molecules/app-modal/types";
-import { Button } from "@/components/ui/button";
-import { Text } from "@/components/ui/text";
-import { Loader2 } from "lucide-react-native";
 
 const FullWindowOverlay =
   Platform.OS === "ios" ? RNFullWindowOverlay : React.Fragment;
@@ -246,8 +245,8 @@ function AppModalFooter({
         variant={confirmVariant}
       >
         {isLoading && (
-          <Loader2
-            size={20}
+          <Icon
+            as={require("lucide-react-native").Loader2}
             className={cn(
               "text-primary-foreground animate-spin",
               confirmLabelClassName,
