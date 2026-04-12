@@ -1,19 +1,10 @@
-/**
- * T043: Model catalog component
- *
- * FlatList of ModelItem components. Shows all available models from catalog.
- * Empty state when catalog is empty (shouldn't happen).
- */
-import {
-    ModelItem,
-    type ModelStatus,
-} from "@/features/model-management/components/model-item";
-import type { ModelCatalogEntry } from "@/shared/ai";
+import { ModelItem } from "@/features/model-management/components/model-item";
+import { Model, ModelStatus } from "@/shared/ai/types/model";
 import React from "react";
 import { FlatList, Text, View } from "react-native";
 
 interface ModelCatalogProps {
-  models: ModelCatalogEntry[];
+  models: Model[];
   statuses: Record<
     string,
     { status: ModelStatus; progress: number; isLowRam: boolean }

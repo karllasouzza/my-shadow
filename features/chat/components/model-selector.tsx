@@ -6,7 +6,7 @@ import {
 } from "@/components/molecules/app-modal";
 import { Icon } from "@/components/ui/icon";
 import { Text } from "@/components/ui/text";
-import type { AvailableModel } from "@/shared/ai";
+import { AvailableModel } from "@/shared/ai/types/model-loader";
 import { Check, ChevronUp, Cpu } from "lucide-react-native";
 import React, {
   useCallback,

@@ -1,7 +1,7 @@
 import { TopBar } from "@/components/top-bar";
 import { ModelCatalog } from "@/features/model-management/components/model-catalog";
-import type { ModelStatus } from "@/features/model-management/components/model-item";
 import { useModels } from "@/features/model-management/view-model/use-models";
+import { ModelStatus } from "@/shared/ai/types/model";
 import { observer } from "@legendapp/state/react";
 import { useRouter } from "expo-router";
 import React, { useCallback, useMemo } from "react";

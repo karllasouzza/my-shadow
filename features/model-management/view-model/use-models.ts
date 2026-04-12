@@ -1,22 +1,7 @@
-/**
- * useModels
- *
- * Hook exclusivo da ModelsScreen — download e remoção de modelos.
- * Toda a lógica de download, validação e persistência fica em shared/ai.
- */
-
-import {
-  downloadModelById,
-  findModelById,
-  getAllModels,
-  getDownloadedModels,
-  removeDownloadedModel,
-} from "@/shared/ai";
+import { findModelById, getAllModels } from "@/shared/ai/catalog";
+import { downloadModelById, removeDownloadedModel } from "@/shared/ai/manager";
+import { getDownloadedModels } from "@react-native-ai/llama";
 import { useCallback, useMemo, useState } from "react";
-
-// ============================================================================
-// Hook
-// ============================================================================
 
 export function useModels() {
   const [isLoading, setIsLoading] = useState(false);
@@ -32,7 +17,6 @@ export function useModels() {
 
   const downloadedModels = useMemo(
     () => getDownloadedModels(),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [downloadedVersion],
   );
 
@@ -43,14 +27,9 @@ export function useModels() {
       (model) =>
         model.displayName.toLowerCase().includes(query) ||
         model.description.toLowerCase().includes(query) ||
-        model.bytes.toLowerCase().includes(query) ||
-        model.quantization.toLowerCase().includes(query),
+        model.bytes.toLowerCase().includes(query),
     );
   }, [catalog, searchQuery]);
-
-  // ==========================================================================
-  // Actions (delegadas ao shared/ai)
-  // ==========================================================================
 
   const downloadModel = useCallback(async (modelId: string) => {
     const model = findModelById(modelId);
