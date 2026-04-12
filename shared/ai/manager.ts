@@ -1,40 +1,31 @@
 import { Result, createError, err, ok } from "@/shared/utils/app-error";
-import { downloadModel } from "@react-native-ai/llama";
 import { Directory, File, Paths } from "expo-file-system";
-import DeviceInfo from "react-native-device-info";
+import * as FileSystemLegacy from "expo-file-system/legacy";
+import { OnDownloadProgress } from "./types/manager";
 
-/**
- * Diretório onde os modelos GGUF são armazenados.
- * Usa Paths.document (persistente, não é limpo pelo SO).
- */
 const MODELS_DIR = new Directory(Paths.document, "models");
-
-// ============================================================================
-// Types
-// ============================================================================
-
-export interface DownloadProgressInfo {
-  modelId: string;
-  progress: number;
-}
-
-export type OnDownloadProgress = (info: DownloadProgressInfo) => void;
-
-// ============================================================================
-// Download
-// ============================================================================
 
 /**
  * Garante que o diretório de modelos existe.
  */
 function ensureModelsDir(): void {
   if (!MODELS_DIR.exists) {
-    MODELS_DIR.create();
+    MODELS_DIR.create({ intermediates: true, idempotent: true });
   }
 }
 
 /**
- * Download de modelo do catálogo usando @react-native-ai/llama.
+ * Retorna o File destino para um modelo.
+ */
+function modelFileInstance(modelId: string): File {
+  return new File(MODELS_DIR, `${modelId}.gguf`);
+}
+
+/**
+ * Download de modelo usando createDownloadResumable (expo-file-system/legacy).
+ *
+ * O arquivo é salvo em {MODELS_DIR}/{modelId}.gguf.
+ * Suporta callback de progresso.
  *
  * @param modelId - ID lógico do modelo no catálogo
  * @param huggingFaceId - ID HuggingFace ("owner/repo/file.gguf")
@@ -43,96 +34,58 @@ function ensureModelsDir(): void {
  */
 export async function downloadModelById(
   modelId: string,
-  huggingFaceId: string,
+  link: string,
   onProgress?: OnDownloadProgress,
 ): Promise<Result<string>> {
   try {
     ensureModelsDir();
 
+    const dest = modelFileInstance(modelId);
+
+    if (dest.exists) {
+      return ok(dest.uri);
+    }
+
+    const downloadUrl = link;
+
     onProgress?.({ modelId, progress: 0 });
 
-    const localPath = await downloadModel(huggingFaceId, (progress) => {
-      onProgress?.({ modelId, progress: progress.percentage });
-    });
+    const downloadResumable = FileSystemLegacy.createDownloadResumable(
+      downloadUrl,
+      dest.uri,
+      {},
+      (progress) => {
+        onProgress?.({
+          modelId,
+          progress: Math.round(
+            (progress.totalBytesWritten / progress.totalBytesExpectedToWrite) *
+              100,
+          ),
+        });
+      },
+    );
 
-    console.log(`Modelo ${modelId} baixado para ${localPath}`);
+    const result = await downloadResumable.downloadAsync();
+    if (!result?.uri) {
+      return err(
+        createError("STORAGE_ERROR", "Falha ao baixar o modelo.", { modelId }),
+      );
+    }
 
     onProgress?.({ modelId, progress: 100 });
 
-    return ok(localPath);
+    return ok(dest.uri);
   } catch (error) {
     return err(
       createError(
         "STORAGE_ERROR",
         "Falha ao baixar o modelo. Verifique sua conexão com a internet.",
-        { modelId, huggingFaceId },
+        { modelId, link },
         error as Error,
       ),
     );
   }
 }
-
-// ============================================================================
-// Resource Validation
-// ============================================================================
-
-/**
- * Verifica se há RAM suficiente para o modelo.
- */
-export async function hasEnoughRam(
-  estimatedRamBytes: number,
-): Promise<Result<boolean>> {
-  try {
-    const totalRam = await DeviceInfo.getTotalMemory();
-    if (totalRam < estimatedRamBytes) {
-      return err(
-        createError(
-          "VALIDATION_ERROR",
-          `RAM insuficiente: ${Math.round(totalRam / 1024 / 1024)}MB disponível, ${Math.round(estimatedRamBytes / 1024 / 1024)}MB necessário.`,
-          { availableRam: totalRam, requiredRam: estimatedRamBytes },
-        ),
-      );
-    }
-    return ok(true);
-  } catch (error) {
-    return err(
-      createError(
-        "UNKNOWN_ERROR",
-        "Não foi possível verificar a RAM do dispositivo.",
-        {},
-        error as Error,
-      ),
-    );
-  }
-}
-
-/**
- * Verifica se há espaço em disco suficiente.
- */
-export async function hasEnoughDisk(
-  requiredBytes: number,
-): Promise<Result<boolean>> {
-  try {
-    const freeDisk = await DeviceInfo.getFreeDiskStorage("important");
-    return ok(freeDisk > requiredBytes * 2);
-  } catch (error) {
-    return err(
-      createError(
-        "UNKNOWN_ERROR",
-        "Não foi possível verificar o espaço em disco.",
-        {},
-        error as Error,
-      ),
-    );
-  }
-}
-
-// ============================================================================
-// Estado Persistido (FileSystem-based)
-// ============================================================================
-// Modelos são detectados diretamente pelo arquivo no dispositivo.
-// Convenção: {MODELS_DIR}/{modelId}.gguf
-// ============================================================================
 
 /**
  * Retorna mapa de modelos baixados: { modelId: filePath }.
@@ -155,18 +108,17 @@ export function getDownloadedModels(): Record<string, string> {
 }
 
 /**
- * Verifica se o modelo existe no dispositivo (checagem real de arquivo).
+ * Verifica se o modelo existe no dispositivo.
  */
 export function isModelDownloaded(modelId: string): boolean {
-  const file = new File(MODELS_DIR, `${modelId}.gguf`);
-  return file.exists;
+  return modelFileInstance(modelId).exists;
 }
 
 /**
  * Retorna o caminho local do modelo, ou null se não existe.
  */
 export function getModelLocalPath(modelId: string): string | null {
-  const file = new File(MODELS_DIR, `${modelId}.gguf`);
+  const file = modelFileInstance(modelId);
   return file.exists ? file.uri : null;
 }
 
@@ -174,7 +126,7 @@ export function getModelLocalPath(modelId: string): string | null {
  * Remove modelo do dispositivo (deleta arquivo .gguf).
  */
 export function removeDownloadedModel(modelId: string): void {
-  const file = new File(MODELS_DIR, `${modelId}.gguf`);
+  const file = modelFileInstance(modelId);
   if (file.exists) {
     file.delete();
   }

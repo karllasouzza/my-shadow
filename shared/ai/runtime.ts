@@ -1,12 +1,8 @@
 import { Result, createError, err, ok } from "@/shared/utils/app-error";
 import { llama } from "@react-native-ai/llama";
 import { streamText } from "ai";
-import type {
-  ChatMessage,
-  CompletionOutput,
-  LoadedModel,
-  StreamCompletionOptions,
-} from "./types";
+import { ChatMessage } from "./types/chat";
+import { CompletionOutput, LoadedModel, StreamCompletionOptions } from "./types/runtime";
 
 let runtimeInstance: AIRuntime | null = null;
 

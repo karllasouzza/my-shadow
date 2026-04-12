@@ -1,10 +1,3 @@
-/**
- * Model Loader
- *
- * Gerencia carregamento/descarregamento de modelos com validação.
- * Centralizado em shared/ai/ para reuso.
- */
-
 import { setLastUsedModelId } from "@/database/actions/chat-actions";
 import DeviceInfo from "react-native-device-info";
 import { findModelById, getAllModels } from "./catalog";
@@ -14,11 +7,7 @@ import {
   isModelDownloaded,
 } from "./manager";
 import { getAIRuntime } from "./runtime";
-
-export interface ModelLoadResult {
-  success: boolean;
-  error?: string;
-}
+import { AvailableModel, ModelLoadResult } from "./types/model-loader";
 
 /**
  * Carrega um modelo na memória.
@@ -74,13 +63,6 @@ export async function unloadModel(): Promise<ModelLoadResult> {
 /**
  * Retorna modelos disponíveis para seleção (baixados).
  */
-export interface AvailableModel {
-  id: string;
-  displayName: string;
-  isLoaded: boolean;
-  supportsReasoning: boolean;
-}
-
 export function getAvailableModels(): AvailableModel[] {
   const downloaded = getDownloadedModels();
   const runtime = getAIRuntime();
@@ -105,7 +87,11 @@ export function getSelectedModelId(): string | null {
   return getAIRuntime().getCurrentModel()?.id ?? null;
 }
 
-/** Carrega último modelo usado automaticamente */
+/**
+ * Try auto-loading last used model on app start
+ * if available and not already loaded.
+ * @returns {Promise<ModelLoadResult | null>} - Result of the auto-load attempt or null if not applicable.
+ */
 export async function autoLoadLastModel(): Promise<ModelLoadResult | null> {
   const downloadedModels = Object.keys(getDownloadedModels());
   if (downloadedModels.length === 0) return null;
