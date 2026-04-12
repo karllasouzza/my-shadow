@@ -8,7 +8,11 @@
 import { setLastUsedModelId } from "@/database/actions/chat-actions";
 import DeviceInfo from "react-native-device-info";
 import { findModelById, getAllModels } from "./catalog";
-import { getModelManager } from "./manager";
+import {
+  getDownloadedModels,
+  getModelLocalPath,
+  isModelDownloaded,
+} from "./manager";
 import { getAIRuntime } from "./runtime";
 
 export interface ModelLoadResult {
@@ -35,8 +39,7 @@ export async function loadModel(modelId: string): Promise<ModelLoadResult> {
     };
   }
 
-  const manager = getModelManager();
-  const localPath = manager.getModelLocalPath(modelId);
+  const localPath = getModelLocalPath(modelId);
   if (!localPath) {
     return { success: false, error: "Arquivo do modelo não encontrado." };
   }
@@ -79,8 +82,7 @@ export interface AvailableModel {
 }
 
 export function getAvailableModels(): AvailableModel[] {
-  const manager = getModelManager();
-  const downloaded = manager.getDownloadedModels();
+  const downloaded = getDownloadedModels();
   const runtime = getAIRuntime();
   const loadedId = runtime.getCurrentModel()?.id;
   const catalog = getAllModels();
@@ -105,10 +107,7 @@ export function getSelectedModelId(): string | null {
 
 /** Carrega último modelo usado automaticamente */
 export async function autoLoadLastModel(): Promise<ModelLoadResult | null> {
-  const manager = getModelManager();
-
-  // Verifica se existe algum modelo baixado
-  const downloadedModels = Object.keys(manager.getDownloadedModels());
+  const downloadedModels = Object.keys(getDownloadedModels());
   if (downloadedModels.length === 0) return null;
 
   const { getLastUsedModelId } =
@@ -116,7 +115,7 @@ export async function autoLoadLastModel(): Promise<ModelLoadResult | null> {
   const lastModelId = getLastUsedModelId();
   if (!lastModelId) return null;
 
-  if (!manager.isModelDownloaded(lastModelId)) return null;
+  if (!isModelDownloaded(lastModelId)) return null;
 
   const runtime = getAIRuntime();
   if (runtime.isModelLoaded()) return null;

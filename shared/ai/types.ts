@@ -61,13 +61,8 @@ export interface ChatMessage {
 // Manager Types
 // ============================================================================
 
+/** @deprecated Use `DownloadProgressInfo` from manager.ts instead. */
 export interface DownloadProgress {
   modelId: string;
   progress: number; // 0-100
-}
-
-export interface DownloadState {
-  modelId: string | null;
-  progress: number;
-  isActive: boolean;
 }

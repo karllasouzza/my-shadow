@@ -10,7 +10,6 @@ export type {
     CompletionOptions,
     CompletionOutput,
     DownloadProgress,
-    DownloadState,
     LoadedModel,
     ModelCatalogEntry,
     ModelStatus,
@@ -27,16 +26,29 @@ export {
 } from "./catalog";
 
 // Manager
-export { getModelManager, ModelManager } from "./manager";
+export {
+    downloadModelById,
+    getDownloadedModels,
+    getModelLocalPath,
+    hasEnoughDisk,
+    hasEnoughRam,
+    isModelDownloaded,
+    removeDownloadedModel,
+    type DownloadProgressInfo,
+    type OnDownloadProgress
+} from "./manager";
 
 // Runtime
 export { AIRuntime, getAIRuntime } from "./runtime";
 
 // Model Loader
 export {
-    autoLoadLastModel, getAvailableModels,
-    getSelectedModelId, loadModel,
-    unloadModel, type AvailableModel,
+    autoLoadLastModel,
+    getAvailableModels,
+    getSelectedModelId,
+    loadModel,
+    unloadModel,
+    type AvailableModel,
     type ModelLoadResult
 } from "./model-loader";
 
