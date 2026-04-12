@@ -19,6 +19,7 @@ const ModelsScreenInner = observer(function ModelsScreenInner() {
     searchQuery,
     setSearchQuery,
     downloadModel,
+    removeModel,
   } = useModels();
 
   const handleDownload = useCallback(
@@ -33,6 +34,13 @@ const ModelsScreenInner = observer(function ModelsScreenInner() {
       await handleDownload(modelId);
     },
     [handleDownload],
+  );
+
+  const handleRemove = useCallback(
+    (modelId: string) => {
+      removeModel(modelId);
+    },
+    [removeModel],
   );
 
   const statuses: Record<
@@ -88,6 +96,7 @@ const ModelsScreenInner = observer(function ModelsScreenInner() {
         statuses={statuses}
         onDownload={handleDownload}
         onRetry={handleRetry}
+        onRemove={handleRemove}
       />
 
       {/* Loading overlay */}

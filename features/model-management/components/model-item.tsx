@@ -23,6 +23,7 @@ interface ModelItemProps {
 
   onDownload?: () => void;
   onRetry?: () => void;
+  onRemove?: () => void;
 
   itemStatus: {
     status: ModelStatus;
@@ -44,6 +45,7 @@ export function ModelItem({
   itemStatus,
   onDownload,
   onRetry,
+  onRemove,
 }: ModelItemProps) {
   const sizeMB = Math.round(fileSizeBytes / 1024 / 1024);
   const ramMB = Math.round(estimatedRamBytes / 1024 / 1024);
@@ -91,15 +93,15 @@ export function ModelItem({
 
         {/* Action button based on status */}
         {itemStatus.status === "downloaded" ? (
-          <View className="flex flex-row items-center gap-2 px-3 py-2 bg-green-500/10 rounded-lg">
-            <Text className="text-green-600 text-base font-medium">
-              Baixado
+          <Button size="icon" onPress={onRemove} variant="outline">
+            <Text className="text-destructive text-sm font-semibold sr-only">
+              Remover modelo
             </Text>
             <Icon
-              as={require("lucide-react-native").Check}
-              className="size-5 text-green-600"
+              as={require("lucide-react-native").Trash2}
+              className="size-5 text-destructive"
             />
-          </View>
+          </Button>
         ) : itemStatus.status === "downloading" ? (
           <View className="flex flex-row items-center gap-2 px-3 py-2">
             <CircularProgress

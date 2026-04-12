@@ -5,8 +5,8 @@
  * Empty state when catalog is empty (shouldn't happen).
  */
 import {
-  ModelItem,
-  type ModelStatus,
+    ModelItem,
+    type ModelStatus,
 } from "@/features/model-management/components/model-item";
 import type { ModelCatalogEntry } from "@/shared/ai";
 import React from "react";
@@ -20,6 +20,7 @@ interface ModelCatalogProps {
   >;
   onDownload: (id: string) => void;
   onRetry: (id: string) => void;
+  onRemove: (id: string) => void;
 }
 
 export function ModelCatalog({
@@ -27,6 +28,7 @@ export function ModelCatalog({
   statuses,
   onDownload,
   onRetry,
+  onRemove,
 }: ModelCatalogProps) {
   if (models.length === 0) {
     return (
@@ -55,6 +57,7 @@ export function ModelCatalog({
             itemStatus={itemStatus}
             onDownload={() => onDownload(item.id)}
             onRetry={() => onRetry(item.id)}
+            onRemove={() => onRemove(item.id)}
           />
         );
       }}

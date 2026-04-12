@@ -1,23 +1,18 @@
 /**
  * useModels
  *
- * Hook exclusivo da ModelsScreen — apenas download de modelos.
- * Load/Unload agora é feito pela Chat Screen.
+ * Hook exclusivo da ModelsScreen — download e remoção de modelos.
+ * Toda a lógica de download, validação e persistência fica em shared/ai.
  */
 
-import { findModelById, getAllModels, getModelManager } from "@/shared/ai";
+import {
+  downloadModelById,
+  findModelById,
+  getAllModels,
+  getDownloadedModels,
+  removeDownloadedModel,
+} from "@/shared/ai";
 import { useCallback, useMemo, useState } from "react";
-import DeviceInfo from "react-native-device-info";
-
-// ============================================================================
-// Types
-// ============================================================================
-
-export interface DownloadedModelInfo {
-  id: string;
-  localPath: string | null;
-  isLoaded: boolean;
-}
 
 // ============================================================================
 // Hook
@@ -31,16 +26,16 @@ export function useModels() {
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [downloadedVersion, setDownloadedVersion] = useState(0);
 
   const catalog = useMemo(() => getAllModels(), []);
-  const manager = useMemo(() => getModelManager(), []);
+
   const downloadedModels = useMemo(
-    () => manager.getDownloadedModels(),
+    () => getDownloadedModels(),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [manager, downloadingModelId],
+    [downloadedVersion],
   );
 
-  // Filtered catalog based on search query
   const filteredCatalog = useMemo(() => {
     if (!searchQuery.trim()) return catalog;
     const query = searchQuery.toLowerCase();
@@ -54,52 +49,42 @@ export function useModels() {
   }, [catalog, searchQuery]);
 
   // ==========================================================================
-  // Actions
+  // Actions (delegadas ao shared/ai)
   // ==========================================================================
 
-  const downloadModel = useCallback(
-    async (modelId: string) => {
-      const model = findModelById(modelId);
-      if (!model) {
-        setErrorMessage("Modelo não encontrado no catálogo.");
-        return;
-      }
+  const downloadModel = useCallback(async (modelId: string) => {
+    const model = findModelById(modelId);
+    if (!model) {
+      setErrorMessage("Modelo não encontrado no catálogo.");
+      return;
+    }
 
-      setIsLoading(true);
-      setDownloadingModelId(modelId);
-      setDownloadProgress(0);
-      setErrorMessage(null);
+    setIsLoading(true);
+    setDownloadingModelId(modelId);
+    setDownloadProgress(0);
+    setErrorMessage(null);
 
-      try {
-        const freeDisk = await DeviceInfo.getFreeDiskStorage("important");
-        if (freeDisk < model.fileSizeBytes) {
-          setErrorMessage("Espaço em disco insuficiente.");
-          setIsLoading(false);
-          setDownloadingModelId(null);
-          return;
-        }
+    const result = await downloadModelById(
+      modelId,
+      model.huggingFaceId,
+      (info) => {
+        setDownloadProgress(Math.round(info.progress));
+      },
+    );
 
-        const { downloadModel: downloadModelFromHF } =
-          await import("@react-native-ai/llama");
-        const localPath = await downloadModelFromHF(
-          model.huggingFaceId,
-          (progress) => {
-            setDownloadProgress(Math.round(progress.percentage));
-          },
-        );
+    if (!result.success) {
+      setErrorMessage(result.error.message);
+    }
 
-        manager.setDownloadedModelPath(modelId, localPath);
-        setDownloadProgress(100);
-        setIsLoading(false);
-        setDownloadingModelId(null);
-      } catch (error: unknown) {
-        setIsLoading(false);
-        setDownloadingModelId(null);
-        setErrorMessage((error as Error)?.message ?? "Falha ao baixar modelo.");
-      }
-    },
-    [manager],
-  );
+    setDownloadingModelId(null);
+    setDownloadedVersion((v) => v + 1);
+    setIsLoading(false);
+  }, []);
+
+  const removeModel = useCallback((modelId: string) => {
+    removeDownloadedModel(modelId);
+    setDownloadedVersion((v) => v + 1);
+  }, []);
 
   return useMemo(
     () => ({
@@ -114,6 +99,7 @@ export function useModels() {
 
       // Actions
       downloadModel,
+      removeModel,
       setSearchQuery,
     }),
     [
@@ -125,6 +111,7 @@ export function useModels() {
       downloadedModels,
       searchQuery,
       downloadModel,
+      removeModel,
     ],
   );
 }
