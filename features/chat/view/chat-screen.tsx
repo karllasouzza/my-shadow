@@ -182,7 +182,7 @@ const ChatScreenInner = observer(function ChatScreenInner() {
                   (item as any)._key ??
                   `msg-${item.timestamp ?? index}-${index}`
                 }
-                contentContainerClassName="px-4 pb-20"
+                contentContainerClassName="px-4 pt-6"
                 onScroll={handleScroll}
                 scrollEventThrottle={16}
                 style={{ flex: 1 }}
