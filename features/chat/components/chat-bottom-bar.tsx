@@ -7,6 +7,7 @@ import { AvailableModel } from "@/shared/ai/types/model-loader";
 import React from "react";
 import { Platform, ScrollView, View } from "react-native";
 import { ModelSelector } from "./model-selector";
+import { ThinkingToggle } from "./thinking-toggle";
 
 interface QuickAction {
   id: string;
@@ -31,6 +32,10 @@ interface ChatBottomBarProps {
   availableModels: AvailableModel[];
   modelError: string | null;
   handleModelSelect: (modelId: string) => void;
+
+  modelSupportsReasoning: boolean;
+  thinkingEnabled: boolean;
+  toggleThinking: () => void;
 }
 
 const defaultQuickActions: QuickAction[] = [
@@ -72,6 +77,10 @@ function ChatBottomBar({
   availableModels,
   modelError,
   handleModelSelect,
+
+  modelSupportsReasoning,
+  thinkingEnabled,
+  toggleThinking,
 }: ChatBottomBarProps) {
   const isDisabled = !isModelReady || isGenerating || !value.trim();
 
@@ -92,9 +101,10 @@ function ChatBottomBar({
         >
           {quickActions.map((action) => (
             <Button
+              variant="outline"
               key={action.id}
               onPress={action.onPress}
-              className="flex flex-col items-center gap-2 bg-card border border-border rounded-xl px-4 py-2.5 active:opacity-80"
+              className="flex flex-col items-start gap-2 h-16"
               accessibilityRole="button"
               accessibilityLabel={action.title}
             >
@@ -132,13 +142,21 @@ function ChatBottomBar({
           />
 
           <View className="flex-row items-center justify-between pt-1">
-            <ModelSelector
-              models={availableModels}
-              selectedModelId={selectedModel}
-              isLoading={isModelLoading ?? false}
-              error={modelError}
-              onSelect={handleModelSelect}
-            />
+            <View className="flex-row items-center gap-2">
+              <ModelSelector
+                models={availableModels}
+                selectedModelId={selectedModel}
+                isLoading={isModelLoading ?? false}
+                error={modelError}
+                onSelect={handleModelSelect}
+              />
+              {modelSupportsReasoning && (
+                <ThinkingToggle
+                  enabled={thinkingEnabled}
+                  onToggle={toggleThinking}
+                />
+              )}
+            </View>
 
             <Button
               onPress={

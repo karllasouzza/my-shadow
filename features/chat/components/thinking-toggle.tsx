@@ -1,13 +1,7 @@
-/**
- * Thinking Toggle
- *
- * Button to enable/disable the AI's reasoning process.
- * Only shown when the current model supports reasoning.
- */
-
-import { Brain } from "lucide-react-native";
+import { Button } from "@/components/ui/button";
+import { Icon } from "@/components/ui/icon";
+import { cn } from "@/lib/utils";
 import React from "react";
-import { Text, TouchableOpacity, View } from "react-native";
 
 interface ThinkingToggleProps {
   enabled: boolean;
@@ -16,38 +10,21 @@ interface ThinkingToggleProps {
 
 export function ThinkingToggle({ enabled, onToggle }: ThinkingToggleProps) {
   return (
-    <TouchableOpacity
+    <Button
+      variant={"outline"}
+      size="sm"
       onPress={onToggle}
-      className={`flex-row items-center gap-1.5 px-3 py-1.5 rounded-full border ${
-        enabled
-          ? "bg-primary/10 border-primary/30"
-          : "bg-transparent border-border"
-      }`}
-      accessibilityLabel={
-        enabled ? "Desabilitar pensamento" : "Habilitar pensamento"
-      }
-      accessibilityRole="switch"
-      accessibilityState={{ checked: enabled }}
+      className={enabled ? "border-primary" : "border-border"}
+      accessibilityRole="button"
+      accessibilityLabel="Alterne entre o processo de raciocínio da IA"
     >
-      <Brain size={14} color={enabled ? "#3b82f6" : "#a1a1aa"} />
-      <Text
-        className={`text-xs font-medium ${enabled ? "text-primary" : "text-muted"}`}
-      >
-        Thinking
-      </Text>
-      <View
-        className={`w-8 h-4 rounded-full ${enabled ? "bg-primary" : "bg-muted"} justify-center`}
-        style={{ justifyContent: "center" }}
-      >
-        <View
-          className={`w-3 h-3 rounded-full bg-white`}
-          style={{
-            alignSelf: enabled ? "flex-end" : "flex-start",
-            marginRight: enabled ? 2 : 0,
-            marginLeft: enabled ? 0 : 2,
-          }}
-        />
-      </View>
-    </TouchableOpacity>
+      <Icon
+        as={require("lucide-react-native").Brain}
+        className={cn(
+          "size-4",
+          enabled ? "text-primary-foreground" : "text-muted-foreground",
+        )}
+      />
+    </Button>
   );
 }

@@ -4,7 +4,6 @@ import { ChatBottomBar } from "@/features/chat/components/chat-bottom-bar";
 import { ConversationErrorState } from "@/features/chat/components/conversation-error-state";
 import { EmptyState } from "@/features/chat/components/empty-state";
 import { StreamingBubble } from "@/features/chat/components/streaming-bubble";
-import { ThinkingToggle } from "@/features/chat/components/thinking-toggle";
 import { UserBubble } from "@/features/chat/components/user-bubble";
 import { useChat } from "@/features/chat/view-model/use-chat";
 import { LegendList } from "@legendapp/list";
@@ -70,13 +69,6 @@ const ChatScreenInner = observer(function ChatScreenInner() {
     flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
   }, [chat.resetChatState]);
 
-  const handleModelSelect = useCallback(
-    (modelId: string) => {
-      chat.handleLoadModel(modelId);
-    },
-    [chat.handleLoadModel],
-  );
-
   return (
     <View style={{ flex: 1 }} className="bg-background">
       <ScreenContainer
@@ -96,14 +88,6 @@ const ChatScreenInner = observer(function ChatScreenInner() {
           >
             <Settings size={20} color="#a1a1aa" />
           </TouchableOpacity>
-
-          {/* Thinking Toggle (only for reasoning models) */}
-          {chat.modelSupportsReasoning && (
-            <ThinkingToggle
-              enabled={chat.thinkingEnabled}
-              onToggle={chat.toggleThinking}
-            />
-          )}
 
           {/* History */}
           <TouchableOpacity
@@ -126,7 +110,6 @@ const ChatScreenInner = observer(function ChatScreenInner() {
 
         {/* Messages List */}
         <View style={{ flex: 1 }}>
-          {/* Conversation Error Overlay */}
           {chat.conversationError ? (
             <ConversationErrorState
               title={chat.conversationError}
@@ -205,8 +188,12 @@ const ChatScreenInner = observer(function ChatScreenInner() {
           // Model selector props
           selectedModel={chat.selectedModelId}
           availableModels={chat.availableModels}
-          handleModelSelect={handleModelSelect}
+          handleModelSelect={chat.handleLoadModel}
           modelError={chat.modelError}
+          // Thinking toggle props
+          modelSupportsReasoning={chat.modelSupportsReasoning}
+          thinkingEnabled={chat.thinkingEnabled}
+          toggleThinking={chat.toggleThinking}
         />
       </ScreenContainer>
     </View>
