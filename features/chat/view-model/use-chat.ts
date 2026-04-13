@@ -26,6 +26,7 @@ interface StreamingMessage extends ChatMessage {
 
 export function useChat() {
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [conversationTitle, setConversationTitle] = useState("Nova conversa");
   const [isModelReady, setIsModelReady] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [streamingMessage, setStreamingMessage] =
@@ -149,6 +150,7 @@ export function useChat() {
     // If no ID, just reset and return
     if (!id) {
       setConversationId(null);
+      setConversationTitle("Nova conversa");
       return;
     }
 
@@ -156,12 +158,14 @@ export function useChat() {
     const loadResult = DatabaseChat.loadConversation(id);
     if (!loadResult.success || !loadResult.data) {
       setConversationId(null);
+      setConversationTitle("Nova conversa");
       setConversationError("Conversa não encontrada");
       return;
     }
 
     // Conversation exists, set it
     setConversationId(id);
+    setConversationTitle(loadResult.data.title || "Nova conversa");
   }, []);
 
   /** Helper to add error message to conversation */
@@ -250,6 +254,7 @@ export function useChat() {
 
       if (conv.messages.filter((m) => m.role === "user").length === 1) {
         conv.title = autoGenerateTitle(content);
+        setConversationTitle(conv.title);
       }
 
       DatabaseChat.saveConversation(conv);
@@ -464,6 +469,7 @@ export function useChat() {
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
     setConversationId(null);
+    setConversationTitle("Nova conversa");
     setIsGenerating(false);
     setStreamingMessage(null);
     setShowCancelOption(false);
@@ -503,6 +509,7 @@ export function useChat() {
     () => ({
       // State
       conversationId,
+      conversationTitle,
       isModelReady,
       isGenerating,
       streamingMessage,
@@ -535,6 +542,7 @@ export function useChat() {
     }),
     [
       conversationId,
+      conversationTitle,
       isModelReady,
       isGenerating,
       streamingMessage,
