@@ -88,8 +88,9 @@ export async function downloadModelById(
 }
 
 /**
- * Returns a map of downloaded models: { modelId: filePath }.
  * Lists files in the models directory and filters by the .gguf extension.
+ *
+ * @returns {Record<string, string>} Map of model IDs to local file paths
  */
 export function getDownloadedModels(): Record<string, string> {
   if (!MODELS_DIR.exists) return {};
