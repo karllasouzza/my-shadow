@@ -1,55 +1,85 @@
 {
   "version": 1,
   "skills": {
-    "building-native-ui": {
-      "source": "expo/skills",
+    "bun-build": {
+      "source": "daleseo/bun-skills",
       "sourceType": "github",
-      "computedHash": "342df93f481a0dba919f372d6c7b40d2b4bf5b51dd24363aea2e5d0bae27a6fa"
+      "computedHash": "9c7c815f86b8ea221b51900cf5c1eca602836515bafc8d03e6164b930dd4e5d8"
     },
-    "expo-api-routes": {
-      "source": "expo/skills",
+    "bun-deploy": {
+      "source": "daleseo/bun-skills",
       "sourceType": "github",
-      "computedHash": "015c6b849507fda73fcc32d2448f033aaaaa21f5229085342b8421727a90cafb"
+      "computedHash": "64299ff084eaa7cafcf57ed43c185a4a00dfef2eb3175fd8d4a330d47113ab98"
     },
-    "expo-cicd-workflows": {
-      "source": "expo/skills",
+    "bun-dev-server": {
+      "source": "daleseo/bun-skills",
       "sourceType": "github",
-      "computedHash": "700b20b575fcbe75ad238b41a0bd57938abe495e62dc53e05400712ab01ee7c0"
+      "computedHash": "27060b614cc925e0c70e73ea077e497bad008568f6305247ab97c098a6ee3edb"
     },
-    "expo-deployment": {
-      "source": "expo/skills",
+    "bun-test": {
+      "source": "daleseo/bun-skills",
       "sourceType": "github",
-      "computedHash": "9ea9f16374765c1b16764a51bd43a64098921b33f48e94d9c5c1cce24b335c10"
+      "computedHash": "1b2368cad9b61944aec3781f81d012ba7e6ab31f09fb8f927c6f9d60c979ad0a"
     },
-    "expo-dev-client": {
-      "source": "expo/skills",
+    "bun-test-coverage": {
+      "source": "secondsky/claude-skills",
       "sourceType": "github",
-      "computedHash": "234e2633b7fbcef2d479f8fe8ab20d53d08ed3e4beec7c965da4aff5b43affe7"
+      "computedHash": "14f589f5df47b9e728e0d3a0e1f1dd0ac87a27eacb12bc45f1ed21127b11cdf2"
     },
-    "expo-module": {
-      "source": "expo/skills",
+    "code-review-quality": {
+      "source": "proffesor-for-testing/agentic-qe",
       "sourceType": "github",
-      "computedHash": "c1e47893d207b68c9a2a5b0de3f97042f82a65c0b3c3a33a7114029211b8e89b"
+      "computedHash": "2b1c2c4ba6cfa06d17e4dd4d67f2133736e2d3a5612d79514287bbe252370e3b"
     },
-    "expo-tailwind-setup": {
-      "source": "expo/skills",
+    "ln-613-code-comments-auditor": {
+      "source": "levnikolaevich/claude-code-skills",
       "sourceType": "github",
-      "computedHash": "d39e806942fe880347f161056729b588a3cb0f1796270eebf52633fe11cfdce1"
+      "computedHash": "76bd06a8f82b86593854f7ac8a79ab25bb9fcaea6d9ed1cdead0ed13830983c8"
     },
-    "native-data-fetching": {
-      "source": "expo/skills",
+    "quality-playbook": {
+      "source": "github/awesome-copilot",
       "sourceType": "github",
-      "computedHash": "3cd0ba91f359f9f84cd40f36f356287994a0e952520fac6e03ef7952d0397879"
+      "computedHash": "69219dcb4fe067fe65e6e70313c81eac808f88ecc9cddd820b8ebfd774eaf37f"
     },
-    "upgrading-expo": {
-      "source": "expo/skills",
+    "react-native-reusables": {
+      "source": "hairyf/skills",
       "sourceType": "github",
-      "computedHash": "939a6820e0d6ead943bb4ad93cec647815e73fbc04043401773b2138e9e13b69"
+      "computedHash": "f37d8d5a20779994c9e84d527521a3727a2968a57fa6d5485f281623e8ff5c31"
     },
-    "use-dom": {
-      "source": "expo/skills",
+    "remove-ai-comments": {
+      "source": "chambersxdu/enhance-comment",
       "sourceType": "github",
-      "computedHash": "8eca0e229f16e3499e5dbf791a79f5a5cba1e98b4af88ca495c903930d7f1ba0"
+      "computedHash": "4f56df10054ebb3aaeaf3d045c9ae984ab436227ef8ddaadde7665d0bbd5df58"
+    },
+    "tsdoc-comments": {
+      "source": "marius-townhouse/effective-typescript-skills",
+      "sourceType": "github",
+      "computedHash": "f68df8fcde59d498eb543ec88467ebb6f81b2ed38a920cc3723ae5e293baaeb4"
+    },
+    "vercel-composition-patterns": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "computedHash": "575757e3e25761c8c562d6e395d29f0b76c98b1273c0bd72d88e6ab1bc9c7d42"
+    },
+    "vercel-react-best-practices": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "computedHash": "43ca6c197f8ec13055079da7053232d477068b03ca443f9ac1bc819b95cdd432"
+    },
+    "vercel-react-native-skills": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "computedHash": "41d24eafa7c3d82e270439808f7cfbc4d51aeb2d14f2809a2267c16275784d06"
+    },
+    "vercel-react-view-transitions": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "computedHash": "c8952fc9127fa0564d0cb71dccb4215a5608ac933b5831104f09173a97a46f85"
+    },
+    "web-design-guidelines": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "computedHash": "f3bc47f890f42a44db1007ab390709ec368e4b8c089baee6b0007182236ac474"
     }
   }
 }

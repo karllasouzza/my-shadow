@@ -26,7 +26,7 @@ const INDEX_KEY = "chat:index";
 
 let storage: MMKV | null = null;
 
-function getStorage(): MMKV {
+export function getStorage(): MMKV {
   if (!storage) {
     storage = createMMKV({ id: "chat_conversations" });
   }
@@ -194,10 +194,6 @@ export function appendAssistantMessage(
 
   return saveAndReturn(conv);
 }
-
-// ============================================================================
-// Private Helpers
-// ============================================================================
 
 function updateIndex(conversation: ChatConversation): void {
   const store = getStorage();

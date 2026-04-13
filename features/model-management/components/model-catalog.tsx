@@ -1,34 +1,25 @@
-/**
- * T043: Model catalog component
- *
- * FlatList of ModelItem components. Shows all available models from catalog.
- * Empty state when catalog is empty (shouldn't happen).
- */
-import {
-    ModelItem,
-    type ModelStatus,
-} from "@/features/model-management/components/model-item";
-import type { ModelCatalogEntry } from "@/shared/ai";
+import { ModelItem } from "@/features/model-management/components/model-item";
+import { Model, ModelStatus } from "@/shared/ai/types/model";
 import React from "react";
 import { FlatList, Text, View } from "react-native";
 
 interface ModelCatalogProps {
-  models: ModelCatalogEntry[];
+  models: Model[];
   statuses: Record<
     string,
     { status: ModelStatus; progress: number; isLowRam: boolean }
   >;
   onDownload: (id: string) => void;
-  onLoad: (id: string) => void;
   onRetry: (id: string) => void;
+  onRemove: (id: string) => void;
 }
 
 export function ModelCatalog({
   models,
   statuses,
   onDownload,
-  onLoad,
   onRetry,
+  onRemove,
 }: ModelCatalogProps) {
   if (models.length === 0) {
     return (
@@ -45,23 +36,19 @@ export function ModelCatalog({
       data={models}
       keyExtractor={(item) => item.id}
       renderItem={({ item }) => {
-        const s = statuses[item.id] ?? {
+        const itemStatus = statuses[item.id] ?? {
           status: "not-downloaded" as ModelStatus,
           progress: 0,
           isLowRam: false,
         };
+
         return (
           <ModelItem
-            name={item.displayName}
-            description={item.description}
-            sizeMB={Math.round(item.fileSizeBytes / 1024 / 1024)}
-            ramMB={Math.round(item.estimatedRamBytes / 1024 / 1024)}
-            status={s.status}
-            progress={s.progress}
-            isLowRam={s.isLowRam}
+            item={item}
+            itemStatus={itemStatus}
             onDownload={() => onDownload(item.id)}
-            onLoad={() => onLoad(item.id)}
             onRetry={() => onRetry(item.id)}
+            onRemove={() => onRemove(item.id)}
           />
         );
       }}

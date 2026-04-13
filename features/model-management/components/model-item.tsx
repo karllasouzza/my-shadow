@@ -1,102 +1,142 @@
 /**
  * T017: Model item component — single model row for catalog/list
  *
- * Shows model name, size, RAM estimate, and action button
- * (download / load / retry based on status).
+ * Shows model name, size, RAM estimate, and download button.
+ * Load/unload is handled in the Chat screen.
  */
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Icon } from "@/components/ui/icon";
+import { CircularProgress } from "@/features/model-management/components/circular-progress";
+import { Model, ModelStatus } from "@/shared/ai/types/model";
 import React from "react";
-import { View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
-import { Download, Cpu, AlertTriangle, CheckCircle } from "lucide-react-native";
-
-export type ModelStatus =
-  | "not-downloaded"
-  | "downloading"
-  | "downloaded"
-  | "loaded"
-  | "failed";
+import { Text, View } from "react-native";
 
 interface ModelItemProps {
-  name: string;
-  description: string;
-  sizeMB: number;
-  ramMB: number;
-  status: ModelStatus;
-  progress?: number;
+  item: Model;
+
   onDownload?: () => void;
-  onLoad?: () => void;
   onRetry?: () => void;
-  isLowRam?: boolean;
+  onRemove?: () => void;
+
+  itemStatus: {
+    status: ModelStatus;
+    progress: number;
+    isLowRam: boolean;
+  };
 }
 
 export function ModelItem({
-  name,
-  description,
-  sizeMB,
-  ramMB,
-  status,
-  progress = 0,
+  item: {
+    displayName,
+    description,
+    fileSizeBytes,
+    estimatedRamBytes,
+    supportsReasoning,
+    tags,
+    bytes,
+  },
+  itemStatus,
   onDownload,
-  onLoad,
   onRetry,
-  isLowRam = false,
+  onRemove,
 }: ModelItemProps) {
+  const sizeMB = Math.round(fileSizeBytes / 1024 / 1024);
+  const ramMB = Math.round(estimatedRamBytes / 1024 / 1024);
   return (
     <View className="px-5 py-4 border-b border-border/50">
       <View className="flex-row items-start justify-between">
-        <View className="flex-1 pr-2">
-          <Text className="text-foreground text-base font-semibold">
-            {name}
-          </Text>
-          <Text className="text-muted text-xs mt-0.5">{description}</Text>
-          <View className="flex-row items-center gap-3 mt-2">
-            <Text className="text-muted text-xs">~{sizeMB}MB</Text>
-            <Text className="text-muted text-xs">RAM: ~{ramMB}MB</Text>
+        <View className="flex flex-1 gap-3">
+          <View className="flex flex-col items-start gap-0.5">
+            <View className="flex flex-row items-center justify-center gap-2">
+              <Text className="text-foreground text-base font-semibold">
+                {displayName}
+              </Text>
+              <Text className="text-primary/75 text-base">{bytes}</Text>
+            </View>
+            <Text className="text-muted-foreground text-xs">{description}</Text>
+          </View>
+          <View className="flex flex-row gap-1">
+            <Badge variant="outline">
+              <Text className="text-muted-foreground text-xs">~{sizeMB}MB</Text>
+            </Badge>
+
+            <Badge variant="outline">
+              <Text className="text-muted-foreground text-xs">
+                RAM: ~{ramMB}MB
+              </Text>
+            </Badge>
+
+            {supportsReasoning && (
+              <Badge variant="default">
+                <Icon
+                  as={require("lucide-react-native").Brain}
+                  className="size-3 text-primary-foreground"
+                />
+              </Badge>
+            )}
+          </View>
+          <View className="flex flex-row gap-1">
+            {tags.map((tag) => (
+              <Badge key={tag} variant="outline">
+                <Text className="text-muted-foreground text-xs">{tag}</Text>
+              </Badge>
+            ))}
           </View>
         </View>
 
         {/* Action button based on status */}
-        {status === "loaded" ? (
-          <View className="flex-row items-center gap-1 px-3 py-2 bg-green-500/10 rounded-lg">
-            <CheckCircle size={14} color="#22c55e" />
-            <Text className="text-green-600 text-xs font-medium">Carregado</Text>
-          </View>
-        ) : status === "downloading" ? (
-          <View className="items-center justify-center px-4 py-2">
-            <ActivityIndicator size="small" color="#3b82f6" />
-            <Text className="text-blue-500 text-xs mt-1">{progress}%</Text>
-          </View>
-        ) : status === "failed" ? (
-          <TouchableOpacity
-            onPress={onRetry}
-            className="bg-red-500 px-4 py-2 rounded-lg"
-          >
-            <Text className="text-white text-sm font-semibold">Retry</Text>
-          </TouchableOpacity>
-        ) : isLowRam ? (
-          <View className="flex-row items-center gap-1 px-3 py-2 bg-yellow-500/10 rounded-lg">
-            <AlertTriangle size={14} color="#eab308" />
-            <Text className="text-yellow-600 text-xs">RAM insuficiente</Text>
-          </View>
-        ) : status === "downloaded" ? (
-          <TouchableOpacity
-            onPress={onLoad}
-            className="bg-primary px-4 py-2 rounded-lg flex-row items-center gap-1"
-          >
-            <Cpu size={14} color="white" />
-            <Text className="text-primary-foreground text-sm font-semibold">
-              Carregar
+        {itemStatus.status === "downloaded" ? (
+          <Button size="icon" onPress={onRemove} variant="outline">
+            <Text className="text-destructive text-sm font-semibold sr-only">
+              Remover modelo
             </Text>
-          </TouchableOpacity>
+            <Icon
+              as={require("lucide-react-native").Trash2}
+              className="size-5 text-destructive"
+            />
+          </Button>
+        ) : itemStatus.status === "downloading" ? (
+          <View className="flex flex-row items-center gap-2 px-3 py-2">
+            <CircularProgress
+              progress={itemStatus.progress}
+              size={28}
+              strokeWidth={2.5}
+              trackColor="rgba(59, 130, 246, 0.15)"
+              strokeColor="#3b82f6"
+            />
+            <Text className="text-blue-500 text-sm font-medium">
+              {Math.round(itemStatus.progress)}%
+            </Text>
+          </View>
+        ) : itemStatus.status === "failed" ? (
+          <Button size="icon" onPress={onRetry} variant="destructive">
+            <Text className="text-white text-sm font-semibold sr-only">
+              Tentar novamente
+            </Text>
+            <Icon
+              as={require("lucide-react-native").RotateCw}
+              className="size-5 text-white"
+            />
+          </Button>
+        ) : itemStatus.isLowRam ? (
+          <View className="flex flex-row items-center gap-2 px-3 py-2 bg-yellow-500/10 rounded-lg">
+            <Text className="text-yellow-600 text-xs">RAM insuficiente</Text>
+            <Icon
+              as={require("lucide-react-native").AlertTriangle}
+              className="size-5 text-yellow-600"
+            />
+          </View>
         ) : (
-          <TouchableOpacity
-            onPress={onDownload}
-            className="bg-primary px-4 py-2 rounded-lg flex-row items-center gap-1"
-          >
-            <Download size={14} color="white" />
+          <Button variant="default" onPress={onDownload}>
             <Text className="text-primary-foreground text-sm font-semibold">
               Baixar
             </Text>
-          </TouchableOpacity>
+            <Icon
+              as={require("lucide-react-native").Download}
+              className="size-5 text-primary-foreground"
+            />
+          </Button>
         )}
       </View>
     </View>

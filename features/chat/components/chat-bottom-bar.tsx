@@ -1,0 +1,119 @@
+import AutoResizingInput from "@/components/ui/auto-resizing-input";
+import { cn } from "@/lib/utils";
+import { AvailableModel } from "@/shared/ai/types/model-loader";
+import React from "react";
+import { Platform, View } from "react-native";
+import { ModelSelector } from "./model-selector";
+import QuickActions from "./quick-actions";
+import { SendButton } from "./send-button";
+import { ThinkingToggle } from "./thinking-toggle";
+
+interface ChatBottomBarProps {
+  value: string;
+  onChangeText: (text: string) => void;
+  handleCancel: () => void;
+  onSend: () => void;
+  hasContent?: boolean;
+  isGenerating?: boolean;
+  isModelReady?: boolean;
+  isModelLoading?: boolean;
+  className?: string;
+
+  selectedModel: string | null;
+  availableModels: AvailableModel[];
+  modelError: string | null;
+  handleModelSelect: (modelId: string) => void;
+
+  modelSupportsReasoning: boolean;
+  thinkingEnabled: boolean;
+  toggleThinking: () => void;
+}
+
+function ChatBottomBar({
+  value,
+  onChangeText,
+  onSend,
+  handleCancel,
+
+  hasContent,
+  isGenerating = false,
+  isModelReady = true,
+
+  className,
+
+  isModelLoading,
+  selectedModel,
+  availableModels,
+  modelError,
+  handleModelSelect,
+
+  modelSupportsReasoning,
+  thinkingEnabled,
+  toggleThinking,
+}: ChatBottomBarProps) {
+  const isDisabled = !isModelReady || isGenerating || !value.trim();
+
+  const handleSend = () => {
+    if (isDisabled) return;
+    onSend();
+  };
+
+  if (availableModels.length === 0 && !isModelLoading) return null;
+
+  return (
+    <View className={cn("flex w-full p-0 bg-transparent", className)}>
+      {hasContent && <QuickActions />}
+
+      <View className="flex w-full p-3 pt-0  bg-transparent">
+        <View className="bg-card border border-border rounded-2xl p-3 pt-3">
+          {/* Text Input */}
+          <AutoResizingInput
+            value={value}
+            onChangeText={onChangeText}
+            minHeight={24}
+            placeholder={
+              isGenerating
+                ? "Aguardando resposta..."
+                : !isModelReady
+                  ? "Modelo não carregado"
+                  : "Pensando em algo?"
+            }
+            placeholderTextColor={Platform.OS === "ios" ? "#9CA3AF" : undefined}
+            editable={isModelReady && !isGenerating}
+            onSubmitEditing={handleSend}
+            returnKeyType="send"
+            accessibilityLabel="Campo de mensagem do chat"
+            className="w-full"
+          />
+
+          <View className="flex-row items-center justify-between pt-1">
+            <View className="flex-row items-center gap-2">
+              <ModelSelector
+                models={availableModels}
+                selectedModelId={selectedModel}
+                isLoading={isModelLoading ?? false}
+                error={modelError}
+                onSelect={handleModelSelect}
+              />
+              {modelSupportsReasoning && (
+                <ThinkingToggle
+                  enabled={thinkingEnabled}
+                  onToggle={toggleThinking}
+                />
+              )}
+            </View>
+
+            <SendButton
+              isGenerating={isGenerating}
+              hasMessage={!!value.trim() && isModelReady}
+              onSend={handleSend}
+              onCancel={handleCancel}
+            />
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+export default ChatBottomBar;

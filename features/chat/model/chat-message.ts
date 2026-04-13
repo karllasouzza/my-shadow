@@ -4,12 +4,15 @@
  * Individual message within a conversation. Embedded in ChatConversation.messages.
  */
 
-export type MessageRole = "user" | "assistant" | "system";
+export type MessageRole = "user" | "assistant" | "system" | "error";
 
 export interface ChatMessage {
   role: MessageRole;
   content: string;
-  timestamp: string; // ISO 8601
+  thinking?: string;
+  modelId?: string;
+  errorCode?: string;
+  timestamp: string;
 }
 
 /** Validation: content non-empty, max 10,000 chars */
@@ -33,10 +36,16 @@ export function validateChatMessage(content: string): {
 export function createChatMessage(
   role: MessageRole,
   content: string,
+  thinking?: string,
+  modelId?: string,
+  errorCode?: string,
 ): ChatMessage {
   return {
     role,
     content,
+    thinking: thinking ?? undefined,
+    modelId: modelId ?? undefined,
+    errorCode: errorCode ?? undefined,
     timestamp: new Date().toISOString(),
   };
 }

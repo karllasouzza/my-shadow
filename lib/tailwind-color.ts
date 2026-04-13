@@ -2,20 +2,20 @@ import Color from "color";
 import colors from "tailwindcss/colors";
 
 /**
- * Converte uma string de cor no formato Tailwind para o valor correspondente.
- * Suporta tanto cores com shade (ex: 'blue-500') quanto cores especiais (ex: 'black', 'white').
+ * Converts a Tailwind-style color string to its corresponding value.
+ * Supports both shaded colors (e.g., 'blue-500') and special color names (e.g., 'black', 'white').
  *
- * @param colorString - String no formato 'colorName-shade' ou nome de cor especial
- * @returns O valor da cor (hexadecimal ou palavra-chave CSS)
- * @throws Error se o formato for inválido ou a cor não existir no Tailwind
+ * @param colorString - A string in the format 'colorName-shade' or a special color name
+ * @returns The resolved color value (hex string or CSS keyword)
+ * @throws Error if the format is invalid or the color is not found in Tailwind
  *
  * @example
  * ```typescript
- * // Cores com shade
+ * // Shaded colors
  * const blue = getTailwindColor('blue-500');    // '#3b82f6'
  * const red = getTailwindColor('red-600');      // '#dc2626'
  *
- * // Cores especiais (sem shade)
+ * // Special colors (no shade)
  * const black = getTailwindColor('black');      // '#000'
  * const white = getTailwindColor('white');      // '#fff'
  * const transparent = getTailwindColor('transparent'); // '#00000000'
@@ -71,11 +71,11 @@ export const getTailwindColor = (colorString: string): string => {
 };
 
 /**
- * Tenta converter uma string de cor Tailwind para hexadecimal, retornando um fallback em caso de erro.
+ * Attempts to convert a Tailwind color string to a hex value, returning a fallback on error.
  *
- * @param colorString - String no formato 'colorName-shade' (ex: 'blue-500')
- * @param fallback - Cor de fallback a ser retornada em caso de erro (padrão: '#000000')
- * @returns O valor hexadecimal da cor ou o fallback
+ * @param colorString - String in 'colorName-shade' format (e.g., 'blue-500')
+ * @param fallback - Fallback color to return on error (default: '#000000')
+ * @returns The hexadecimal color value or the fallback
  *
  * @example
  * ```typescript
@@ -95,18 +95,18 @@ export const getTailwindColorSafe = (
 };
 
 /**
- * Tipo para objetos de tema que contêm variáveis CSS.
- * Representa o retorno de `vars()` do NativeWind com variáveis de cor.
+ * Type for theme objects that contain CSS variables.
+ * Represents the return shape of `vars()` from NativeWind with color variables.
  */
 export type ThemeVars = Record<string, string>;
 
 /**
- * Extrai o valor de uma variável CSS de um objeto de tema.
+ * Extracts the value of a CSS variable from a theme object.
  *
- * @param themeVars - Objeto contendo as variáveis CSS do tema (ex: resultado de `themes[theme][scheme]`)
- * @param varName - Nome da variável CSS (ex: '--color-background', '--color-primary')
- * @returns O valor da cor em formato RGB (ex: 'rgb(255, 255, 255)')
- * @throws Error se a variável não existir no objeto de tema
+ * @param themeVars - Object containing the theme's CSS variables (e.g., result of `themes[theme][scheme]`)
+ * @param varName - CSS variable name (e.g., '--color-background', '--color-primary')
+ * @returns The color value in RGB format (e.g., 'rgb(255, 255, 255)')
+ * @throws Error if the variable is not found in the theme object
  *
  * @example
  * ```typescript
@@ -129,15 +129,12 @@ export const getThemeColor = (
 };
 
 /**
- * Versão segura de getThemeColor que retorna um fallback em caso de erro.
+ * Safe version of `getThemeColor` that returns a fallback on error.
  *
- * @param themeVars - Objeto contendo as variáveis CSS do tema
- * @param varName - Nome da variável CSS
- * @param fallback - Cor de fallback (padrão: 'rgb(0, 0, 0)')
- * @returns O valor da cor ou o fallback
- *
- * @example
- * ```typescript
+ * @param themeVars - Object containing theme CSS variables
+ * @param varName - CSS variable name
+ * @param fallback - Fallback color (default: 'rgb(0, 0, 0)')
+ * @returns The resolved color value or the fallback
  */
 export const getThemeColorSafe = ({
   themeVars,
@@ -157,28 +154,28 @@ export const getThemeColorSafe = ({
 };
 
 /**
- * Resolve uma cor de qualquer formato suportado:
- * - Cores Tailwind: 'blue-500', 'red-600'
- * - Variáveis de tema: '--color-background', '--color-primary'
- * - Cores diretas: '#ffffff', 'rgb(255, 255, 255)'
+ * Resolves a color from any supported format:
+ * - Tailwind colors: 'blue-500', 'red-600'
+ * - Theme variables: '--color-background', '--color-primary'
+ * - Direct colors: '#ffffff', 'rgb(255, 255, 255)'
  *
- * @param colorInput - String de cor em qualquer formato suportado
- * @param themeVars - Opcional. Objeto de tema para resolver variáveis CSS
- * @param fallback - Cor de fallback em caso de erro (padrão: '#000000')
- * @returns O valor da cor resolvido
+ * @param colorInput - Color string in any supported format
+ * @param themeVars - Optional theme object to resolve CSS variables
+ * @param fallback - Fallback color to return on error (default: '#000000')
+ * @returns The resolved color value
  *
  * @example
  * ```typescript
- * // Cor Tailwind
+ * // Tailwind color
  * const blue = resolveColor('blue-500'); // '#3b82f6'
  *
- * // Variável de tema
+ * // Theme variable
  * const bg = resolveColor('--color-background', themeVars); // 'rgb(255, 255, 255)'
  *
- * // Cor direta
+ * // Direct color
  * const white = resolveColor('#ffffff'); // '#ffffff'
  *
- * // Com fallback
+ * // With fallback
  * const color = resolveColor('invalid', undefined, '#000000'); // '#000000'
  * ```
  */
@@ -211,8 +208,8 @@ export const resolveColor = (
 };
 
 /**
- * Resolve uma variável de tema (ex: '--color-background') para um valor hexadecimal.
- * Usa o pacote `color` para parsear diversos formatos e normalizar para `#rrggbb`.
+ * Resolves a theme variable (e.g., '--color-background') to a hexadecimal value.
+ * Uses the `color` package to parse various formats and normalize to `#rrggbb`.
  */
 export const getThemeColorHex = ({
   themeVars,
