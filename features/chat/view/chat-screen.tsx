@@ -5,6 +5,7 @@ import { AIBubble } from "@/features/chat/components/ai-bubble";
 import ChatBottomBar from "@/features/chat/components/chat-bottom-bar";
 import { ConversationErrorState } from "@/features/chat/components/conversation-error-state";
 import { EmptyState } from "@/features/chat/components/empty-state";
+import { ScrollToBottomButton } from "@/features/chat/components/scroll-to-bottom-button";
 import { StreamingBubble } from "@/features/chat/components/streaming-bubble";
 import { UserBubble } from "@/features/chat/components/user-bubble";
 import { useChat } from "@/features/chat/view-model/use-chat";
@@ -47,7 +48,11 @@ const ChatScreenInner = observer(function ChatScreenInner() {
   // Auto-scroll when user is near bottom
   // Triggers on: new messages added, streaming message updates
   useEffect(() => {
-    if (chat.displayMessages.length > 0 && !showScrollButton) {
+    if (
+      chat.displayMessages.length > 0 &&
+      !showScrollButton &&
+      chat.isGenerating
+    ) {
       requestAnimationFrame(() => {
         flatListRef.current?.scrollToIndex?.({
           index: chat.displayMessages.length - 1,
@@ -60,6 +65,7 @@ const ChatScreenInner = observer(function ChatScreenInner() {
     chat.displayMessages.length,
     showScrollButton,
     chat.displayMessages[chat.displayMessages.length - 1]?.timestamp,
+    chat.isGenerating,
   ]);
 
   // Track scroll position — show button when >1 screen height from bottom
@@ -97,7 +103,7 @@ const ChatScreenInner = observer(function ChatScreenInner() {
         }}
       >
         <TopBar
-          title="Nova conversa"
+          title={chat.conversationTitle}
           showBack
           onBack={() => router.push("/history")}
           rightAction={
@@ -183,22 +189,10 @@ const ChatScreenInner = observer(function ChatScreenInner() {
               />
 
               {/* Scroll to bottom button */}
-              {showScrollButton && (
-                <View className="absolute bottom-0 left-0 right-0 items-center pb-24 pointer-events-none">
-                  <Button
-                    variant="secondary"
-                    size="icon"
-                    onPress={scrollToBottom}
-                    className="rounded-full shadow-lg pointer-events-auto"
-                    accessibilityLabel="Rolar para baixo"
-                  >
-                    <Icon
-                      as={require("lucide-react-native").ChevronsDown}
-                      className="size-5 text-foreground"
-                    />
-                  </Button>
-                </View>
-              )}
+              <ScrollToBottomButton
+                visible={showScrollButton}
+                onPress={scrollToBottom}
+              />
             </View>
           )}
         </View>
