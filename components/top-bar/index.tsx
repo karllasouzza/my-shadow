@@ -105,8 +105,7 @@ export const TopBar = ({
           >
             <Icon
               as={require("lucide-react-native").ArrowLeft}
-              size={24}
-              className="text-foreground"
+              className="text-muted-foreground size-5"
             />
           </Button>
         )}
@@ -134,8 +133,7 @@ export const TopBar = ({
           >
             <Icon
               as={require("lucide-react-native").ArrowLeft}
-              size={24}
-              className="text-foreground"
+              className="text-muted-foreground size-5"
             />
           </Button>
 
@@ -158,8 +156,7 @@ export const TopBar = ({
               >
                 <Icon
                   as={require("lucide-react-native").X}
-                  size={20}
-                  className="text-muted-foreground"
+                  className="text-destructive/70 size-5"
                 />
               </Button>
             )}
@@ -185,8 +182,7 @@ export const TopBar = ({
           >
             <Icon
               as={require("lucide-react-native").Search}
-              size={20}
-              className="text-foreground"
+              className="text-primary size-5"
             />
           </Button>
         )}
