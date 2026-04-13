@@ -7,6 +7,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { Text } from "@/components/ui/text";
+import { cn } from "@/lib/utils";
 import { AvailableModel } from "@/shared/ai/types/model-loader";
 import React, {
   useCallback,
@@ -107,7 +108,10 @@ export function ModelSelector({
               ? require("lucide-react-native").Loader2
               : require("lucide-react-native").ChevronUp
           }
-          className="text-muted-foreground size-4"
+          className={cn(
+            "text-muted-foreground size-4",
+            isLoading && "animate-spin",
+          )}
         />
       </Button>
 
@@ -125,23 +129,23 @@ export function ModelSelector({
                   <Pressable
                     key={model.id}
                     onPress={() => handleSelect(model.id)}
-                    className={[
+                    className={cn(
                       "flex-row items-center gap-3 rounded-2xl border px-4 py-3",
                       isSelected
                         ? "border-primary bg-primary/10"
                         : "border-border bg-card",
-                    ].join(" ")}
+                    )}
                     accessibilityRole="button"
                     accessibilityLabel={model.displayName}
                   >
                     <View className="size-8 items-center justify-center rounded-full bg-muted">
                       <Icon
                         as={require("lucide-react-native").Cpu}
-                        className={
+                        className={cn(
                           isSelected
                             ? "text-primary size-4"
-                            : "text-muted-foreground size-4"
-                        }
+                            : "text-muted-foreground size-4",
+                        )}
                       />
                     </View>
 

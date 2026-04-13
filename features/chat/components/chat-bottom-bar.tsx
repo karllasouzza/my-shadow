@@ -61,10 +61,10 @@ function ChatBottomBar({
   if (availableModels.length === 0 && !isModelLoading) return null;
 
   return (
-    <View className={cn("flex w-full bg-background", className)}>
+    <View className={cn("flex w-full p-0 bg-transparent", className)}>
       {hasContent && <QuickActions />}
 
-      <View className="flex w-full p-3">
+      <View className="flex w-full p-3 pt-0  bg-transparent">
         <View className="bg-card border border-border rounded-2xl p-3 pt-3">
           {/* Text Input */}
           <AutoResizingInput

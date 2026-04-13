@@ -45,7 +45,11 @@ export const ThinkingSection = observer(function ThinkingSection({
               isStreaming && !thinking && "opacity-60",
             )}
           >
-            {isStreaming && !thinking ? "Pensando…" : "Pensamentos"}
+            {isStreaming && !thinking
+              ? "Pensando…"
+              : expanded
+                ? "Esconder pensamentos"
+                : "Ver pensamentos"}
           </Text>
 
           {expanded ? (
