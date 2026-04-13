@@ -4,9 +4,9 @@
  * Mensagem do usuário — alinhada à direita com cor primária.
  */
 
-import React from "react";
-import { View, Text } from "react-native";
 import type { ChatMessage } from "@/features/chat/model/chat-message";
+import React from "react";
+import { Text, View } from "react-native";
 
 interface UserBubbleProps {
   message: ChatMessage;
@@ -14,8 +14,8 @@ interface UserBubbleProps {
 
 export function UserBubble({ message }: UserBubbleProps) {
   return (
-    <View className="self-end max-w-[85%] mx-4 my-1">
-      <View className="bg-primary rounded-2xl rounded-br-md px-4 py-3">
+    <View className="self-end max-w-[85%]">
+      <View className="bg-primary rounded-2xl rounded-br-md px-2 py-1">
         <Text className="text-primary-foreground text-base" selectable>
           {message.content}
         </Text>
