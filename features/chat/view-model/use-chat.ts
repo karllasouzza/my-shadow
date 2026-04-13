@@ -24,10 +24,6 @@ interface StreamingMessage extends ChatMessage {
   _key: string; // Unique key for LegendList
 }
 
-// ============================================================================
-// Hook
-// ============================================================================
-
 export function useChat() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [isModelReady, setIsModelReady] = useState(false);
@@ -115,22 +111,22 @@ export function useChat() {
     const runtime = getAIRuntime();
     if (runtime.isModelLoaded()) return;
 
+    setIsModelLoading(true);
     const result = await autoLoadLastModel();
+    setIsModelLoading(false);
     if (!result) return;
 
-    setIsModelLoading(true);
     if (result.success) {
-      setIsModelReady(true);
       setModelsRefresh((v) => v + 1);
       const models = getAvailableModels();
       const selected = getSelectedModelId();
       const entry = models.find((m) => m.id === selected);
       setModelSupportsReasoning(entry?.supportsReasoning ?? false);
       setModelError(null);
+      return;
     } else {
       setModelError(result.error ?? "Falha ao carregar modelo.");
     }
-    setIsModelLoading(false);
   }, []);
 
   // ==========================================================================
@@ -291,18 +287,38 @@ export function useChat() {
       const thinking = thinkingEnabled;
       let fullResponse = "";
       let reasoningContent = "";
+      let rawAccumulated = "";
 
       const streamResult = await runtime.streamCompletion(messages, {
         enableThinking: thinking,
         onStreamChunk: (data) => {
           if (controller.signal.aborted) return;
 
-          // Separate reasoning from response
-          if (thinking && data.reasoningContent) {
-            reasoningContent += data.reasoningContent;
-          }
-          if (data.token) {
-            fullResponse += data.token;
+          // llama.rn may not separate reasoning_content natively.
+          // Parse <think> tags from the raw token stream.
+          if (thinking) {
+            rawAccumulated += data.token;
+
+            // Check if we have a complete think block
+            const thinkStartMatch = rawAccumulated.match(
+              /<think>([\s\S]*?)<\/think>/,
+            );
+            if (thinkStartMatch) {
+              reasoningContent = thinkStartMatch[1].trim();
+              fullResponse = rawAccumulated
+                .replace(/<think>[\s\S]*?<\/think>/, "")
+                .trim();
+            } else if (rawAccumulated.includes("<think>")) {
+              // Still accumulating thinking content
+              const partial = rawAccumulated.split("<think>")[1];
+              if (partial) reasoningContent = partial;
+              fullResponse = "";
+            } else {
+              // No thinking tags — treat all as response
+              fullResponse = rawAccumulated;
+            }
+          } else {
+            if (data.token) fullResponse += data.token;
           }
 
           const updatedMsg: StreamingMessage = {
