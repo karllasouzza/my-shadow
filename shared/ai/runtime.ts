@@ -1,8 +1,8 @@
 import { Result, createError, err, ok } from "@/shared/utils/app-error";
-import { llama } from "@react-native-ai/llama";
-import { streamText } from "ai";
-import { ChatMessage } from "./types/chat";
-import {
+import type { LlamaContext, TokenData } from "llama.rn";
+import { initLlama } from "llama.rn";
+import type { ChatMessage } from "./types/chat";
+import type {
   CompletionOutput,
   LoadedModel,
   StreamCompletionOptions,
@@ -10,58 +10,49 @@ import {
 
 let runtimeInstance: AIRuntime | null = null;
 
+const STOP_WORDS = [
+  "</s>",
+  "<|end|>",
+  "<|eot_id|>",
+  "<|end_of_text|>",
+  "<|EOT|>",
+  "<|END_OF_TURN_TOKEN|>",
+  "<|end_of_turn|>",
+];
+
 export class AIRuntime {
   private currentModel: LoadedModel | null = null;
-  private modelInstance: ReturnType<typeof llama.languageModel> | null = null;
-  private abortController: AbortController | null = null;
-  private readonly STOP_WORDS = [
-    "</s>",
-    "<|end|>",
-    "<|eot_id|>",
-    "<|end_of_text|>",
-    "<|im_end|>",
-    "<|EOT|>",
-    "<|END_OF_TURN_TOKEN|>",
-    "<|end_of_turn|>",
-    "<|endoftext|>",
-  ];
+  private context: LlamaContext | null = null;
+  private parallelStop: (() => Promise<void>) | null = null;
 
   /**
    * Loads a model into memory. If another model is already loaded, it will be unloaded first.
-   *
-   * @param modelId - Logical model ID
-   * @param modelPath - Local path to the GGUF file
    */
   async loadModel(
     modelId: string,
     modelPath: string,
   ): Promise<Result<LoadedModel>> {
     try {
-      if (this.modelInstance) {
+      if (this.context) {
         await this.unloadModel();
       }
-      this.modelInstance = llama.languageModel(modelPath, {
-        contextParams: {
-          n_ctx: 2048,
-          ctx_shift: true,
-          kv_unified: true,
-          n_gpu_layers: 99,
-          use_mlock: true,
-          swa_full: true,
-        },
+
+      this.context = await initLlama({
+        model: modelPath,
+        n_ctx: 2048,
+        n_gpu_layers: 99,
+        use_mlock: true,
+        flash_attn_type: "on",
+        cache_type_k: "f16",
+        cache_type_v: "f16",
       });
 
-      await this.modelInstance.prepare();
-
-      this.currentModel = {
-        id: modelId,
-        isLoaded: true,
-      };
+      this.currentModel = { id: modelId, isLoaded: true };
 
       return ok(this.currentModel);
     } catch (error) {
       this.currentModel = null;
-      this.modelInstance = null;
+      this.context = null;
 
       return err(
         createError(
@@ -79,18 +70,11 @@ export class AIRuntime {
    */
   async unloadModel(): Promise<Result<void>> {
     try {
-      if (!this.modelInstance) {
-        return ok(undefined);
-      }
+      if (!this.context) return ok(undefined);
 
-      // Cancela geração ativa se houver
-      if (this.abortController) {
-        this.abortController.abort();
-        this.abortController = null;
-      }
-
-      await this.modelInstance.unload();
-      this.modelInstance = null;
+      await this.cancelGeneration();
+      await this.context.parallel.disable().catch(() => {});
+      this.context = null;
       this.currentModel = null;
 
       return ok(undefined);
@@ -106,11 +90,17 @@ export class AIRuntime {
     }
   }
 
+  /**
+   * Streaming completion using llama.rn native .completion() with callback.
+   *
+   * Tokens are delivered in real-time via the onToken callback.
+   * Supports abort and thinking toggle.
+   */
   async streamCompletion(
     messages: ChatMessage[],
     options?: StreamCompletionOptions,
   ): Promise<Result<CompletionOutput>> {
-    if (!this.modelInstance || !this.currentModel) {
+    if (!this.context || !this.currentModel) {
       return err(
         createError(
           "NOT_READY",
@@ -120,30 +110,78 @@ export class AIRuntime {
     }
 
     try {
-      this.abortController = new AbortController();
+      let fullResponse = "";
+      let fullReasoning = "";
+      let aborted = false;
 
-      const { textStream } = streamText({
-        model: this.modelInstance,
-        messages,
-        abortSignal: options?.abortSignal ?? this.abortController.signal,
-        maxOutputTokens: options?.maxTokens || 2048,
-        temperature: options?.temperature || 0.7,
-        stopSequences: this.STOP_WORDS,
-        maxRetries: 3,
-        presencePenalty: 0.5,
-      });
+      // Always accumulate tokens internally for the final result
+      const streamCallback = (data: {
+        token: string;
+        reasoningContent: string;
+      }) => {
+        if (data.token) fullResponse += data.token;
+        if (data.reasoningContent) fullReasoning += data.reasoningContent;
+        // Forward to caller callback
+        options?.onStreamChunk?.(data);
+        // Legacy fallback
+        if (!options?.onStreamChunk && data.token) {
+          options?.onToken?.(data.token);
+        }
+      };
 
-      let fullText = "";
+      // Enable parallel mode if not already enabled
+      await this.context.parallel.enable({ n_parallel: 1 });
 
-      // Itera sobre chunks de streaming
-      for await (const delta of textStream) {
-        fullText += delta;
-        options?.onToken?.(delta);
+      const { promise, stop } = await this.context.parallel.completion(
+        {
+          messages,
+          n_predict: options?.maxTokens ?? 4096,
+          temperature: options?.temperature ?? 0.7,
+          stop: STOP_WORDS,
+          // Only include chat_template_kwargs when thinking is actually enabled
+          ...(options?.enableThinking
+            ? {
+                chat_template_kwargs: {
+                  enable_thinking: "true",
+                },
+              }
+            : {}),
+        },
+        (_requestId: number, data: TokenData) => {
+          const token = data.token ?? "";
+          const reasoning = data.reasoning_content ?? "";
+          if (token || reasoning) {
+            streamCallback({ token, reasoningContent: reasoning });
+          }
+        },
+      );
+
+      this.parallelStop = stop;
+
+      if (options?.abortSignal) {
+        options.abortSignal.addEventListener("abort", () => {
+          aborted = true;
+          this.cancelGeneration();
+        });
       }
 
-      this.abortController = null;
+      await promise;
+      this.parallelStop = null;
 
-      if (!fullText.trim()) {
+      // Disable parallel mode after completion
+      await this.context.parallel.disable();
+
+      if (aborted) {
+        return err(createError("ABORTED", "Geração cancelada pelo usuário."));
+      }
+
+      // Return combined text: reasoning + response
+      // The caller (use-chat) separates them via onStreamChunk
+      const combinedText = fullReasoning
+        ? `<thinking>${fullReasoning}</thinking>${fullResponse}`
+        : fullResponse;
+
+      if (!combinedText.trim() && !fullReasoning.trim()) {
         return err(
           createError(
             "LOCAL_GENERATION_UNAVAILABLE",
@@ -152,11 +190,13 @@ export class AIRuntime {
         );
       }
 
-      return ok({ text: fullText });
+      return ok({ text: combinedText });
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
         return err(createError("ABORTED", "Geração cancelada pelo usuário."));
       }
+
+      this.parallelStop = null;
 
       return err(
         createError(
@@ -172,10 +212,14 @@ export class AIRuntime {
   /**
    * Cancels an ongoing generation.
    */
-  cancelGeneration(): void {
-    if (this.abortController) {
-      this.abortController.abort();
-      this.abortController = null;
+  async cancelGeneration(): Promise<void> {
+    if (this.parallelStop) {
+      await this.parallelStop();
+      this.parallelStop = null;
+    }
+    // Disable parallel mode after cancellation
+    if (this.context) {
+      await this.context.parallel.disable();
     }
   }
 

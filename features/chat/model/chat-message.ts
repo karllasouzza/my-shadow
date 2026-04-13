@@ -9,10 +9,10 @@ export type MessageRole = "user" | "assistant" | "system" | "error";
 export interface ChatMessage {
   role: MessageRole;
   content: string;
-  thinking?: string; // Seção "Thoughts" — processo de raciocínio da IA (expansível)
-  modelId?: string; // Qual modelo gerou esta mensagem
-  errorCode?: string; // Código do erro (para mensagens de erro)
-  timestamp: string; // ISO 8601
+  thinking?: string;
+  modelId?: string;
+  errorCode?: string;
+  timestamp: string;
 }
 
 /** Validation: content non-empty, max 10,000 chars */

@@ -289,55 +289,30 @@ export function useChat() {
       }));
 
       const thinking = thinkingEnabled;
-      if (thinking) {
-        messages.unshift({
-          role: "system",
-          content:
-            "First, think step by step in a <thinking> tag about how to solve the user's request. Then provide your final answer after the closing </thinking> tag.",
-        });
-      }
-
       let fullResponse = "";
-      let thinkingText = "";
-      let outputText = "";
-      let inThinking = false;
+      let reasoningContent = "";
 
       const streamResult = await runtime.streamCompletion(messages, {
-        onToken: (token: string) => {
+        enableThinking: thinking,
+        onStreamChunk: (data) => {
           if (controller.signal.aborted) return;
 
-          fullResponse += token;
-
-          if (thinking) {
-            if (fullResponse.includes("<thinking>")) {
-              inThinking = true;
-            }
-            if (inThinking && fullResponse.includes("</thinking>")) {
-              inThinking = false;
-              thinkingText =
-                fullResponse
-                  .split("<thinking>")[1]
-                  ?.split("</thinking>")[0]
-                  ?.trim() ?? "";
-              outputText = fullResponse.split("</thinking>")[1]?.trim() ?? "";
-            } else if (inThinking) {
-              thinkingText = fullResponse.split("<thinking>")[1] ?? "";
-            } else if (thinkingText && !inThinking) {
-              outputText =
-                fullResponse.split("</thinking>")[1]?.trim() ?? outputText;
-            }
-          } else {
-            outputText = fullResponse;
+          // Separate reasoning from response
+          if (thinking && data.reasoningContent) {
+            reasoningContent += data.reasoningContent;
+          }
+          if (data.token) {
+            fullResponse += data.token;
           }
 
           const updatedMsg: StreamingMessage = {
             role: "assistant",
-            content: outputText,
-            thinking: thinkingText || undefined,
+            content: fullResponse,
+            thinking: reasoningContent || undefined,
             modelId: currentModelId,
             timestamp: new Date().toISOString(),
             _isStreaming: true,
-            _key: streamingKeyRef.current, // Use stable key from ref
+            _key: streamingKeyRef.current,
           };
 
           streamingMessageRef.current = updatedMsg;
@@ -376,6 +351,7 @@ export function useChat() {
 
       // Handle streaming errors (runtime failures, empty response, etc.)
       if (!streamResult.success) {
+        const partial = streamingMessageRef.current;
         streamingMessageRef.current = null;
         setStreamingMessage(null);
         abortControllerRef.current = null;
@@ -385,7 +361,7 @@ export function useChat() {
           streamResult.error?.message ?? "Falha ao gerar resposta.";
 
         // Only add error message if there's no user-visible content
-        if (!outputText.trim() && !thinkingText.trim()) {
+        if (!partial?.content?.trim() && !partial?.thinking?.trim()) {
           addErrorMessageToConversation(convId!, errorMsg, errorCode);
           return;
         }
@@ -396,8 +372,8 @@ export function useChat() {
           conv3.data.messages.push(
             createChatMessage(
               "assistant",
-              outputText + " [erro na geração]",
-              thinkingText || undefined,
+              (partial.content ?? "") + " [erro na geração]",
+              partial.thinking || undefined,
               currentModelId,
             ),
           );
@@ -410,11 +386,12 @@ export function useChat() {
       // Success: persist the assistant message
       const conv3 = DatabaseChat.loadConversation(convId!);
       if (conv3.success && conv3.data) {
+        const final = streamingMessageRef.current;
         conv3.data.messages.push(
           createChatMessage(
             "assistant",
-            outputText,
-            thinkingText || undefined,
+            final?.content ?? fullResponse,
+            final?.thinking || reasoningContent || undefined,
             currentModelId,
           ),
         );
