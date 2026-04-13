@@ -1,10 +1,21 @@
+/**
+ * AI Bubble
+ *
+ * Mensagem da IA com markdown streaming e thinking integrado.
+ * - ThinkingSection: colapsável, auto-scroll
+ * - Output: react-native-markdown-stream para mensagens completas,
+ *           StreamingText durante geração
+ */
+
+import { useTheme } from "@/context/themes";
 import { StreamingIndicator } from "@/features/chat/components/streaming-indicator";
 import { StreamingText } from "@/features/chat/components/streaming-text";
 import { ThinkingSection } from "@/features/chat/components/thinking-section";
 import type { ChatMessage } from "@/features/chat/model/chat-message";
 import { getAllModels } from "@/shared/ai/catalog";
-import React from "react";
+import React, { useMemo } from "react";
 import { Text, View } from "react-native";
+import { MarkdownStream } from "react-native-markdown-stream";
 
 interface AIBubbleProps {
   message: ChatMessage;
@@ -12,6 +23,8 @@ interface AIBubbleProps {
 }
 
 export function AIBubble({ message, isStreaming = false }: AIBubbleProps) {
+  const { colorScheme } = useTheme();
+
   const hasThinking = !!message.thinking || (isStreaming && !message.content);
   const hasContent = !!message.content || isStreaming;
 
@@ -23,6 +36,21 @@ export function AIBubble({ message, isStreaming = false }: AIBubbleProps) {
         return entry?.displayName ?? message.modelId;
       })()
     : null;
+
+  // Theme-aware markdown colors
+  const markdownTextColor = colorScheme === "dark" ? "#e4e4e7" : "#18181b";
+  const markdownMutedColor = colorScheme === "dark" ? "#71717a" : "#52525b";
+
+  const theme = useMemo(
+    () => ({
+      base: colorScheme as "light" | "dark",
+      colors: {
+        textColor: markdownTextColor,
+        mutedTextColor: markdownMutedColor,
+      },
+    }),
+    [colorScheme, markdownTextColor, markdownMutedColor],
+  );
 
   return (
     <View className="flex gap-2 self-start max-w-[100%] w-full my-6">
@@ -38,12 +66,25 @@ export function AIBubble({ message, isStreaming = false }: AIBubbleProps) {
       {hasContent && (
         <View className="py-3">
           {message.content ? (
-            <StreamingText
-              text={message.content}
-              className="text-foreground text-base leading-6"
-              selectable
-              autoScroll={isStreaming}
-            />
+            isStreaming ? (
+              // During streaming: plain text with auto-scroll (MarkdownStream doesn't handle dynamic content updates well)
+              <StreamingText
+                text={message.content}
+                className="text-foreground text-base leading-6"
+                selectable
+                autoScroll={isStreaming}
+              />
+            ) : (
+              // Completed message: full markdown rendering
+              <MarkdownStream
+                content={message.content}
+                revealMode="chunk"
+                textColor={markdownTextColor}
+                mutedTextColor={markdownMutedColor}
+                enableCodeCopy
+                theme={theme}
+              />
+            )
           ) : (
             isStreaming && <StreamingIndicator />
           )}
