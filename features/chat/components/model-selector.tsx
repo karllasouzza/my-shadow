@@ -4,10 +4,11 @@ import {
   AppModalHandle,
   AppModalHeader,
 } from "@/components/molecules/app-modal";
+import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { Text } from "@/components/ui/text";
+import { cn } from "@/lib/utils";
 import { AvailableModel } from "@/shared/ai/types/model-loader";
-import { Check, ChevronUp, Cpu } from "lucide-react-native";
 import React, {
   useCallback,
   useEffect,
@@ -86,32 +87,33 @@ export function ModelSelector({
     setOpen(nextOpen);
   }, []);
 
-  if (isLoading) {
-    return (
-      <View className="flex-row items-center justify-center px-3">
-        <Icon
-          as={require("lucide-react-native").Loader2}
-          className="text-muted-foreground animate-spin"
-        />
-      </View>
-    );
-  }
-
   if (models.length === 0) return null;
 
   return (
     <>
-      <Pressable
+      <Button
         onPress={handleOpen}
-        className="flex-row items-center gap-1 px-2 py-1"
+        disabled={isLoading}
+        className="!bg-transparent"
+        variant="outline"
         accessibilityRole="button"
         accessibilityLabel="Selecionar modelo"
       >
         <Text className="text-foreground text-sm font-medium" numberOfLines={1}>
-          {displayText}
+          {isLoading ? "Carregando modelo" : displayText}
         </Text>
-        <Icon as={ChevronUp} className="text-muted-foreground size-4" />
-      </Pressable>
+        <Icon
+          as={
+            isLoading
+              ? require("lucide-react-native").Loader2
+              : require("lucide-react-native").ChevronUp
+          }
+          className={cn(
+            "text-muted-foreground size-4",
+            isLoading && "animate-spin",
+          )}
+        />
+      </Button>
 
       <AppModal open={open} onOpenChange={handleOpenChange}>
         <AppModalContent>
@@ -127,23 +129,23 @@ export function ModelSelector({
                   <Pressable
                     key={model.id}
                     onPress={() => handleSelect(model.id)}
-                    className={[
+                    className={cn(
                       "flex-row items-center gap-3 rounded-2xl border px-4 py-3",
                       isSelected
                         ? "border-primary bg-primary/10"
                         : "border-border bg-card",
-                    ].join(" ")}
+                    )}
                     accessibilityRole="button"
                     accessibilityLabel={model.displayName}
                   >
                     <View className="size-8 items-center justify-center rounded-full bg-muted">
                       <Icon
-                        as={Cpu}
-                        className={
+                        as={require("lucide-react-native").Cpu}
+                        className={cn(
                           isSelected
                             ? "text-primary size-4"
-                            : "text-muted-foreground size-4"
-                        }
+                            : "text-muted-foreground size-4",
+                        )}
                       />
                     </View>
 
@@ -154,15 +156,13 @@ export function ModelSelector({
                       >
                         {model.displayName}
                       </Text>
-                      {model.isLoaded && (
-                        <Text className="text-xs text-muted-foreground">
-                          Modelo carregado
-                        </Text>
-                      )}
                     </View>
 
                     {isSelected && (
-                      <Icon as={Check} className="text-primary size-4" />
+                      <Icon
+                        as={require("lucide-react-native").Check}
+                        className="text-primary size-4"
+                      />
                     )}
                   </Pressable>
                 );

@@ -1,7 +1,12 @@
 import { Button } from "@/components/ui/button";
-import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
-import React from "react";
+import { Brain } from "lucide-react-native";
+import React, { useEffect, useRef } from "react";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from "react-native-reanimated";
 
 interface ThinkingToggleProps {
   enabled: boolean;
@@ -9,21 +14,45 @@ interface ThinkingToggleProps {
 }
 
 export function ThinkingToggle({ enabled, onToggle }: ThinkingToggleProps) {
+  const fillOpacity = useSharedValue(0);
+  const prevEnabled = useRef(enabled);
+
+  useEffect(() => {
+    if (prevEnabled.current !== enabled) {
+      // Glow: fade in/out — no scale
+      fillOpacity.value = withSpring(enabled ? 1 : 0, {
+        damping: 15,
+        stiffness: 80,
+      });
+      prevEnabled.current = enabled;
+    }
+  }, [enabled, fillOpacity]);
+
+  const glowStyle = useAnimatedStyle(() => ({
+    opacity: fillOpacity.value,
+  }));
+
   return (
     <Button
       variant={"outline"}
       size="sm"
       onPress={onToggle}
-      className={enabled ? "border-primary" : "border-border"}
+      className={cn("min-w-0", enabled ? "!border-primary" : "border-border")}
       accessibilityRole="button"
       accessibilityLabel="Alterne entre o processo de raciocínio da IA"
     >
-      <Icon
-        as={require("lucide-react-native").Brain}
-        className={cn(
-          "size-4",
-          enabled ? "text-primary-foreground" : "text-muted-foreground",
-        )}
+      {/* Glow overlay behind icon */}
+      <Animated.View
+        className="absolute inset-0 rounded-md bg-primary/20"
+        style={glowStyle}
+        pointerEvents="none"
+      />
+
+      <Brain
+        size={16}
+        strokeWidth={2}
+        color={enabled ? "hsl(247 96% 78%)" : "hsl(240 5% 44%)"}
+        fill={enabled ? "hsla(247 96% 78% / 0.3)" : "transparent"}
       />
     </Button>
   );

@@ -1,19 +1,21 @@
 /**
  * AI Bubble
  *
- * Mensagem da IA — alinhada à esquerda com:
- * - Thinking section (expansível, opcional)
- * - Output principal
- * - Indicador de streaming se estiver gerando
- * - Model name + timestamp no footer
+ * Mensagem da IA com markdown streaming e thinking integrado.
+ * - ThinkingSection: colapsável, auto-scroll
+ * - Output: react-native-markdown-stream para mensagens completas,
+ *           StreamingText durante geração
  */
 
+import { useTheme } from "@/context/themes";
 import { StreamingIndicator } from "@/features/chat/components/streaming-indicator";
+import { StreamingText } from "@/features/chat/components/streaming-text";
 import { ThinkingSection } from "@/features/chat/components/thinking-section";
 import type { ChatMessage } from "@/features/chat/model/chat-message";
 import { getAllModels } from "@/shared/ai/catalog";
-import React from "react";
+import React, { useMemo } from "react";
 import { Text, View } from "react-native";
+import { MarkdownStream } from "react-native-markdown-stream";
 
 interface AIBubbleProps {
   message: ChatMessage;
@@ -21,6 +23,8 @@ interface AIBubbleProps {
 }
 
 export function AIBubble({ message, isStreaming = false }: AIBubbleProps) {
+  const { colorScheme } = useTheme();
+
   const hasThinking = !!message.thinking || (isStreaming && !message.content);
   const hasContent = !!message.content || isStreaming;
 
@@ -33,9 +37,24 @@ export function AIBubble({ message, isStreaming = false }: AIBubbleProps) {
       })()
     : null;
 
+  // Theme-aware markdown colors
+  const markdownTextColor = colorScheme === "dark" ? "#e4e4e7" : "#18181b";
+  const markdownMutedColor = colorScheme === "dark" ? "#71717a" : "#52525b";
+
+  const theme = useMemo(
+    () => ({
+      base: colorScheme as "light" | "dark",
+      colors: {
+        textColor: markdownTextColor,
+        mutedTextColor: markdownMutedColor,
+      },
+    }),
+    [colorScheme, markdownTextColor, markdownMutedColor],
+  );
+
   return (
-    <View className="self-start max-w-[90%] mx-4 my-1">
-      {/* Thinking section (se houver) */}
+    <View className="flex gap-2 self-start max-w-[100%] w-full my-6">
+      {/* Thinking section */}
       {hasThinking && (
         <ThinkingSection
           thinking={message.thinking ?? ""}
@@ -45,25 +64,46 @@ export function AIBubble({ message, isStreaming = false }: AIBubbleProps) {
 
       {/* Output principal */}
       {hasContent && (
-        <View className="bg-secondary rounded-2xl rounded-bl-md px-4 py-3">
-          <Text className="text-foreground text-base leading-6" selectable>
-            {message.content || (isStreaming ? "" : "")}
-          </Text>
-          {isStreaming && !message.content && <StreamingIndicator />}
+        <View className="py-3">
+          {message.content ? (
+            isStreaming ? (
+              // During streaming: plain text with auto-scroll (MarkdownStream doesn't handle dynamic content updates well)
+              <StreamingText
+                text={message.content}
+                className="text-foreground text-base leading-6"
+                selectable
+                autoScroll={isStreaming}
+              />
+            ) : (
+              // Completed message: full markdown rendering
+              <MarkdownStream
+                content={message.content}
+                revealMode="chunk"
+                textColor={markdownTextColor}
+                mutedTextColor={markdownMutedColor}
+                enableCodeCopy
+                theme={theme}
+              />
+            )
+          ) : (
+            isStreaming && <StreamingIndicator />
+          )}
         </View>
       )}
 
       {/* Footer: model name + timestamp */}
       {(modelDisplayName || message.timestamp) && (
-        <View className="flex-row items-center gap-1.5 mt-1 px-1">
+        <View className="flex-row items-center gap-1.5 mt-1">
           {modelDisplayName && (
-            <Text className="text-muted text-xs">{modelDisplayName}</Text>
+            <Text className="text-muted-foreground/55 text-xs">
+              {modelDisplayName}
+            </Text>
           )}
           {modelDisplayName && message.timestamp && (
-            <Text className="text-muted text-xs">•</Text>
+            <Text className="text-muted-foreground/55 text-xs">•</Text>
           )}
           {message.timestamp && (
-            <Text className="text-muted text-xs">
+            <Text className="text-muted-foreground/55 text-xs">
               {formatTime(message.timestamp)}
             </Text>
           )}

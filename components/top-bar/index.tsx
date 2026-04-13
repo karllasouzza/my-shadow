@@ -94,28 +94,36 @@ export const TopBar = ({
       )}
     >
       {/* Left Section */}
-      <View className="flex-row items-center gap-3">
+      <View className="flex-row items-center gap-3 flex-1 min-w-0">
         {showBack && !isSearchActive && (
           <Button
             variant="ghost"
             size="icon"
             onPress={onBack}
-            className="active:opacity-70"
+            className="active:opacity-70 shrink-0"
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <Icon
               as={require("lucide-react-native").ArrowLeft}
-              size={24}
-              className="text-foreground"
+              className="text-muted-foreground size-5"
             />
           </Button>
         )}
 
         {/* Title - always rendered, animated visibility */}
         <Animated.View
-          style={[titleStyle, { display: isSearchActive ? "none" : "flex" }]}
+          style={[
+            titleStyle,
+            { display: isSearchActive ? "none" : "flex", minWidth: 0, flex: 1 },
+          ]}
         >
-          <Text className="font-bold text-foreground text-xl">{title}</Text>
+          <Text
+            className="font-bold text-foreground text-lg"
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {title}
+          </Text>
         </Animated.View>
 
         {/* Search Input - always rendered, animated visibility */}
@@ -134,8 +142,7 @@ export const TopBar = ({
           >
             <Icon
               as={require("lucide-react-native").ArrowLeft}
-              size={24}
-              className="text-foreground"
+              className="text-muted-foreground size-5"
             />
           </Button>
 
@@ -158,8 +165,7 @@ export const TopBar = ({
               >
                 <Icon
                   as={require("lucide-react-native").X}
-                  size={20}
-                  className="text-muted-foreground"
+                  className="text-destructive/70 size-5"
                 />
               </Button>
             )}
@@ -185,8 +191,7 @@ export const TopBar = ({
           >
             <Icon
               as={require("lucide-react-native").Search}
-              size={20}
-              className="text-foreground"
+              className="text-primary size-5"
             />
           </Button>
         )}

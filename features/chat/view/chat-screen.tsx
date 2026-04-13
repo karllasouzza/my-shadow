@@ -1,8 +1,11 @@
+import { TopBar } from "@/components/top-bar";
 import { Button } from "@/components/ui/button";
+import { Icon } from "@/components/ui/icon";
 import { AIBubble } from "@/features/chat/components/ai-bubble";
-import { ChatBottomBar } from "@/features/chat/components/chat-bottom-bar";
+import ChatBottomBar from "@/features/chat/components/chat-bottom-bar";
 import { ConversationErrorState } from "@/features/chat/components/conversation-error-state";
 import { EmptyState } from "@/features/chat/components/empty-state";
+import { ScrollToBottomButton } from "@/features/chat/components/scroll-to-bottom-button";
 import { StreamingBubble } from "@/features/chat/components/streaming-bubble";
 import { UserBubble } from "@/features/chat/components/user-bubble";
 import { useChat } from "@/features/chat/view-model/use-chat";
@@ -14,9 +17,8 @@ import {
   useFocusEffect,
   useLocalSearchParams,
 } from "expo-router";
-import { Clock, Plus, Settings } from "lucide-react-native";
 import React, { memo, useCallback, useEffect, useRef, useState } from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import { Text, View } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { ErrorBubble } from "../components/error-bubble";
 
@@ -24,7 +26,7 @@ const ChatScreenInner = observer(function ChatScreenInner() {
   const ScreenContainer = KeyboardAvoidingView;
 
   const flatListRef = useRef<any>(null);
-  const [isNearBottom, setIsNearBottom] = useState(true);
+  const [showScrollButton, setShowScrollButton] = useState(false);
   const [inputText, setInputText] = useState("");
 
   const params = useLocalSearchParams<{ conversationId?: string }>();
@@ -43,16 +45,30 @@ const ChatScreenInner = observer(function ChatScreenInner() {
     }, [params.conversationId]),
   );
 
-  // Auto-scroll only when user is already near bottom (threshold: 100px)
+  // Auto-scroll when user is near bottom
+  // Triggers on: new messages added, streaming message updates
   useEffect(() => {
-    if (chat.displayMessages.length > 0 && isNearBottom) {
+    if (
+      chat.displayMessages.length > 0 &&
+      !showScrollButton &&
+      chat.isGenerating
+    ) {
       requestAnimationFrame(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
+        flatListRef.current?.scrollToIndex?.({
+          index: chat.displayMessages.length - 1,
+          animated: true,
+          viewPosition: 1,
+        });
       });
     }
-  }, [chat.displayMessages.length, isNearBottom]);
+  }, [
+    chat.displayMessages.length,
+    showScrollButton,
+    chat.displayMessages[chat.displayMessages.length - 1]?.timestamp,
+    chat.isGenerating,
+  ]);
 
-  // Track scroll position
+  // Track scroll position — show button when >1 screen height from bottom
   const handleScroll = useCallback((event: any) => {
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
 
@@ -60,9 +76,17 @@ const ChatScreenInner = observer(function ChatScreenInner() {
     const visibleHeight = layoutMeasurement.height;
     const distanceFromBottom = contentHeight - contentOffset.y - visibleHeight;
 
-    const AUTO_SCROLL_THRESHOLD = 100; // px from bottom
-    setIsNearBottom(distanceFromBottom < AUTO_SCROLL_THRESHOLD);
+    // Show scroll button when more than 1 screen height from bottom
+    setShowScrollButton(distanceFromBottom > visibleHeight);
   }, []);
+
+  const scrollToBottom = useCallback(() => {
+    flatListRef.current?.scrollToIndex?.({
+      index: chat.displayMessages.length - 1,
+      animated: true,
+      viewPosition: 1,
+    });
+  }, [chat.displayMessages.length]);
 
   const handleNewConversation = useCallback(() => {
     chat.resetChatState();
@@ -78,35 +102,26 @@ const ChatScreenInner = observer(function ChatScreenInner() {
           flex: 1,
         }}
       >
-        {/* Header */}
-        <View className="flex-row items-center justify-between px-3 py-2 bg-background border-b border-border">
-          {/* Settings */}
-          <TouchableOpacity
-            onPress={() => router.push("/models")}
-            className="p-2"
-            accessibilityLabel="Gerenciar Modelos"
-          >
-            <Settings size={20} color="#a1a1aa" />
-          </TouchableOpacity>
-
-          {/* History */}
-          <TouchableOpacity
-            onPress={() => router.push("/history")}
-            className="p-2"
-            accessibilityLabel="Histórico"
-          >
-            <Clock size={20} color="#a1a1aa" />
-          </TouchableOpacity>
-
-          {/* New Conversation */}
-          <TouchableOpacity
-            onPress={handleNewConversation}
-            className="p-2"
-            accessibilityLabel="Nova Conversa"
-          >
-            <Plus size={20} color="#a1a1aa" />
-          </TouchableOpacity>
-        </View>
+        <TopBar
+          title={chat.conversationTitle}
+          showBack
+          onBack={() => router.push("/history")}
+          rightAction={
+            chat.hasContent && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onPress={handleNewConversation}
+                accessibilityLabel="Iniciar nova conversa"
+              >
+                <Icon
+                  as={require("lucide-react-native").Plus}
+                  className="size-5 text-muted-foreground p-0 stroke-2"
+                />
+              </Button>
+            )
+          }
+        />
 
         {/* Messages List */}
         <View style={{ flex: 1 }}>
@@ -145,31 +160,40 @@ const ChatScreenInner = observer(function ChatScreenInner() {
               <EmptyState />
             )
           ) : (
-            <LegendList
-              ref={flatListRef}
-              data={chat.displayMessages}
-              renderItem={({ item }) =>
-                (item as any)._isStreaming ? (
-                  <StreamingBubble message={item} />
-                ) : item.role === "user" ? (
-                  <UserBubble message={item} />
-                ) : item.role === "error" ? (
-                  <ErrorBubble
-                    message={item.content}
-                    onRetry={() => chat.retryLastMessage?.()}
-                  />
-                ) : (
-                  <AIBubble message={item} />
-                )
-              }
-              keyExtractor={(item, index) =>
-                (item as any)._key ?? `msg-${item.timestamp ?? index}-${index}`
-              }
-              contentContainerClassName="py-4"
-              onScroll={handleScroll}
-              scrollEventThrottle={16}
-              style={{ flex: 1 }}
-            />
+            <View style={{ flex: 1 }}>
+              <LegendList
+                ref={flatListRef}
+                data={chat.displayMessages}
+                renderItem={({ item }) =>
+                  (item as any)._isStreaming ? (
+                    <StreamingBubble message={item} />
+                  ) : item.role === "user" ? (
+                    <UserBubble message={item} />
+                  ) : item.role === "error" ? (
+                    <ErrorBubble
+                      message={item.content}
+                      onRetry={() => chat.retryLastMessage?.()}
+                    />
+                  ) : (
+                    <AIBubble message={item} />
+                  )
+                }
+                keyExtractor={(item, index) =>
+                  (item as any)._key ??
+                  `msg-${item.timestamp ?? index}-${index}`
+                }
+                contentContainerClassName="px-4 pt-6 pb-2"
+                onScroll={handleScroll}
+                scrollEventThrottle={16}
+                style={{ flex: 1 }}
+              />
+
+              {/* Scroll to bottom button */}
+              <ScrollToBottomButton
+                visible={showScrollButton}
+                onPress={scrollToBottom}
+              />
+            </View>
           )}
         </View>
 
