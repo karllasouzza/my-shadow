@@ -15,7 +15,7 @@ interface UserBubbleProps {
 export function UserBubble({ message }: UserBubbleProps) {
   return (
     <View className="self-end max-w-[85%]">
-      <View className="bg-primary rounded-2xl rounded-br-md px-2 py-1">
+      <View className="bg-primary rounded-2xl rounded-br-md px-2 py-2">
         <Text className="text-primary-foreground text-base" selectable>
           {message.content}
         </Text>
