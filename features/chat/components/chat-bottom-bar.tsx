@@ -1,28 +1,19 @@
 import AutoResizingInput from "@/components/ui/auto-resizing-input";
-import { Button } from "@/components/ui/button";
-import { Icon } from "@/components/ui/icon";
-import { Text } from "@/components/ui/text";
 import { cn } from "@/lib/utils";
 import { AvailableModel } from "@/shared/ai/types/model-loader";
 import React from "react";
-import { Platform, ScrollView, View } from "react-native";
+import { Platform, View } from "react-native";
 import { ModelSelector } from "./model-selector";
+import QuickActions from "./quick-actions";
+import { SendButton } from "./send-button";
 import { ThinkingToggle } from "./thinking-toggle";
-
-interface QuickAction {
-  id: string;
-  title: string;
-  subtitle: string;
-  onPress: () => void;
-}
 
 interface ChatBottomBarProps {
   value: string;
   onChangeText: (text: string) => void;
   handleCancel: () => void;
   onSend: () => void;
-  onVoiceMode?: () => void;
-  quickActions?: QuickAction[];
+  hasContent?: boolean;
   isGenerating?: boolean;
   isModelReady?: boolean;
   isModelLoading?: boolean;
@@ -38,35 +29,13 @@ interface ChatBottomBarProps {
   toggleThinking: () => void;
 }
 
-const defaultQuickActions: QuickAction[] = [
-  {
-    id: "explain",
-    title: "Explicação",
-    subtitle: "Me explique como calcular...",
-    onPress: () => {},
-  },
-  {
-    id: "plan",
-    title: "Planejamento",
-    subtitle: "Crie um plano para...",
-    onPress: () => {},
-  },
-  {
-    id: "brainstorm",
-    title: "Criatividade",
-    subtitle: "Me ajude dê ideias criativas para...",
-    onPress: () => {},
-  },
-];
-
 function ChatBottomBar({
   value,
   onChangeText,
   onSend,
   handleCancel,
-  onVoiceMode,
 
-  quickActions = defaultQuickActions,
+  hasContent,
   isGenerating = false,
   isModelReady = true,
 
@@ -93,33 +62,9 @@ function ChatBottomBar({
 
   return (
     <View className={cn("flex w-full bg-background", className)}>
-      {quickActions.length > 0 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerClassName="px-4 pt-3 gap-2"
-        >
-          {quickActions.map((action) => (
-            <Button
-              variant="outline"
-              key={action.id}
-              onPress={action.onPress}
-              className="flex flex-col items-start gap-2 h-16"
-              accessibilityRole="button"
-              accessibilityLabel={action.title}
-            >
-              <Text className="text-sm text-foreground font-medium">
-                {action.title}
-              </Text>
-              <Text className="text-xs text-muted-foreground">
-                {action.subtitle}
-              </Text>
-            </Button>
-          ))}
-        </ScrollView>
-      )}
+      {hasContent && <QuickActions />}
 
-      <View className="flex w-full p-3 pt-3">
+      <View className="flex w-full p-3">
         <View className="bg-card border border-border rounded-2xl p-3 pt-3">
           {/* Text Input */}
           <AutoResizingInput
@@ -158,38 +103,12 @@ function ChatBottomBar({
               )}
             </View>
 
-            <Button
-              onPress={
-                isGenerating ? handleCancel : (onVoiceMode ?? handleSend)
-              }
-              variant={isGenerating ? "destructive" : "default"}
-              size="icon"
-              accessibilityRole="button"
-              accessibilityLabel={
-                isGenerating
-                  ? "Gerando resposta"
-                  : onVoiceMode
-                    ? "Modo de voz"
-                    : "Enviar mensagem"
-              }
-            >
-              {isGenerating ? (
-                <Icon
-                  as={require("lucide-react-native").Square}
-                  className="text-destructive size-5"
-                />
-              ) : onVoiceMode ? (
-                <Icon
-                  as={require("lucide-react-native").Mic}
-                  className="text-primary-foreground size-5"
-                />
-              ) : (
-                <Icon
-                  as={require("lucide-react-native").ArrowUp}
-                  className={cn("text-primary-foreground size-5")}
-                />
-              )}
-            </Button>
+            <SendButton
+              isGenerating={isGenerating}
+              hasMessage={!!value.trim() && isModelReady}
+              onSend={handleSend}
+              onCancel={handleCancel}
+            />
           </View>
         </View>
       </View>
@@ -197,6 +116,4 @@ function ChatBottomBar({
   );
 }
 
-export { ChatBottomBar, defaultQuickActions };
-export type { ChatBottomBarProps, QuickAction };
-
+export default ChatBottomBar;
