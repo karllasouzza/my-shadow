@@ -1,14 +1,18 @@
 /**
  * Thinking Section
  *
- * Seção "Thoughts" expansível — mostra o processo de raciocínio da IA.
- * Default: collapsed. Clique para expandir.
+ * Seção "Thoughts" expansível.
+ * Colapsado: preview com StreamingText (4 linhas, auto-scroll bottom).
+ * Expandido: texto completo via StreamingText, sem limite.
  */
 
+import { Icon } from "@/components/ui/icon";
+import { cn } from "@/lib/utils";
 import { observer } from "@legendapp/state/react";
 import { ChevronDown, ChevronUp } from "lucide-react-native";
 import React, { useState } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
+import { StreamingText } from "./streaming-text";
 
 interface ThinkingSectionProps {
   thinking: string;
@@ -24,36 +28,52 @@ export const ThinkingSection = observer(function ThinkingSection({
   if (!thinking && !isStreaming) return null;
 
   return (
-    <View className="mx-4 mt-2 mb-1">
-      {/* Header clicável */}
-      <TouchableOpacity
-        onPress={() => setExpanded(!expanded)}
-        className="flex-row items-center gap-2 py-2"
-        accessibilityLabel={expanded ? "Fechar pensamentos" : "Ver pensamentos"}
-      >
-        {expanded ? (
-          <ChevronUp size={16} color="#71717a" />
-        ) : (
-          <ChevronDown size={16} color="#71717a" />
-        )}
-        <Text className="text-muted text-sm font-medium">Thoughts</Text>
-        {isStreaming && !thinking && (
-          <View className="flex-row gap-1 ml-2">
-            <View className="w-1.5 h-1.5 rounded-full bg-muted animate-pulse" />
-            <View className="w-1.5 h-1.5 rounded-full bg-muted animate-pulse" />
-            <View className="w-1.5 h-1.5 rounded-full bg-muted animate-pulse" />
-          </View>
-        )}
-      </TouchableOpacity>
-
-      {/* Conteúdo expansível */}
-      {expanded && (
-        <View className="ml-4 pl-3 border-l-2 border-border">
-          <Text className="text-muted text-sm leading-5" selectable>
-            {thinking || (isStreaming ? "Pensando..." : "")}
+    <View className="w-full border border-border rounded-2xl bg-background mb-1">
+      <View className="flex flex-col">
+        {/* Header */}
+        <TouchableOpacity
+          onPress={() => setExpanded((prev) => !prev)}
+          className="flex-row justify-between items-center gap-2 p-3"
+          accessibilityLabel={
+            expanded ? "Fechar pensamentos" : "Ver pensamentos"
+          }
+          accessibilityRole="button"
+        >
+          <Text
+            className={cn(
+              "text-muted-foreground text-xs font-semibold uppercase tracking-wide",
+              isStreaming && !thinking && "opacity-60",
+            )}
+          >
+            {isStreaming && !thinking ? "Pensando…" : "Pensamentos"}
           </Text>
+
+          {expanded ? (
+            <Icon as={ChevronUp} className="size-3 text-muted-foreground" />
+          ) : (
+            <Icon as={ChevronDown} className="size-3 text-muted-foreground" />
+          )}
+        </TouchableOpacity>
+
+        {/* Content */}
+        <View className="px-3 pb-3">
+          {expanded ? (
+            <StreamingText
+              text={thinking}
+              className="text-muted-foreground text-sm leading-5"
+              selectable
+            />
+          ) : (
+            <StreamingText
+              text={thinking || (isStreaming ? "Pensando…" : "")}
+              className="text-muted-foreground text-sm leading-5"
+              selectable
+              autoScroll={isStreaming}
+              numberOfLines={4}
+            />
+          )}
         </View>
-      )}
+      </View>
     </View>
   );
 });
