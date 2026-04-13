@@ -20,7 +20,7 @@ export function UserBubble({ message }: UserBubbleProps) {
           {message.content}
         </Text>
       </View>
-      <Text className="text-muted text-xs mt-1 self-end px-1">
+      <Text className="text-muted-foreground/55 text-xs mt-1 self-end px-1">
         {formatTime(message.timestamp)}
       </Text>
     </View>
