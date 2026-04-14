@@ -214,6 +214,7 @@ const ChatScreenInner = observer(function ChatScreenInner() {
           availableModels={chat.availableModels}
           handleModelSelect={chat.handleLoadModel}
           modelError={chat.modelError}
+          hasContent={chat.hasContent}
           // Thinking toggle props
           modelSupportsReasoning={chat.modelSupportsReasoning}
           thinkingEnabled={chat.thinkingEnabled}

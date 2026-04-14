@@ -62,9 +62,9 @@ function ChatBottomBar({
 
   return (
     <View className={cn("flex w-full p-0 bg-transparent", className)}>
-      {hasContent && <QuickActions />}
+      {!hasContent && <QuickActions />}
 
-      <View className="flex w-full p-3 pt-0  bg-transparent">
+      <View className="flex w-full p-3 pt-6  bg-transparent">
         <View className="bg-card border border-border rounded-2xl p-3 pt-3">
           {/* Text Input */}
           <AutoResizingInput
@@ -83,7 +83,7 @@ function ChatBottomBar({
             onSubmitEditing={handleSend}
             returnKeyType="send"
             accessibilityLabel="Campo de mensagem do chat"
-            className="w-full"
+            className="w-full text-foreground placeholder:text-muted-foreground bg-transparent outline-none"
           />
 
           <View className="flex-row items-center justify-between pt-1">

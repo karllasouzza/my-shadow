@@ -4,7 +4,7 @@
  * Animação de progresso circular usando stroke.
  * Vai de 0 a 100% formando um círculo completo.
  */
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { View } from "react-native";
 import Animated, {
     Easing,
@@ -31,9 +31,13 @@ export function CircularProgress({
   trackColor = "rgba(153, 159, 243, 0.15)",
   strokeColor = "#999ff3",
 }: CircularProgressProps) {
-  const progressValue = useSharedValue(0);
+  const progressValue = useSharedValue(progress);
+  const prevProgress = useRef(progress);
 
   useEffect(() => {
+    if (prevProgress.current === progress) return;
+    prevProgress.current = progress;
+
     progressValue.value = withTiming(progress, {
       duration: 300,
       easing: Easing.out(Easing.cubic),

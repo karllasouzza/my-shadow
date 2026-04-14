@@ -27,13 +27,16 @@ export const ThinkingSection = observer(function ThinkingSection({
 
   if (!thinking && !isStreaming) return null;
 
+  const toggleExpanded = () => setExpanded((prev) => !prev);
+
   return (
     <View className="w-full border border-border rounded-2xl bg-background mb-1">
       <View className="flex flex-col">
         {/* Header */}
         <TouchableOpacity
-          onPress={() => setExpanded((prev) => !prev)}
-          className="flex-row justify-between items-center gap-2 p-3"
+          onPress={toggleExpanded}
+          className="flex-row justify-between items-center gap-2 p-3 z-10"
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           accessibilityLabel={
             expanded ? "Fechar pensamentos" : "Ver pensamentos"
           }

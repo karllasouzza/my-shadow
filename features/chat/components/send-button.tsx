@@ -9,8 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import React, { useEffect, useRef } from "react";
 import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
+    useAnimatedStyle,
+    useSharedValue,
 } from "react-native-reanimated";
 
 const AnimatedButton = Animated.createAnimatedComponent(Button);
@@ -28,14 +28,15 @@ export function SendButton({
   onSend,
   onCancel,
 }: SendButtonProps) {
-  const rotate = useSharedValue(0.5);
+  const rotate = useSharedValue(isGenerating ? 360.5 : 0.5);
   const prevGenerating = useRef(isGenerating);
 
   useEffect(() => {
-    if (prevGenerating.current !== isGenerating) {
-      prevGenerating.current = isGenerating;
-    }
-  }, [isGenerating, rotate]);
+    if (prevGenerating.current === isGenerating) return;
+    prevGenerating.current = isGenerating;
+
+    rotate.value = isGenerating ? 360.5 : 0.5;
+  }, [isGenerating]);
 
   const iconStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${rotate.value}deg` }],

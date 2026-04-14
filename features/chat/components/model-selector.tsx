@@ -1,8 +1,8 @@
 import {
-  AppModal,
-  AppModalContent,
-  AppModalHandle,
-  AppModalHeader,
+    AppModal,
+    AppModalContent,
+    AppModalHandle,
+    AppModalHeader,
 } from "@/components/molecules/app-modal";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
@@ -10,11 +10,11 @@ import { Text } from "@/components/ui/text";
 import { cn } from "@/lib/utils";
 import { AvailableModel } from "@/shared/ai/types/model-loader";
 import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
 } from "react";
 import { Keyboard, Pressable, ScrollView, View } from "react-native";
 
@@ -110,7 +110,7 @@ export function ModelSelector({
           }
           className={cn(
             "text-muted-foreground size-4",
-            isLoading && "animate-spin",
+            isLoading ? "animate-spin" : "animate-none",
           )}
         />
       </Button>
