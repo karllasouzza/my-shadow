@@ -1,10 +1,10 @@
-import { setLastUsedModelId } from "@/database/actions/chat-actions";
+import { setLastUsedModelId } from "@/database/actions/chat/last-model";
 import DeviceInfo from "react-native-device-info";
 import { findModelById, getAllModels } from "./catalog";
 import {
-  getDownloadedModels,
-  getModelLocalPath,
-  isModelDownloaded,
+    getDownloadedModels,
+    getModelLocalPath,
+    isModelDownloaded,
 } from "./manager";
 import { getAIRuntime } from "./runtime";
 import { AvailableModel, ModelLoadResult } from "./types/model-loader";
@@ -97,7 +97,7 @@ export async function autoLoadLastModel(): Promise<ModelLoadResult | null> {
   if (downloadedModels.length === 0) return null;
 
   const { getLastUsedModelId } =
-    await import("@/database/actions/chat-actions");
+    await import("@/database/actions/chat/last-model");
   const lastModelId = getLastUsedModelId();
   if (!lastModelId) return null;
 

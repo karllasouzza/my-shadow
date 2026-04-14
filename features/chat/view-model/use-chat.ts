@@ -1,7 +1,7 @@
 import {
   getThinkingEnabled,
   setThinkingEnabled,
-} from "@/database/actions/chat-actions";
+} from "@/database/actions/chat/think-mode";
 import * as DatabaseChat from "@/database/chat";
 import { autoGenerateTitle } from "@/features/chat/model/chat-conversation";
 import {
@@ -21,7 +21,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 
 interface StreamingMessage extends ChatMessage {
   _isStreaming: true;
-  _key: string; // Unique key for LegendList
+  _key: string;
 }
 
 export function useChat() {
@@ -124,6 +124,8 @@ export function useChat() {
       const entry = models.find((m) => m.id === selected);
       setModelSupportsReasoning(entry?.supportsReasoning ?? false);
       setModelError(null);
+      setIsModelReady(true);
+      setModelsRefresh((v) => v + 1);
       return;
     } else {
       setModelError(result.error ?? "Falha ao carregar modelo.");
