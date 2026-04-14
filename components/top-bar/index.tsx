@@ -5,10 +5,10 @@ import { cn } from "@/lib/utils";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { BackHandler, TextInput, View } from "react-native";
 import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withDelay,
-  withTiming,
+    useAnimatedStyle,
+    useSharedValue,
+    withDelay,
+    withTiming,
 } from "react-native-reanimated";
 import { Button } from "../ui/button";
 
@@ -37,6 +37,7 @@ export const TopBar = ({
 }: TopBarProps) => {
   const [isSearchActive, setIsSearchActive] = useState(false);
   const searchInputRef = useRef<TextInput>(null);
+  const prevSearchActive = useRef(isSearchActive);
 
   // Animation values
   const searchBarOpacity = useSharedValue(0);
@@ -62,6 +63,9 @@ export const TopBar = ({
   }));
 
   useEffect(() => {
+    if (prevSearchActive.current === isSearchActive) return;
+    prevSearchActive.current = isSearchActive;
+
     if (isSearchActive) {
       searchInputRef.current?.focus();
 
