@@ -1,7 +1,7 @@
 import { findModelById, getAllModels } from "@/shared/ai/catalog";
 import {
   downloadModelById,
-  getDownloadedModelsAsync,
+  getDownloadedModels,
   removeDownloadedModel,
 } from "@/shared/ai/manager";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -32,7 +32,7 @@ export function useModels() {
 
     const loadDownloadedModels = async () => {
       try {
-        const map = await getDownloadedModelsAsync();
+        const map = await getDownloadedModels();
         if (isMounted) {
           setDownloadedModelIds(Object.keys(map));
         }

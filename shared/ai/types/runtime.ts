@@ -11,22 +11,20 @@ export interface CompletionOptions {
 
 export interface CompletionOutput {
   text: string;
+  reasoning?: string;
 }
-
-export type OnTokenCallback = (token: string) => void;
 
 /** Callback that receives a streaming chunk with optional reasoning/thinking content. */
 export type OnStreamChunk = (data: {
   token: string;
-  reasoningContent: string;
+  /**
+   * Structured reasoning content provided by the runtime.
+   */
+  reasoning?: string;
 }) => void;
 
 export interface StreamCompletionOptions {
-  onToken?: OnTokenCallback;
-  /**
-   * Receives streaming chunks with separated reasoning content.
-   * When provided, `onToken` is ignored.
-   */
+  /** Receives streaming chunks with separated reasoning content. */
   onStreamChunk?: OnStreamChunk;
   abortSignal?: AbortSignal;
   maxTokens?: number;
