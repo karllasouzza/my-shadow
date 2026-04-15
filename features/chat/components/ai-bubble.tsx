@@ -110,10 +110,9 @@ export function AIBubble({
                 {formatTime(message.timestamp)}
               </Text>
             )}
-            {metrics && (
-              <>
-                <Text className="text-muted-foreground/55 text-xs">•</Text>
 
+            {metrics && (
+              <View className="flex-row items-center gap-2 mt-1 flex-wrap">
                 <Badge variant="outline">
                   <Text className="text-muted-foreground text-xs">{metrics.tokenCount} tok</Text>
                 </Badge>
@@ -122,11 +121,14 @@ export function AIBubble({
                   <Text className="text-muted-foreground text-xs">{metrics.totalDuration} ms</Text>
                 </Badge>
 
-                <Text className="text-muted-foreground/55 text-xs">•</Text>
-                <Text className="text-muted-foreground/55 text-xs">
-                  {metrics.tttf}ms | {metrics.tokensPerSecond.toFixed(2)} tok/s
-                </Text>
-              </>
+                <Badge variant="outline">
+                  <Text className="text-muted-foreground text-xs">{metrics.tttf} ms</Text>
+                </Badge>
+
+                <Badge variant="outline">
+                  <Text className="text-muted-foreground text-xs">{metrics.tokensPerSecond.toFixed(2)} tok/s</Text>
+                </Badge>
+              </View>
             )}
           </View>
 
