@@ -1,4 +1,4 @@
-# update-context.ps1 — Qwen Code integration: create/update QWEN.md
+# update-context.ps1 — Gemini CLI integration: create/update GEMINI.md
 #
 # Thin wrapper that delegates to the shared update-agent-context script.
 # Activated in Stage 7 when the shared script uses integration.json dispatch.
@@ -20,4 +20,4 @@ if (-not $repoRoot -or -not (Test-Path (Join-Path $repoRoot '.specify'))) {
     }
 }
 
-& "$repoRoot/.specify/scripts/powershell/update-agent-context.ps1" -AgentType qwen
+& "$repoRoot/.specify/scripts/powershell/update-agent-context.ps1" -AgentType gemini

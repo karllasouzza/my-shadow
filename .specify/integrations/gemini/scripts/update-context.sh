@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# update-context.sh — Qwen Code integration: create/update QWEN.md
+# update-context.sh — Gemini CLI integration: create/update GEMINI.md
 #
 # Thin wrapper that delegates to the shared update-agent-context script.
 # Activated in Stage 7 when the shared script uses integration.json dispatch.
@@ -25,4 +25,4 @@ if [ -z "${REPO_ROOT:-}" ]; then
   fi
 fi
 
-exec "$REPO_ROOT/.specify/scripts/bash/update-agent-context.sh" qwen
+exec "$REPO_ROOT/.specify/scripts/bash/update-agent-context.sh" gemini
