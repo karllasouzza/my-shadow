@@ -1,9 +1,3 @@
-/**
- * User Bubble
- *
- * Mensagem do usuário — alinhada à direita com cor primária.
- */
-
 import type { ChatMessage } from "@/features/chat/model/chat-message";
 import React from "react";
 import { Text, View } from "react-native";
