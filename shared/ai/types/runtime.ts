@@ -1,3 +1,5 @@
+import type { GenerationMetrics } from "@/shared/ai/metrics";
+
 export interface LoadedModel {
   id: string;
   isLoaded: boolean;
@@ -12,6 +14,8 @@ export interface CompletionOptions {
 export interface CompletionOutput {
   text: string;
   reasoning?: string;
+  /** Generation metrics (TTTF, TPS, etc.) - present only for successful completions */
+  metrics?: GenerationMetrics;
 }
 
 /** Callback that receives a streaming chunk with optional reasoning/thinking content. */
@@ -30,4 +34,10 @@ export interface StreamCompletionOptions {
   maxTokens?: number;
   temperature?: number;
   enableThinking?: boolean;
+  /** Conversation ID for persistence - if provided, runtime will persist the message */
+  conversationId?: string;
+  /** Model ID for the message metadata */
+  modelId?: string;
+  /** Timestamp for the message - will be set to current time if not provided */
+  timestamp?: string;
 }
