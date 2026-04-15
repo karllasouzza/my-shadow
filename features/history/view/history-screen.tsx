@@ -1,3 +1,4 @@
+import { TopBar } from "@/components/top-bar";
 import type { ChatConversationIndex } from "@/features/chat/model/chat-conversation";
 import { ConversationList } from "@/features/history/components/conversation-list";
 import { EmptyHistory } from "@/features/history/components/empty-history";
@@ -111,6 +112,7 @@ const HistoryScreenInner = observer(function HistoryScreenInner() {
 
   return (
     <View className="flex-1 bg-background">
+      <TopBar title="Histórico" onBack={() => router.back()} showBack />
       {conversations.length === 0 ? (
         <EmptyHistory />
       ) : (
