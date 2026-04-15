@@ -1,26 +1,14 @@
-/**
- * AI Bubble
- *
- * Mensagem da IA com markdown streaming em tempo real via llama.rn.
- * - ThinkingSection: colapsável, atualiza durante reasoning
- * - Output: MarkdownStream com atualização incremental
- */
-
-import { Button } from "@/components/ui/button";
-import { Icon } from "@/components/ui/icon";
 import { useTheme } from "@/context/themes";
 import { StreamingIndicator } from "@/features/chat/components/streaming-indicator";
 import { ThinkingSection } from "@/features/chat/components/thinking-section";
 import type { ChatMessage } from "@/features/chat/model/chat-message";
 import { getAllModels } from "@/shared/ai/catalog";
 import type { GenerationMetrics } from "@/shared/ai/metrics";
-import { RotateCcw } from "lucide-react-native";
 import React, { useMemo } from "react";
 import { View } from "react-native";
 import { Text } from "@/components/ui/text";
 import { MarkdownStream } from "react-native-markdown-stream";
-import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { AIBubbleFooter } from "./ai-bubble.parts";
 
 interface AIBubbleProps {
   message: ChatMessage;
@@ -77,9 +65,10 @@ export function AIBubble({
 
       {/* Output principal */}
       {hasContent && (
-        <View className="py-3">
+        <View className="flex items-center justify-center my-3">
           {message.content ? (
             <MarkdownStream
+              codeCopyLabel="Copiar"
               content={message.content}
               revealMode={isStreaming ? "chunk" : undefined}
               revealDelay={isStreaming ? 8 : 0}
@@ -97,86 +86,12 @@ export function AIBubble({
 
       {/* Footer with metadata and regenerate button */}
       {!isStreaming && (
-        <View className="flex-row items-center gap-2 mt-2">
-          <View className="flex-row items-center gap-1.5 flex-1 flex-wrap">
-            {modelDisplayName && (
-              <Text className="text-muted-foreground/55 text-xs">
-                {modelDisplayName}
-              </Text>
-            )}
-            {modelDisplayName && message.timestamp && (
-              <Text className="text-muted-foreground/55 text-xs">•</Text>
-            )}
-            {message.timestamp && (
-              <Text className="text-muted-foreground/55 text-xs">
-                {formatTime(message.timestamp)}
-              </Text>
-            )}
-
-            {metrics && (
-              <View className="flex-row items-center gap-2 mt-1 flex-wrap">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Badge variant="outline" className="flex-row items-center gap-1">
-                      <Icon as={require("lucide-react-native").Hash} className="size-3 text-muted-foreground" />
-                      <Text className="text-muted-foreground text-xs">{metrics.tokenCount} tok</Text>
-                    </Badge>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">
-                    <Text>Número estimado de tokens gerados pela resposta (contagem heurística)</Text>
-                  </TooltipContent>
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Badge variant="outline" className="flex-row items-center gap-1">
-                      <Icon as={require("lucide-react-native").Clock} className="size-3 text-muted-foreground" />
-                      <Text className="text-muted-foreground text-xs">{metrics.totalDuration} ms</Text>
-                    </Badge>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">
-                    <Text>Tempo total de geração da resposta (ms)</Text>
-                  </TooltipContent>
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Badge variant="outline" className="flex-row items-center gap-1">
-                      <Icon as={require("lucide-react-native").Play} className="size-3 text-muted-foreground" />
-                      <Text className="text-muted-foreground text-xs">{metrics.tttf} ms</Text>
-                    </Badge>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">
-                    <Text>Tempo até o primeiro token (ms)</Text>
-                  </TooltipContent>
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Badge variant="outline" className="flex-row items-center gap-1">
-                      <Icon as={require("lucide-react-native").Zap} className="size-3 text-muted-foreground" />
-                      <Text className="text-muted-foreground text-xs">{metrics.tokensPerSecond.toFixed(2)} tok/s</Text>
-                    </Badge>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">
-                    <Text>Velocidade média de geração (tokens por segundo)</Text>
-                  </TooltipContent>
-                </Tooltip>
-              </View>
-            )}
-          </View>
-
-          {onRetry && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onPress={onRetry}
-              className="h-6 px-2"
-            >
-              <Icon as={RotateCcw} className="size-3 text-muted-foreground" />
-            </Button>
-          )}
-        </View>
+        <AIBubbleFooter
+          modelDisplayName={modelDisplayName}
+          formattedTime={message.timestamp ? formatTime(message.timestamp) : undefined}
+          metrics={metrics}
+          onRetry={onRetry}
+        />
       )}
     </View>
   );
