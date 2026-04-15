@@ -7,6 +7,7 @@ import type { GenerationMetrics } from "@/shared/ai/metrics";
 import React, { useMemo } from "react";
 import { View } from "react-native";
 import { MarkdownStream } from "react-native-markdown-stream";
+import * as Clipboard from "expo-clipboard";
 import { AIBubbleFooter } from "./ai-bubble-footer";
 
 interface AIBubbleProps {
@@ -52,9 +53,18 @@ export function AIBubble({
     [colorScheme, markdownTextColor, markdownMutedColor],
   );
 
-  const handleCopyContent = () => {
-    if (message.content) {
-      navigator.clipboard.writeText(message.content);
+  const handleCopyContent = async () => {
+    const textToCopy = message.reasoning_content ?? message.content;
+    if (!textToCopy) return;
+    try {
+      await Clipboard.setStringAsync(textToCopy);
+    } catch (e) {
+      // Fallback to navigator.clipboard on web if expo-clipboard fails
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        try {
+          await navigator.clipboard.writeText(textToCopy);
+        } catch {}
+      }
     }
   };
 
