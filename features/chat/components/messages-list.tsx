@@ -2,7 +2,6 @@ import { Button } from "@/components/ui/button";
 import { AIBubble } from "@/features/chat/components/ai-bubble";
 import { ConversationErrorState } from "@/features/chat/components/conversation-error-state";
 import { EmptyState } from "@/features/chat/components/empty-state";
-import { ErrorBubble } from "@/features/chat/components/error-bubble";
 import { ScrollToBottomButton } from "@/features/chat/components/scroll-to-bottom-button";
 import { StreamingBubble } from "@/features/chat/components/streaming-bubble";
 import { UserBubble } from "@/features/chat/components/user-bubble";
@@ -116,14 +115,15 @@ export const MessagesList = observer(function MessagesList({ chat }: Props) {
           return msg._isStreaming ? (
             <StreamingBubble message={msg} />
           ) : msg.role === "user" ? (
-            <UserBubble message={msg} />
-          ) : msg.role === "error" ? (
-            <ErrorBubble
-              message={msg.content}
-              onRetry={() => chat.retryLastMessage?.()}
+            <UserBubble
+              message={msg}
+              onRetry={() => chat.retryLastUserMessage?.()}
             />
           ) : (
-            <AIBubble message={msg} />
+            <AIBubble
+              message={msg}
+              onRetry={() => chat.retryLastUserMessage?.()}
+            />
           );
         }}
         keyExtractor={(item, index) =>

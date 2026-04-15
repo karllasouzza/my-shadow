@@ -1,18 +1,20 @@
 /**
  * AI Bubble
  *
- * Mensagem da IA com markdown streaming e thinking integrado.
- * - ThinkingSection: colapsável, auto-scroll
- * - Output: react-native-markdown-stream para mensagens completas,
- *           StreamingText durante geração
+ * Mensagem da IA com markdown streaming em tempo real via llama.rn.
+ * - ThinkingSection: colapsável, atualiza durante reasoning
+ * - Output: MarkdownStream com atualização incremental
  */
 
+import { Button } from "@/components/ui/button";
+import { Icon } from "@/components/ui/icon";
 import { useTheme } from "@/context/themes";
 import { StreamingIndicator } from "@/features/chat/components/streaming-indicator";
-import { StreamingText } from "@/features/chat/components/streaming-text";
 import { ThinkingSection } from "@/features/chat/components/thinking-section";
 import type { ChatMessage } from "@/features/chat/model/chat-message";
+import type { GenerationMetrics } from "@/shared/ai/metrics";
 import { getAllModels } from "@/shared/ai/catalog";
+import { RotateCcw } from "lucide-react-native";
 import React, { useMemo } from "react";
 import { Text, View } from "react-native";
 import { MarkdownStream } from "react-native-markdown-stream";
@@ -20,9 +22,14 @@ import { MarkdownStream } from "react-native-markdown-stream";
 interface AIBubbleProps {
   message: ChatMessage;
   isStreaming?: boolean;
+  onRetry?: () => void;
 }
 
-export function AIBubble({ message, isStreaming = false }: AIBubbleProps) {
+export function AIBubble({
+  message,
+  isStreaming = false,
+  onRetry,
+}: AIBubbleProps) {
   const { colorScheme } = useTheme();
 
   const hasThinking = !!message.thinking || (isStreaming && !message.content);
@@ -30,12 +37,14 @@ export function AIBubble({ message, isStreaming = false }: AIBubbleProps) {
 
   // Get model display name
   const modelDisplayName = message.modelId
-    ? (() => {
-        const catalog = getAllModels();
-        const entry = catalog.find((m) => m.id === message.modelId);
-        return entry?.displayName ?? message.modelId;
-      })()
+    ? (getAllModels().find((m) => m.id === message.modelId)?.displayName ??
+      message.modelId)
     : null;
+
+  // Get generation metrics if available
+  const metrics = (message as any).generationMetrics as
+    | GenerationMetrics
+    | undefined;
 
   // Theme-aware markdown colors
   const markdownTextColor = colorScheme === "dark" ? "#e4e4e7" : "#18181b";
@@ -66,46 +75,58 @@ export function AIBubble({ message, isStreaming = false }: AIBubbleProps) {
       {hasContent && (
         <View className="py-3">
           {message.content ? (
-            isStreaming ? (
-              // During streaming: plain text with auto-scroll (MarkdownStream doesn't handle dynamic content updates well)
-              <StreamingText
-                text={message.content}
-                className="text-foreground text-base leading-6"
-                selectable
-                autoScroll={isStreaming}
-              />
-            ) : (
-              // Completed message: full markdown rendering
-              <MarkdownStream
-                content={message.content}
-                revealMode="chunk"
-                textColor={markdownTextColor}
-                mutedTextColor={markdownMutedColor}
-                enableCodeCopy
-                theme={theme}
-              />
-            )
+            <MarkdownStream
+              content={message.content}
+              revealMode={isStreaming ? "chunk" : undefined}
+              revealDelay={isStreaming ? 8 : 0}
+              textColor={markdownTextColor}
+              mutedTextColor={markdownMutedColor}
+              enableCodeCopy={!isStreaming}
+              theme={theme}
+              autoStart={true}
+            />
           ) : (
             isStreaming && <StreamingIndicator />
           )}
         </View>
       )}
 
-      {/* Footer: model name + timestamp */}
-      {(modelDisplayName || message.timestamp) && (
-        <View className="flex-row items-center gap-1.5 mt-1">
-          {modelDisplayName && (
-            <Text className="text-muted-foreground/55 text-xs">
-              {modelDisplayName}
-            </Text>
-          )}
-          {modelDisplayName && message.timestamp && (
-            <Text className="text-muted-foreground/55 text-xs">•</Text>
-          )}
-          {message.timestamp && (
-            <Text className="text-muted-foreground/55 text-xs">
-              {formatTime(message.timestamp)}
-            </Text>
+      {/* Footer with metadata and regenerate button */}
+      {!isStreaming && (
+        <View className="flex-row items-center gap-2 mt-2">
+          <View className="flex-row items-center gap-1.5 flex-1 flex-wrap">
+            {modelDisplayName && (
+              <Text className="text-muted-foreground/55 text-xs">
+                {modelDisplayName}
+              </Text>
+            )}
+            {modelDisplayName && message.timestamp && (
+              <Text className="text-muted-foreground/55 text-xs">•</Text>
+            )}
+            {message.timestamp && (
+              <Text className="text-muted-foreground/55 text-xs">
+                {formatTime(message.timestamp)}
+              </Text>
+            )}
+            {metrics && (
+              <>
+                <Text className="text-muted-foreground/55 text-xs">•</Text>
+                <Text className="text-muted-foreground/55 text-xs">
+                  {metrics.tttf}ms | {metrics.tokensPerSecond.toFixed(2)} tok/s
+                </Text>
+              </>
+            )}
+          </View>
+
+          {onRetry && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onPress={onRetry}
+              className="h-6 px-2"
+            >
+              <Icon as={RotateCcw} className="size-3 text-muted-foreground" />
+            </Button>
           )}
         </View>
       )}

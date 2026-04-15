@@ -39,6 +39,9 @@ export function useChat() {
   );
   const [isModelLoading, setIsModelLoading] = useState(false);
   const [modelError, setModelError] = useState<string | null>(null);
+  const [currentLoadedModelId, setCurrentLoadedModelId] = useState<
+    string | null
+  >(null);
 
   // Global conversation error (shown as overlay, not in chat)
   const [conversationError, setConversationError] = useState<string | null>(
@@ -80,8 +83,8 @@ export function useChat() {
   }, []);
 
   const selectedModelId = useMemo(
-    () => getSelectedModelId(),
-    [isModelReady, modelsRefresh, getSelectedModelId],
+    () => currentLoadedModelId ?? getSelectedModelId(),
+    [isModelReady, modelsRefresh, currentLoadedModelId],
   );
 
   const handleLoadModel = useCallback(
@@ -96,6 +99,7 @@ export function useChat() {
         return;
       }
 
+      setCurrentLoadedModelId(modelId);
       setIsModelReady(true);
       setModelsRefresh((v) => v + 1);
     },
@@ -112,6 +116,7 @@ export function useChat() {
       return;
     }
 
+    setCurrentLoadedModelId(null);
     setIsModelReady(false);
     setModelError(null);
     setModelsRefresh((v) => v + 1);
@@ -174,22 +179,17 @@ export function useChat() {
   );
 
   /** Helper to add error message to conversation */
-  const addErrorMessageToConversation = useCallback(
-    (convId: string, errorMessage: string, errorCode?: string) => {
+  const attachErrorToUserMessage = useCallback(
+    (convId: string, userMessageIndex: number, errorCode?: string) => {
       const result = DatabaseChat.loadConversation(convId);
       if (!result.success || !result.data) return;
 
-      result.data.messages.push(
-        createChatMessage(
-          "error",
-          errorMessage,
-          undefined,
-          undefined,
-          errorCode,
-        ),
-      );
-      result.data.updatedAt = new Date().toISOString();
-      DatabaseChat.saveConversation(result.data);
+      const msg = result.data.messages[userMessageIndex];
+      if (msg && msg.role === "user") {
+        msg.errorCode = errorCode;
+        result.data.updatedAt = new Date().toISOString();
+        DatabaseChat.saveConversation(result.data);
+      }
     },
     [],
   );
@@ -212,67 +212,21 @@ export function useChat() {
     setModelsRefresh((v) => v + 1);
   }, [availableModels]);
 
-  const sendMessage = useCallback(
-    async (content: string) => {
-      // Store for retry functionality
-      lastUserMessageRef.current = content;
-
-      const validation = validateChatMessage(content);
-      if (!validation.isValid) {
-        if (conversationId) {
-          addErrorMessageToConversation(
-            conversationId,
-            validation.error ?? "Mensagem inválida.",
-            "VALIDATION_ERROR",
-          );
-        }
-        return;
-      }
-
-      if (!isModelReady) {
-        if (conversationId) {
-          addErrorMessageToConversation(
-            conversationId,
-            "Nenhum modelo carregado. Selecione um modelo no seletor acima.",
-            "MODEL_NOT_LOADED",
-          );
-        }
-        return;
-      }
-
-      let convId = conversationId;
-      if (!convId) {
-        const modelId = getAIRuntime().getCurrentModel()?.id ?? "unknown";
-        const newConv = DatabaseChat.createConversation(modelId);
-        convId = newConv.id;
-        DatabaseChat.saveConversation(newConv);
-        setConversationId(convId);
-      }
-
+  // Internal: generate response for a user message (by index in conversation)
+  // Handles streaming, error attachment, and success persistence
+  const _performGeneration = useCallback(
+    async (convId: string, userMessageIndex: number) => {
       const loadResult = DatabaseChat.loadConversation(convId);
-      if (!loadResult.success || !loadResult.data) {
-        addErrorMessageToConversation(
-          convId,
-          "Falha ao carregar conversa.",
-          "CONVERSATION_LOAD_FAILED",
-        );
-        return;
-      }
+      if (!loadResult.success || !loadResult.data) return;
       const conv = loadResult.data;
 
-      conv.messages.push(createChatMessage("user", content));
-      conv.updatedAt = new Date().toISOString();
-
-      if (conv.messages.filter((m) => m.role === "user").length === 1) {
-        conv.title = autoGenerateTitle(content);
-        setConversationTitle(conv.title);
+      // Clear any previous error on this user message
+      if (conv.messages[userMessageIndex]) {
+        conv.messages[userMessageIndex].errorCode = undefined;
+        DatabaseChat.saveConversation(conv);
       }
 
-      DatabaseChat.saveConversation(conv);
-
-      // Current model ID for this message
       const currentModelId = getAIRuntime().getCurrentModel()?.id ?? "unknown";
-
       setIsGenerating(true);
       const stableKey = makeKey();
       streamingKeyRef.current = stableKey;
@@ -310,17 +264,14 @@ export function useChat() {
         onStreamChunk: (data) => {
           if (controller.signal.aborted) return;
 
-          // Prefer structured reasoning provided by the runtime when available.
           const runtimeReasoning = (data as any).reasoning;
 
           if (thinking) {
             if (runtimeReasoning) {
-              // Runtime provides reasoning separately — treat tokens as response
               rawAccumulated += data.token;
               fullResponse = rawAccumulated;
               localReasoning = String(runtimeReasoning).trim();
             } else {
-              // Fallback to legacy <think> parsing when runtime doesn't supply reasoning
               rawAccumulated += data.token;
 
               const thinkStartMatch = rawAccumulated.match(
@@ -363,11 +314,10 @@ export function useChat() {
       setIsGenerating(false);
       setShowCancelOption(false);
 
-      // Handle cancellation (user-initiated)
       if (controller.signal.aborted) {
         const partial = streamingMessageRef.current;
         if (partial && (partial.thinking || partial.content)) {
-          const conv2 = DatabaseChat.loadConversation(convId!);
+          const conv2 = DatabaseChat.loadConversation(convId);
           if (conv2.success && conv2.data) {
             conv2.data.messages.push(
               createChatMessage(
@@ -387,7 +337,6 @@ export function useChat() {
         return;
       }
 
-      // Handle streaming errors (runtime failures, empty response, etc.)
       if (!streamResult.success) {
         const partial = streamingMessageRef.current;
         streamingMessageRef.current = null;
@@ -395,17 +344,13 @@ export function useChat() {
         abortControllerRef.current = null;
 
         const errorCode = streamResult.error?.code ?? "GENERATION_FAILED";
-        const errorMsg =
-          streamResult.error?.message ?? "Falha ao gerar resposta.";
 
-        // Only add error message if there's no user-visible content
         if (!partial?.content?.trim() && !partial?.thinking?.trim()) {
-          addErrorMessageToConversation(convId!, errorMsg, errorCode);
+          attachErrorToUserMessage(convId, userMessageIndex, errorCode);
           return;
         }
 
-        // If we have partial content, persist it despite the error
-        const conv3 = DatabaseChat.loadConversation(convId!);
+        const conv3 = DatabaseChat.loadConversation(convId);
         if (conv3.success && conv3.data) {
           conv3.data.messages.push(
             createChatMessage(
@@ -421,57 +366,113 @@ export function useChat() {
         return;
       }
 
-      // Success: persist the assistant message (prefer runtime's final output)
-      const conv3 = DatabaseChat.loadConversation(convId!);
+      // Extract final values at top level for access in metrics update
+      const finalText =
+        streamResult.data?.text ??
+        streamingMessageRef.current?.content ??
+        fullResponse;
+      const finalThinking =
+        (streamResult.data?.reasoning ??
+          streamingMessageRef.current?.thinking ??
+          localReasoning) ||
+        undefined;
+
+      const conv3 = DatabaseChat.loadConversation(convId);
       if (conv3.success && conv3.data) {
-        const finalText =
-          streamResult.data?.text ??
-          streamingMessageRef.current?.content ??
-          fullResponse;
-        const finalThinking =
-          (streamResult.data?.reasoning ??
-            streamingMessageRef.current?.thinking ??
-            localReasoning) ||
-          undefined;
-        conv3.data.messages.push(
-          createChatMessage(
-            "assistant",
-            finalText,
-            finalThinking,
-            currentModelId,
-          ),
+        const finalMsg = createChatMessage(
+          "assistant",
+          finalText,
+          finalThinking,
+          currentModelId,
         );
+
+        // Attach generation metrics if available
+        if (streamResult.data?.metrics) {
+          (finalMsg as any).generationMetrics = streamResult.data.metrics;
+        }
+
+        conv3.data.messages.push(finalMsg);
         conv3.data.updatedAt = new Date().toISOString();
         DatabaseChat.saveConversation(conv3.data);
       }
 
+      // Clear streaming message immediately so displayMessages reloads from DB
+      // The message now has metrics in persistent storage
       setStreamingMessage(null);
       streamingMessageRef.current = null;
       abortControllerRef.current = null;
     },
-    [conversationId, isModelReady, thinkingEnabled, makeKey],
+    [thinkingEnabled, makeKey, attachErrorToUserMessage],
   );
 
-  /** Retry last message by re-sending the last user message */
-  const retryLastMessage = useCallback(async () => {
-    const lastMessage = lastUserMessageRef.current;
-    if (!lastMessage) return;
+  const sendMessage = useCallback(
+    async (content: string) => {
+      lastUserMessageRef.current = content;
 
-    // Remove the last error message before retrying
-    if (conversationId) {
-      const result = DatabaseChat.loadConversation(conversationId);
-      if (result.success && result.data) {
-        const lastMsg = result.data.messages[result.data.messages.length - 1];
-        if (lastMsg?.role === "error") {
-          result.data.messages.pop();
-          result.data.updatedAt = new Date().toISOString();
-          DatabaseChat.saveConversation(result.data);
-        }
+      const validation = validateChatMessage(content);
+      if (!validation.isValid) {
+        return;
       }
+
+      if (!isModelReady) {
+        return;
+      }
+
+      let convId = conversationId;
+      if (!convId) {
+        const modelId = getAIRuntime().getCurrentModel()?.id ?? "unknown";
+        const newConv = DatabaseChat.createConversation(modelId);
+        convId = newConv.id;
+        DatabaseChat.saveConversation(newConv);
+        setConversationId(convId);
+      }
+
+      const loadResult = DatabaseChat.loadConversation(convId);
+      if (!loadResult.success || !loadResult.data) {
+        return;
+      }
+      const conv = loadResult.data;
+
+      conv.messages.push(createChatMessage("user", content));
+      const userMessageIndex = conv.messages.length - 1;
+      conv.updatedAt = new Date().toISOString();
+
+      if (conv.messages.filter((m) => m.role === "user").length === 1) {
+        conv.title = autoGenerateTitle(content);
+        setConversationTitle(conv.title);
+      }
+
+      DatabaseChat.saveConversation(conv);
+
+      await _performGeneration(convId, userMessageIndex);
+    },
+    [conversationId, isModelReady, _performGeneration],
+  );
+
+  /** Retry last user message by regenerating assistant response without duplicating user message */
+  const retryLastUserMessage = useCallback(async () => {
+    if (!conversationId) return;
+
+    const result = DatabaseChat.loadConversation(conversationId);
+    if (!result.success || !result.data) return;
+
+    const messages = result.data.messages;
+    const lastUserIdx = messages.findLastIndex((m) => m.role === "user");
+    if (lastUserIdx < 0) return;
+
+    // Delete any assistant messages after the last user message
+    const lastAssistantAfterUserIdx = messages.findLastIndex(
+      (m, i) => m.role === "assistant" && i > lastUserIdx,
+    );
+    if (lastAssistantAfterUserIdx > lastUserIdx) {
+      result.data.messages.splice(lastAssistantAfterUserIdx, 1);
+      result.data.updatedAt = new Date().toISOString();
+      DatabaseChat.saveConversation(result.data);
     }
 
-    await sendMessage(lastMessage);
-  }, [conversationId, sendMessage]);
+    // Regenerate (errorCode will be cleared by _performGeneration)
+    await _performGeneration(conversationId, lastUserIdx);
+  }, [conversationId, _performGeneration]);
 
   const cancelGeneration = useCallback(() => {
     abortControllerRef.current?.abort();
@@ -543,8 +544,8 @@ export function useChat() {
   }, [conversationId, streamingMessage, displayMessages]);
 
   const activeModelName = useMemo(
-    () => getSelectedModelId(),
-    [isModelReady, modelsRefresh, getSelectedModelId],
+    () => currentLoadedModelId ?? getSelectedModelId(),
+    [isModelReady, modelsRefresh, currentLoadedModelId],
   );
 
   return useMemo(
@@ -573,7 +574,7 @@ export function useChat() {
       cancelGeneration,
       toggleThinking,
       resetChatState,
-      retryLastMessage,
+      retryLastUserMessage,
       clearConversationError: () => setConversationError(null),
 
       // Model Actions
@@ -604,6 +605,7 @@ export function useChat() {
       cancelGeneration,
       toggleThinking,
       resetChatState,
+      retryLastUserMessage,
       handleLoadModel,
       handleUnloadModel,
       handleAutoLoadLastModel,
