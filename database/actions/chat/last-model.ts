@@ -2,9 +2,13 @@ import { getStorage } from "../../chat";
 
 const LAST_MODEL_KEY = "chat:last_model";
 
+function getStore() {
+  return getStorage();
+}
+
 export function getLastUsedModelId(): string | null {
+  const store = getStore();
   try {
-    const store = getStorage();
     if (!store) return null;
 
     return store.getString(LAST_MODEL_KEY) ?? null;
@@ -16,8 +20,11 @@ export function getLastUsedModelId(): string | null {
 export function setLastUsedModelId(id: string): boolean {
   if (!id) return false;
 
-  const store = getStorage();
+  const store = getStore();
   if (!store) return false;
+
+  const current = store.getString(LAST_MODEL_KEY);
+  if (current === id) return true;
 
   store.set(LAST_MODEL_KEY, id);
 
