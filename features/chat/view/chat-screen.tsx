@@ -36,14 +36,14 @@ const ChatScreenInner = observer(function ChatScreenInner() {
           // Reset chat state to create a brand-new conversation
           chat.resetChatState();
           await chat.handleAutoLoadLastModel();
-          chat.syncModelStatus();
+          await chat.syncModelStatus();
           chat.refreshModelsOnFocus();
           return;
         }
 
         await chat.initChat(params.conversationId ?? null);
         await chat.handleAutoLoadLastModel();
-        chat.syncModelStatus();
+        await chat.syncModelStatus();
         chat.refreshModelsOnFocus();
       };
       init();

@@ -1,4 +1,4 @@
-import { GenerationMetrics } from "../metrics";
+import type { GenerationMetrics } from "../metrics";
 
 export type MessageRole = "system" | "user" | "assistant" | "tool";
 

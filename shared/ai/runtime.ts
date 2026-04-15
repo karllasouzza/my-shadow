@@ -91,7 +91,6 @@ export class AIRuntime {
     let tokenCount = 0;
     let firstTokenTime: number | null = null;
     const messagesForContext = this.sanitizeMessagesForLLMContext(messages);
-    console.log("Contexto para geração:", messagesForContext);
     const startTime = performance.now();
 
     const signal = options?.abortSignal;
