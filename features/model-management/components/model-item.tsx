@@ -7,24 +7,27 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
-import { CircularProgress } from "@/features/model-management/components/circular-progress";
-import { Model, ModelStatus } from "@/shared/ai/types/model";
+import { Model } from "@/shared/ai/types/model";
 import React from "react";
 import { Text, View } from "react-native";
+import { ModelItemStatus } from "../view-model/types";
 
 interface ModelItemProps {
   item: Model;
+  itemStatus?: ModelItemStatus;
 
   onDownload?: () => void;
   onRetry?: () => void;
   onRemove?: () => void;
 
-  itemStatus: {
-    status: ModelStatus;
-    progress: number;
-    isLowRam: boolean;
-  };
+  isLoading?: boolean;
 }
+
+const DEFAULT_STATUS: ModelItemStatus = {
+  status: "not-downloaded",
+  progress: 0,
+  isLowRam: false,
+};
 
 export function ModelItem({
   item: {
@@ -36,10 +39,11 @@ export function ModelItem({
     tags,
     bytes,
   },
-  itemStatus,
+  itemStatus = DEFAULT_STATUS,
   onDownload,
   onRetry,
   onRemove,
+  isLoading,
 }: ModelItemProps) {
   const sizeMB = Math.round(fileSizeBytes / 1024 / 1024);
   const ramMB = Math.round(estimatedRamBytes / 1024 / 1024);
@@ -87,30 +91,28 @@ export function ModelItem({
 
         {/* Action button based on status */}
         {itemStatus.status === "downloaded" ? (
-          <Button size="icon" onPress={onRemove} variant="outline">
-            <Text className="text-destructive text-sm font-semibold sr-only">
-              Remover modelo
+          <Button onPress={onRemove} variant="destructive">
+            <Text className="text-destructive-foreground text-sm font-semibold">
+              Apagar
             </Text>
             <Icon
               as={require("lucide-react-native").Trash2}
-              className="size-5 text-destructive"
+              className="size-5 text-destructive-foreground"
             />
           </Button>
         ) : itemStatus.status === "downloading" ? (
           <View className="flex flex-row items-center gap-2 px-3 py-2">
-            <CircularProgress
-              progress={itemStatus.progress}
-              size={28}
-              strokeWidth={2.5}
-              trackColor="rgba(59, 130, 246, 0.15)"
-              strokeColor="#3b82f6"
-            />
             <Text className="text-blue-500 text-sm font-medium">
               {Math.round(itemStatus.progress)}%
             </Text>
           </View>
         ) : itemStatus.status === "failed" ? (
-          <Button size="icon" onPress={onRetry} variant="destructive">
+          <Button
+            size="icon"
+            onPress={onRetry}
+            disabled={isLoading}
+            variant="destructive"
+          >
             <Text className="text-white text-sm font-semibold sr-only">
               Tentar novamente
             </Text>
@@ -128,7 +130,7 @@ export function ModelItem({
             />
           </View>
         ) : (
-          <Button variant="default" onPress={onDownload}>
+          <Button variant="default" disabled={isLoading} onPress={onDownload}>
             <Text className="text-primary-foreground text-sm font-semibold">
               Baixar
             </Text>
