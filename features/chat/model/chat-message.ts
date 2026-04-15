@@ -1,4 +1,5 @@
-import { ChatMessage, MessageRole } from "@/shared/ai/types/chat";
+import type { ChatMessage, MessageRole } from "@/shared/ai/types/chat";
+export type { ChatMessage } from "@/shared/ai/types/chat";
 
 /** Validation: content non-empty, max 10,000 chars */
 export function validateChatMessage(content: string): {

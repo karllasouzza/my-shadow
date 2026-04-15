@@ -53,7 +53,7 @@ export function UserBubble({ message, onRetry }: UserBubbleProps) {
       )}
 
       <Text className="text-muted-foreground/55 text-xs mt-1 self-end px-1">
-        {formatTime(message.timestamp)}
+        {formatTime(message.timestamp ?? new Date().toISOString())}
       </Text>
     </View>
   );

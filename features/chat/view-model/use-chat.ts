@@ -53,6 +53,48 @@ export function useChat() {
   // Refs to avoid stale closures in async callbacks (stream updates, abort)
   const streamingMessageRef = useRef<StreamingMessage | null>(null);
   const streamingKeyRef = useRef<string>("");
+  // Throttle/queue for persisting streaming partials
+  const upsertTimerRef = useRef<number | null>(null);
+  const lastUpsertMsgRef = useRef<StreamingMessage | null>(null);
+  const UPLOAD_THROTTLE_MS = 500;
+
+  const schedulePersistPartial = useCallback(
+    (convId: string, msg: StreamingMessage) => {
+      lastUpsertMsgRef.current = msg;
+      if (upsertTimerRef.current !== null) return;
+      upsertTimerRef.current = setTimeout(() => {
+        const toSave = lastUpsertMsgRef.current;
+        if (toSave) {
+          try {
+            DatabaseChat.upsertStreamingMessage(convId, toSave as any);
+          } catch (e) {
+            // best-effort
+            // eslint-disable-next-line no-console
+            console.warn("Failed to persist streaming partial", e);
+          }
+        }
+        upsertTimerRef.current = null;
+        lastUpsertMsgRef.current = null;
+      }, UPLOAD_THROTTLE_MS) as unknown as number;
+    },
+    [],
+  );
+
+  const flushPersistPartial = useCallback((convId?: string) => {
+    if (upsertTimerRef.current !== null) {
+      clearTimeout(upsertTimerRef.current as unknown as number);
+      upsertTimerRef.current = null;
+      const toSave = lastUpsertMsgRef.current;
+      if (toSave && convId) {
+        try {
+          DatabaseChat.upsertStreamingMessage(convId, toSave as any);
+        } catch (e) {
+          // ignore
+        }
+      }
+      lastUpsertMsgRef.current = null;
+    }
+  }, []);
 
   // Ref to store last user message for retry functionality
   const lastUserMessageRef = useRef<string>("");
@@ -174,6 +216,20 @@ export function useChat() {
       // Conversation exists, set it
       setConversationId(id);
       setConversationTitle(loadResult.data.title || "Nova conversa");
+
+      // If there's a persisted streaming partial for this conversation, load it
+      try {
+        const persisted = DatabaseChat.loadStreamingMessage(id);
+        if (persisted.success && persisted.data) {
+          const pm = persisted.data as unknown as StreamingMessage;
+          pm._isStreaming = true;
+          pm._key = pm._key ?? makeKey();
+          streamingMessageRef.current = pm;
+          setStreamingMessage(pm);
+        }
+      } catch (e) {
+        // ignore — best-effort
+      }
     },
     [availableModels],
   );
@@ -244,6 +300,12 @@ export function useChat() {
       streamingMessageRef.current = initialMsg;
       setStreamingMessage(initialMsg);
       setShowCancelOption(false);
+      // Persist initial partial (best-effort)
+      try {
+        DatabaseChat.upsertStreamingMessage(convId, initialMsg as any);
+      } catch (e) {
+        // ignore
+      }
 
       const controller = new AbortController();
       abortControllerRef.current = controller;
@@ -307,6 +369,12 @@ export function useChat() {
           streamingMessageRef.current = updatedMsg;
           setStreamingMessage(updatedMsg);
           setShowCancelOption(true);
+          // schedule a throttled upsert of the partial
+          try {
+            schedulePersistPartial(convId, updatedMsg);
+          } catch (e) {
+            // ignore
+          }
         },
         abortSignal: controller.signal,
       });
@@ -330,6 +398,13 @@ export function useChat() {
             conv2.data.updatedAt = new Date().toISOString();
             DatabaseChat.saveConversation(conv2.data);
           }
+        }
+        // flush and clear persisted partial
+        try {
+          flushPersistPartial(convId);
+          DatabaseChat.clearStreamingMessage(convId);
+        } catch (e) {
+          // ignore
         }
         streamingMessageRef.current = null;
         setStreamingMessage(null);
@@ -362,6 +437,13 @@ export function useChat() {
           );
           conv3.data.updatedAt = new Date().toISOString();
           DatabaseChat.saveConversation(conv3.data);
+          // clear persisted partial
+          try {
+            flushPersistPartial(convId);
+            DatabaseChat.clearStreamingMessage(convId);
+          } catch (e) {
+            // ignore
+          }
         }
         return;
       }
@@ -394,6 +476,13 @@ export function useChat() {
         conv3.data.messages.push(finalMsg);
         conv3.data.updatedAt = new Date().toISOString();
         DatabaseChat.saveConversation(conv3.data);
+        // flush any pending partial writes and clear persisted partial
+        try {
+          flushPersistPartial(convId);
+          DatabaseChat.clearStreamingMessage(convId);
+        } catch (e) {
+          // ignore
+        }
       }
 
       // Clear streaming message immediately so displayMessages reloads from DB
@@ -481,6 +570,14 @@ export function useChat() {
     setIsGenerating(false);
     setShowCancelOption(false);
     setStreamingMessage(null);
+    try {
+      if (conversationId) {
+        flushPersistPartial(conversationId);
+        DatabaseChat.clearStreamingMessage(conversationId);
+      }
+    } catch (e) {
+      // ignore
+    }
   }, []);
 
   const toggleThinking = useCallback(() => {
@@ -499,6 +596,14 @@ export function useChat() {
     setIsGenerating(false);
     setStreamingMessage(null);
     setShowCancelOption(false);
+    try {
+      if (conversationId) {
+        flushPersistPartial(conversationId);
+        DatabaseChat.clearStreamingMessage(conversationId);
+      }
+    } catch (e) {
+      // ignore
+    }
   }, []);
 
   // ==========================================================================
