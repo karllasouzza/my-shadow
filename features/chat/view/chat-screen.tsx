@@ -70,10 +70,8 @@ const ChatScreenInner = observer(function ChatScreenInner() {
       >
         <TopBar
           title={chat.conversationTitle}
-          showBack
-          onBack={() => router.push("/history")}
           rightAction={
-            <View className="flex flex-row gap-2">
+            <>
               <Link href="/models" asChild>
                 <Button variant="ghost" size="sm">
                   <Icon
@@ -84,18 +82,34 @@ const ChatScreenInner = observer(function ChatScreenInner() {
               </Link>
               {chat.hasContent && (
                 <Button
-                  variant="ghost"
-                  size="sm"
+                  variant="outline"
+                  className="!border-primary"
+                  size="icon"
                   onPress={handleNewConversation}
                   accessibilityLabel="Iniciar nova conversa"
                 >
                   <Icon
                     as={require("lucide-react-native").Plus}
-                    className="size-5 text-muted-foreground p-0 stroke-2"
+                    className="size-5 text-primary p-0 stroke-2"
                   />
                 </Button>
               )}
-            </View>
+            </>
+          }
+          leftAction={
+            <Button
+              variant="ghost"
+              size="icon"
+              onPress={() => {
+                router.push("/history");
+              }}
+              accessibilityLabel="Ver histórico de conversas"
+            >
+              <Icon
+                as={require("lucide-react-native").History}
+                className="size-5 text-muted-foreground p-0 stroke-2"
+              />
+            </Button>
           }
         />
 
