@@ -10,6 +10,7 @@ type FooterProps = {
   timestamp?: string | undefined;
   metrics?: GenerationMetrics | undefined;
   onRetry?: () => void;
+  onCopy?: () => void;
 };
 
 export function AIBubbleFooter({
@@ -17,26 +18,26 @@ export function AIBubbleFooter({
   timestamp,
   metrics,
   onRetry,
+  onCopy,
 }: FooterProps) {
   return (
-    <View className="flex-row items-center gap-2 mt-2">
-      <View className="flex-row items-center gap-1.5 flex-1 flex-wrap">
+    <View className="w-full flex-col items-start gap-4 mt-2">
+      <View className="flex-row items-center gap-1.5 flex-1">
         {modelDisplayName && (
-          <Text className="text-muted-foreground text-xs">
+          <Text className="text-muted-foreground text-sm">
             {modelDisplayName}
           </Text>
         )}
         {timestamp && (
-          <Text className="text-muted-foreground/55 text-xs">
+          <Text className="text-muted-foreground/55 text-sm">
             {" "}
             - {formatTime(timestamp)}
           </Text>
         )}
-
-        {metrics && <AIBubbleMetrics metrics={metrics} />}
       </View>
 
-      <AIBubbleAction onRetry={onRetry} />
+      {metrics && <AIBubbleMetrics metrics={metrics} />}
+      <AIBubbleAction onRetry={onRetry} onCopy={onCopy} />
     </View>
   );
 }

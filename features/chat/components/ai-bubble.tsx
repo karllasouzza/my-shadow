@@ -52,6 +52,12 @@ export function AIBubble({
     [colorScheme, markdownTextColor, markdownMutedColor],
   );
 
+  const handleCopyContent = () => {
+    if (message.content) {
+      navigator.clipboard.writeText(message.content);
+    }
+  };
+
   return (
     <View className="flex gap-2 self-start max-w-[100%] w-full my-6">
       {/* Thinking section */}
@@ -90,6 +96,7 @@ export function AIBubble({
           timestamp={message.timestamp}
           metrics={metrics}
           onRetry={onRetry}
+          onCopy={handleCopyContent}
         />
       )}
     </View>

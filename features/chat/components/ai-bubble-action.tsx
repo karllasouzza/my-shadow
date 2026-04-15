@@ -1,14 +1,25 @@
-import React from "react";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
-import { RotateCcw } from "lucide-react-native";
+import React from "react";
+import { View } from "react-native";
 
-type ActionProps = { onRetry?: () => void };
-export function AIBubbleAction({ onRetry }: ActionProps) {
-  if (!onRetry) return null;
+type ActionProps = { onRetry?: () => void; onCopy?: () => void };
+export function AIBubbleAction({ onRetry, onCopy }: ActionProps) {
+  if (!onRetry && !onCopy) return null;
   return (
-    <Button variant="ghost" size="sm" onPress={onRetry} className="h-6 px-2">
-      <Icon as={RotateCcw} className="size-3 text-muted-foreground" />
-    </Button>
+    <View className="w-full flex flex-row gap-2">
+      <Button variant="outline" size="icon" onPress={onRetry}>
+        <Icon
+          as={require("lucide-react-native").RotateCcw}
+          className="size-4 text-muted-foreground"
+        />
+      </Button>
+      <Button variant="outline" size="icon" onPress={onCopy}>
+        <Icon
+          as={require("lucide-react-native").Copy}
+          className="size-4 text-muted-foreground"
+        />
+      </Button>
+    </View>
   );
 }
