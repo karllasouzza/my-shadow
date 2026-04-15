@@ -11,13 +11,15 @@ import {
 } from "@/features/chat/model/chat-message";
 import {
   autoLoadLastModel,
-  getAvailableModels,
+  getAvailableModelsAsync,
   getSelectedModelId,
+  isModelDownloaded,
   loadModel,
   unloadModel,
 } from "@/shared/ai/model-loader";
+import type { AvailableModel } from "@/shared/ai/types/model-loader";
 import { getAIRuntime } from "@/shared/ai/runtime";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 interface StreamingMessage extends ChatMessage {
   _isStreaming: true;
@@ -61,15 +63,26 @@ export function useChat() {
 
   // Refresh available models when model state changes
   const [modelsRefresh, setModelsRefresh] = useState(0);
-  const availableModels = useMemo(
-    () => getAvailableModels(),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [modelsRefresh],
-  );
+  const [availableModels, setAvailableModels] = useState<AvailableModel[]>([]);
+
+  const reloadAvailableModels = useCallback(async () => {
+    const models = await getAvailableModelsAsync();
+    setAvailableModels(models);
+    return models;
+  }, []);
+
+  useEffect(() => {
+    void reloadAvailableModels();
+  }, [modelsRefresh, reloadAvailableModels]);
+
+  /** Call this when screen gains focus to refresh model list */
+  const refreshModelsOnFocus = useCallback(() => {
+    setModelsRefresh((v) => v + 1);
+  }, []);
 
   const selectedModelId = useMemo(
     () => getSelectedModelId(),
-    [isModelReady, modelsRefresh],
+    [isModelReady, modelsRefresh, getSelectedModelId],
   );
 
   const handleLoadModel = useCallback(async (modelId: string) => {
@@ -87,10 +100,10 @@ export function useChat() {
     setModelsRefresh((v) => v + 1);
 
     // Check reasoning support
-    const models = getAvailableModels();
+    const models = await reloadAvailableModels();
     const entry = models.find((m) => m.id === modelId);
     setModelSupportsReasoning(entry?.supportsReasoning ?? false);
-  }, []);
+  }, [reloadAvailableModels]);
 
   const handleUnloadModel = useCallback(async () => {
     setIsModelLoading(true);
@@ -119,7 +132,7 @@ export function useChat() {
 
     if (result.success) {
       setModelsRefresh((v) => v + 1);
-      const models = getAvailableModels();
+      const models = await reloadAvailableModels();
       const selected = getSelectedModelId();
       const entry = models.find((m) => m.id === selected);
       setModelSupportsReasoning(entry?.supportsReasoning ?? false);
@@ -130,7 +143,7 @@ export function useChat() {
     } else {
       setModelError(result.error ?? "Falha ao carregar modelo.");
     }
-  }, []);
+  }, [reloadAvailableModels]);
 
   // ==========================================================================
   // Chat Actions
@@ -144,8 +157,7 @@ export function useChat() {
     setConversationError(null);
 
     const model = getAIRuntime().getCurrentModel();
-    const catalog = getAvailableModels();
-    const entry = catalog.find((m) => m.id === model?.id);
+    const entry = availableModels.find((m) => m.id === model?.id);
     const supports = entry?.supportsReasoning ?? false;
     setModelSupportsReasoning(supports);
 
@@ -168,7 +180,7 @@ export function useChat() {
     // Conversation exists, set it
     setConversationId(id);
     setConversationTitle(loadResult.data.title || "Nova conversa");
-  }, []);
+  }, [availableModels]);
 
   /** Helper to add error message to conversation */
   const addErrorMessageToConversation = useCallback(
@@ -192,16 +204,26 @@ export function useChat() {
   );
 
   const syncModelStatus = useCallback(() => {
-    const loaded = getAIRuntime().isModelLoaded();
+    const runtime = getAIRuntime();
+    const loaded = runtime.isModelLoaded();
+    const model = runtime.getCurrentModel();
+
+    // If runtime says loaded but file was deleted, unload it
+    if (loaded && model && !isModelDownloaded(model.id)) {
+      runtime.unloadModel();
+      setIsModelReady(false);
+      setModelError("Modelo removido do dispositivo.");
+      setModelsRefresh((v) => v + 1);
+      return;
+    }
+
     setIsModelReady(loaded);
 
-    const model = getAIRuntime().getCurrentModel();
-    const models = getAvailableModels();
-    const entry = models.find((m) => m.id === model?.id);
+    const entry = availableModels.find((m) => m.id === model?.id);
     const supports = entry?.supportsReasoning ?? false;
     setModelSupportsReasoning(supports);
     setModelsRefresh((v) => v + 1);
-  }, []);
+  }, [availableModels]);
 
   const sendMessage = useCallback(
     async (content: string) => {
@@ -481,30 +503,50 @@ export function useChat() {
   // Derived state
   // ==========================================================================
 
+  // Centralize conversation loading and error handling to avoid duplicate DB calls
+  const getConversationData = useCallback(
+    (id: string | null) => {
+      if (!id) return null;
+      const result = DatabaseChat.loadConversation(id);
+      if (!result.success) {
+        // Log failure — keep UI resilient and return null
+        // Avoid throwing or setting state from render path
+        console.error("Failed to load conversation:", result.error);
+        return null;
+      }
+      return result.data;
+    },
+    [],
+  );
+
   const displayMessages = useMemo(() => {
     if (!conversationId) {
       return streamingMessage ? [streamingMessage] : [];
     }
-    const result = DatabaseChat.loadConversation(conversationId);
-    const messages = result.success && result.data ? result.data.messages : [];
+
+    const conv = getConversationData(conversationId);
+    const messages = conv?.messages ?? [];
+
     return streamingMessage ? [...messages, streamingMessage] : messages;
-  }, [conversationId, streamingMessage]);
+  }, [conversationId, streamingMessage, getConversationData]);
 
   const hasContent = useMemo(() => {
     if (!conversationId) return !!streamingMessage;
-    const result = DatabaseChat.loadConversation(conversationId);
-    const msgCount =
-      result.success && result.data ? result.data.messages.length : 0;
+
+    // Reuse already-computed displayMessages to avoid extra DB calls
+    const messages = displayMessages;
+    const msgCount = messages.length;
+
     const hasStreaming =
       !!streamingMessage &&
       !!(streamingMessage.thinking || streamingMessage.content);
+
     return msgCount > 0 || hasStreaming;
-  }, [conversationId, streamingMessage]);
+  }, [conversationId, streamingMessage, displayMessages]);
 
   const activeModelName = useMemo(
     () => getSelectedModelId(),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [isModelReady, modelsRefresh],
+    [isModelReady, modelsRefresh, getSelectedModelId],
   );
 
   return useMemo(
@@ -541,6 +583,7 @@ export function useChat() {
       handleLoadModel,
       handleUnloadModel,
       handleAutoLoadLastModel,
+      refreshModelsOnFocus,
     }),
     [
       conversationId,
@@ -568,6 +611,7 @@ export function useChat() {
       handleLoadModel,
       handleUnloadModel,
       handleAutoLoadLastModel,
+      refreshModelsOnFocus,
     ],
   );
 }

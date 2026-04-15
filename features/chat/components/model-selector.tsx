@@ -1,8 +1,8 @@
 import {
-    AppModal,
-    AppModalContent,
-    AppModalHandle,
-    AppModalHeader,
+  AppModal,
+  AppModalContent,
+  AppModalHandle,
+  AppModalHeader,
 } from "@/components/molecules/app-modal";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
@@ -10,11 +10,11 @@ import { Text } from "@/components/ui/text";
 import { cn } from "@/lib/utils";
 import { AvailableModel } from "@/shared/ai/types/model-loader";
 import React, {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
 } from "react";
 import { Keyboard, Pressable, ScrollView, View } from "react-native";
 
@@ -102,6 +102,14 @@ export function ModelSelector({
         <Text className="text-foreground text-sm font-medium" numberOfLines={1}>
           {isLoading ? "Carregando modelo" : displayText}
         </Text>
+        {selectedModel && !isLoading && (
+          <Text
+            className="text-muted-foreground text-xs ml-1"
+            numberOfLines={1}
+          >
+            ({selectedModel.bytes})
+          </Text>
+        )}
         <Icon
           as={
             isLoading
@@ -138,25 +146,22 @@ export function ModelSelector({
                     accessibilityRole="button"
                     accessibilityLabel={model.displayName}
                   >
-                    <View className="size-8 items-center justify-center rounded-full bg-muted">
-                      <Icon
-                        as={require("lucide-react-native").Cpu}
-                        className={cn(
-                          isSelected
-                            ? "text-primary size-4"
-                            : "text-muted-foreground size-4",
-                        )}
-                      />
-                    </View>
-
-                    <View className="flex-1">
+                    <View className="flex-1 flex-row gap-2 items-center">
                       <Text
                         className="text-foreground font-medium"
                         numberOfLines={1}
                       >
                         {model.displayName}
                       </Text>
+                      <Text
+                        className="text-muted-foreground text-xs"
+                        numberOfLines={1}
+                      >
+                        ({model.bytes})
+                      </Text>
                     </View>
+
+                    <View></View>
 
                     {isSelected && (
                       <Icon

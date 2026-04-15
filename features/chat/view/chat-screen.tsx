@@ -29,20 +29,39 @@ const ChatScreenInner = observer(function ChatScreenInner() {
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [inputText, setInputText] = useState("");
 
-  const params = useLocalSearchParams<{ conversationId?: string }>();
+  const params = useLocalSearchParams<{
+    conversationId?: string;
+    new?: string;
+  }>();
   const chat = useChat();
 
   // Init chat with route ID on mount AND on focus (handles navigation from history)
   useFocusEffect(
     useCallback(() => {
       const init = async () => {
+        // If route contains ?new=1 (or any truthy value), open a fresh chat
+        const newParam = params?.new;
+        const isNew =
+          typeof newParam !== "undefined" &&
+          newParam !== "false" &&
+          newParam !== "0";
+
+        if (isNew) {
+          // Reset chat state to create a brand-new conversation
+          chat.resetChatState();
+          await chat.handleAutoLoadLastModel();
+          chat.syncModelStatus();
+          chat.refreshModelsOnFocus();
+          return;
+        }
+
         await chat.initChat(params.conversationId ?? null);
-        chat.handleAutoLoadLastModel();
+        await chat.handleAutoLoadLastModel();
         chat.syncModelStatus();
+        chat.refreshModelsOnFocus();
       };
       init();
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [params.conversationId]),
+    }, [params.conversationId, params.new]),
   );
 
   // Auto-scroll when user is near bottom
@@ -91,7 +110,7 @@ const ChatScreenInner = observer(function ChatScreenInner() {
   const handleNewConversation = useCallback(() => {
     chat.resetChatState();
     flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
-  }, [chat.resetChatState]);
+  }, []);
 
   return (
     <View style={{ flex: 1 }} className="bg-background">
@@ -107,19 +126,29 @@ const ChatScreenInner = observer(function ChatScreenInner() {
           showBack
           onBack={() => router.push("/history")}
           rightAction={
-            chat.hasContent && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onPress={handleNewConversation}
-                accessibilityLabel="Iniciar nova conversa"
-              >
-                <Icon
-                  as={require("lucide-react-native").Plus}
-                  className="size-5 text-muted-foreground p-0 stroke-2"
-                />
-              </Button>
-            )
+            <View className="flex flex-row gap-2">
+              <Link href="/models" asChild>
+                <Button variant="ghost" size="sm">
+                  <Icon
+                    as={require("lucide-react-native").Package}
+                    className="size-5 text-muted-foreground p-0 stroke-2"
+                  />
+                </Button>
+              </Link>
+              {chat.hasContent && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onPress={handleNewConversation}
+                  accessibilityLabel="Iniciar nova conversa"
+                >
+                  <Icon
+                    as={require("lucide-react-native").Plus}
+                    className="size-5 text-muted-foreground p-0 stroke-2"
+                  />
+                </Button>
+              )}
+            </View>
           }
         />
 
