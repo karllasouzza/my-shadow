@@ -30,11 +30,11 @@ export function AIBubbleMetrics({ metrics }: MetricsProps) {
         <TooltipTrigger asChild>
           <Badge variant="outline" className="flex-row items-center gap-1">
             <Icon as={Clock} className="size-3 text-muted-foreground" />
-            <Text className="text-muted-foreground text-xs">{metrics.totalDuration} ms</Text>
+            <Text className="text-muted-foreground text-xs">{(metrics.totalDuration / 60000).toFixed(2)} min</Text>
           </Badge>
         </TooltipTrigger>
         <TooltipContent side="top">
-          <Text>Tempo total de geração da resposta (ms)</Text>
+          <Text>Tempo total de geração da resposta (minutos)</Text>
         </TooltipContent>
       </Tooltip>
 
