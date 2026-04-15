@@ -18,6 +18,7 @@ import { RotateCcw } from "lucide-react-native";
 import React, { useMemo } from "react";
 import { Text, View } from "react-native";
 import { MarkdownStream } from "react-native-markdown-stream";
+import { Badge } from "@/components/ui/badge";
 
 interface AIBubbleProps {
   message: ChatMessage;
@@ -111,6 +112,16 @@ export function AIBubble({
             )}
             {metrics && (
               <>
+                <Text className="text-muted-foreground/55 text-xs">•</Text>
+
+                <Badge variant="outline">
+                  <Text className="text-muted-foreground text-xs">{metrics.tokenCount} tok</Text>
+                </Badge>
+
+                <Badge variant="outline">
+                  <Text className="text-muted-foreground text-xs">{metrics.totalDuration} ms</Text>
+                </Badge>
+
                 <Text className="text-muted-foreground/55 text-xs">•</Text>
                 <Text className="text-muted-foreground/55 text-xs">
                   {metrics.tttf}ms | {metrics.tokensPerSecond.toFixed(2)} tok/s

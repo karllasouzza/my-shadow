@@ -115,8 +115,16 @@ export class AIRuntime {
           const r = data.reasoning_content ?? "";
           if (!t && !r) return;
 
-          if (firstTokenTime === null) firstTokenTime = performance.now(); // <-- aqui
+          if (firstTokenTime === null) firstTokenTime = performance.now();
+
+          // Count tokens from the regular token stream
           if (t) tokenCount++;
+
+          // Heuristic: estimate tokens coming from reasoning_content by splitting on whitespace
+          if (r) {
+            const reasoningTokenCount = r.trim() ? r.trim().split(/\s+/).filter(Boolean).length : 0;
+            tokenCount += reasoningTokenCount;
+          }
 
           text += t;
           reasoning += r;
