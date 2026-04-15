@@ -1,10 +1,6 @@
-/**
- * T008: ChatMessage type definition
- *
- * Individual message within a conversation. Embedded in ChatConversation.messages.
- */
+import type { GenerationMetrics } from "@/shared/ai/metrics";
 
-export type MessageRole = "user" | "assistant" | "system" | "error";
+export type MessageRole = "user" | "assistant" | "system";
 
 export interface ChatMessage {
   role: MessageRole;
@@ -13,6 +9,8 @@ export interface ChatMessage {
   modelId?: string;
   errorCode?: string;
   timestamp: string;
+  /** Generation metrics (only for assistant messages) */
+  generationMetrics?: GenerationMetrics;
 }
 
 /** Validation: content non-empty, max 10,000 chars */

@@ -21,6 +21,7 @@ export interface ChatConversationIndex {
   id: string;
   title: string;
   updatedAt: string;
+  lastMessageSnippet: string; // First 100 chars of last message for preview
 }
 
 /** Auto-generate title from first user message (truncate to 50 chars) */
@@ -30,7 +31,10 @@ export function autoGenerateTitle(firstUserMessage: string): string {
 }
 
 /** Validate conversation title (max 100 chars, non-empty) */
-export function validateTitle(title: string): { isValid: boolean; error?: string } {
+export function validateTitle(title: string): {
+  isValid: boolean;
+  error?: string;
+} {
   if (!title || title.trim().length === 0) {
     return { isValid: false, error: "Title cannot be empty" };
   }
@@ -41,4 +45,22 @@ export function validateTitle(title: string): { isValid: boolean; error?: string
     };
   }
   return { isValid: true };
+}
+
+/**
+ * Create a safe, single-line snippet for the last message.
+ * - Collapses whitespace/newlines
+ * - Truncates to `maxLength` characters and appends an ellipsis when needed
+ */
+export function getLastMessageSnippet(
+  messages: ChatMessage[] | undefined,
+  maxLength = 100,
+): string {
+  if (!messages || messages.length === 0) return "";
+  const last = messages[messages.length - 1];
+  if (!last || !last.content) return "";
+
+  const singleLine = last.content.replace(/\s+/g, " ").trim();
+  if (singleLine.length <= maxLength) return singleLine;
+  return `${singleLine.slice(0, maxLength)}...`;
 }
