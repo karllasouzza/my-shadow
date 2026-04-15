@@ -16,7 +16,8 @@ import { getAllModels } from "@/shared/ai/catalog";
 import type { GenerationMetrics } from "@/shared/ai/metrics";
 import { RotateCcw } from "lucide-react-native";
 import React, { useMemo } from "react";
-import { Text, View } from "react-native";
+import { View } from "react-native";
+import { Text } from "@/components/ui/text";
 import { MarkdownStream } from "react-native-markdown-stream";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
@@ -122,7 +123,7 @@ export function AIBubble({
                     </Badge>
                   </TooltipTrigger>
                   <TooltipContent side="top">
-                    Número estimado de tokens gerados pela resposta (contagem heurística)
+                    <Text>Número estimado de tokens gerados pela resposta (contagem heurística)</Text>
                   </TooltipContent>
                 </Tooltip>
 
@@ -134,7 +135,7 @@ export function AIBubble({
                     </Badge>
                   </TooltipTrigger>
                   <TooltipContent side="top">
-                    Tempo total de geração da resposta (ms)
+                    <Text>Tempo total de geração da resposta (ms)</Text>
                   </TooltipContent>
                 </Tooltip>
 
@@ -146,7 +147,7 @@ export function AIBubble({
                     </Badge>
                   </TooltipTrigger>
                   <TooltipContent side="top">
-                    Tempo até o primeiro token (ms)
+                    <Text>Tempo até o primeiro token (ms)</Text>
                   </TooltipContent>
                 </Tooltip>
 
@@ -158,7 +159,7 @@ export function AIBubble({
                     </Badge>
                   </TooltipTrigger>
                   <TooltipContent side="top">
-                    Velocidade média de geração (tokens por segundo)
+                    <Text>Velocidade média de geração (tokens por segundo)</Text>
                   </TooltipContent>
                 </Tooltip>
               </View>
