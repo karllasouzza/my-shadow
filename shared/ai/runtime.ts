@@ -1,6 +1,10 @@
 import { createError, err, ok, Result } from "@/shared/utils/app-error";
 // @ts-ignore
-import type { LlamaContext, TokenData } from "llama.rn";
+import type {
+  LlamaContext,
+  RNLlamaOAICompatibleMessage,
+  TokenData,
+} from "llama.rn";
 import { initLlama, loadLlamaModelInfo } from "llama.rn";
 import { findModelById } from "./catalog";
 import { calculateMetrics, GenerationMetrics } from "./metrics";
@@ -86,7 +90,9 @@ export class AIRuntime {
     let reasoning = "";
     let tokenCount = 0;
     let firstTokenTime: number | null = null;
-    const startTime = performance.now(); // <-- aqui
+    const messagesForContext = this.sanitizeMessagesForLLMContext(messages);
+    console.log("Contexto para geração:", messagesForContext);
+    const startTime = performance.now();
 
     const signal = options?.abortSignal;
     const onAbort = () => void this.cancelGeneration();
@@ -96,7 +102,7 @@ export class AIRuntime {
 
       const { promise, stop } = await this.context.parallel.completion(
         {
-          messages,
+          messages: messagesForContext,
           jinja: true,
           enable_thinking: enableThinking,
           thinking_forced_open: enableThinking,
@@ -136,12 +142,13 @@ export class AIRuntime {
       const metrics = calculateMetrics(
         startTime,
         firstTokenTime,
-        performance.now(), // <-- aqui
+        performance.now(),
         tokenCount,
       );
 
       return ok({ text, reasoning: reasoning || undefined, metrics });
     } catch (error) {
+      console.error("Erro durante geração local:", error);
       if ((error as Error).name === "AbortError") {
         return err(createError("ABORTED", "Geração cancelada."));
       }
@@ -196,6 +203,25 @@ export class AIRuntime {
     } catch {
       // ignore
     }
+  }
+
+  private sanitizeMessagesForLLMContext(
+    messages: ChatMessage[],
+  ): RNLlamaOAICompatibleMessage[] {
+    return messages.map((msg) => {
+      const { role, content, reasoning_content } = msg;
+      if (role === "user") {
+        return {
+          role,
+          content,
+        } as RNLlamaOAICompatibleMessage;
+      }
+      return {
+        role,
+        content,
+        reasoning_content,
+      } as RNLlamaOAICompatibleMessage;
+    });
   }
 }
 

@@ -1,5 +1,14 @@
+import { GenerationMetrics } from "../metrics";
+
+export type MessageRole = "system" | "user" | "assistant" | "tool";
+
 export interface ChatMessage {
-  role: "system" | "user" | "assistant" | "tool";
+  role: MessageRole;
   content: string;
-  error?: boolean;
+  reasoning_content?: string;
+  modelId?: string;
+  errorCode?: string;
+  timestamp?: string;
+  /** Generation metrics (only for assistant messages) */
+  generationMetrics?: GenerationMetrics;
 }
