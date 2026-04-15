@@ -5,10 +5,10 @@ import { cn } from "@/lib/utils";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { BackHandler, TextInput, View } from "react-native";
 import Animated, {
-    useAnimatedStyle,
-    useSharedValue,
-    withDelay,
-    withTiming,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withTiming,
 } from "react-native-reanimated";
 import { Button } from "../ui/button";
 
@@ -89,6 +89,40 @@ export const TopBar = ({
 
     return () => backHandler.remove();
   }, [isSearchActive, searchBarOpacity, titleOpacity, handleCloseSearch]);
+
+  const safeRightAction = React.useMemo(() => {
+    const wrap = (child: React.ReactNode): React.ReactNode => {
+      if (!React.isValidElement(child)) return child;
+
+      const props: any = child.props || {};
+
+      const newProps: Record<string, unknown> = {};
+
+      if (typeof props.onPress === "function") {
+        const orig = props.onPress;
+        newProps.onPress = (...args: unknown[]) => {
+          try {
+            // @ts-ignore - forward args to original handler
+            return orig(...args);
+          } catch (err) {
+            // Avoid crashing — log for diagnostics
+            // eslint-disable-next-line no-console
+            console.error("TopBar action handler threw:", err);
+          }
+        };
+      }
+
+      if (props.children) {
+        newProps.children = React.Children.map(props.children, wrap);
+      }
+
+      return React.cloneElement(child, newProps as any);
+    };
+
+    return React.Children.count(rightAction)
+      ? React.Children.map(rightAction as any, wrap)
+      : wrap(rightAction as any);
+  }, [rightAction]);
 
   return (
     <View
@@ -177,7 +211,7 @@ export const TopBar = ({
         </Animated.View>
       </View>
 
-      {/* Right Section */}
+      {/* Right Section - Title/Search Toggle */}
       <Animated.View
         style={[
           titleStyle,
@@ -199,8 +233,10 @@ export const TopBar = ({
             />
           </Button>
         )}
-        {rightAction}
       </Animated.View>
+
+      {/* Right Section - Custom Actions (always mounted) */}
+      <View className="flex-row items-center gap-2">{safeRightAction}</View>
     </View>
   );
 };
