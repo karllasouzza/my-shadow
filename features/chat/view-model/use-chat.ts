@@ -11,14 +11,14 @@ import {
 } from "@/features/chat/model/chat-message";
 import {
   autoLoadLastModel,
-  getAvailableModelsAsync,
+  getAvailableModels,
   getSelectedModelId,
   isModelDownloaded,
   loadModel,
   unloadModel,
 } from "@/shared/ai/model-loader";
-import type { AvailableModel } from "@/shared/ai/types/model-loader";
 import { getAIRuntime } from "@/shared/ai/runtime";
+import type { AvailableModel } from "@/shared/ai/types/model-loader";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 interface StreamingMessage extends ChatMessage {
@@ -37,7 +37,6 @@ export function useChat() {
   const [thinkingEnabled, setThinkingEnabledState] = useState(() =>
     getThinkingEnabled(),
   );
-  const [modelSupportsReasoning, setModelSupportsReasoning] = useState(false);
   const [isModelLoading, setIsModelLoading] = useState(false);
   const [modelError, setModelError] = useState<string | null>(null);
 
@@ -48,7 +47,7 @@ export function useChat() {
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Refs to avoid stale closures in async callbacks (onToken, abort)
+  // Refs to avoid stale closures in async callbacks (stream updates, abort)
   const streamingMessageRef = useRef<StreamingMessage | null>(null);
   const streamingKeyRef = useRef<string>("");
 
@@ -66,7 +65,7 @@ export function useChat() {
   const [availableModels, setAvailableModels] = useState<AvailableModel[]>([]);
 
   const reloadAvailableModels = useCallback(async () => {
-    const models = await getAvailableModelsAsync();
+    const models = await getAvailableModels();
     setAvailableModels(models);
     return models;
   }, []);
@@ -85,25 +84,23 @@ export function useChat() {
     [isModelReady, modelsRefresh, getSelectedModelId],
   );
 
-  const handleLoadModel = useCallback(async (modelId: string) => {
-    setIsModelLoading(true);
-    setModelError(null);
-    const result = await loadModel(modelId);
-    setIsModelLoading(false);
+  const handleLoadModel = useCallback(
+    async (modelId: string) => {
+      setIsModelLoading(true);
+      setModelError(null);
+      const result = await loadModel(modelId);
+      setIsModelLoading(false);
 
-    if (!result.success) {
-      setModelError(result.error ?? "Falha ao carregar modelo.");
-      return;
-    }
+      if (!result.success) {
+        setModelError(result.error ?? "Falha ao carregar modelo.");
+        return;
+      }
 
-    setIsModelReady(true);
-    setModelsRefresh((v) => v + 1);
-
-    // Check reasoning support
-    const models = await reloadAvailableModels();
-    const entry = models.find((m) => m.id === modelId);
-    setModelSupportsReasoning(entry?.supportsReasoning ?? false);
-  }, [reloadAvailableModels]);
+      setIsModelReady(true);
+      setModelsRefresh((v) => v + 1);
+    },
+    [reloadAvailableModels],
+  );
 
   const handleUnloadModel = useCallback(async () => {
     setIsModelLoading(true);
@@ -132,10 +129,6 @@ export function useChat() {
 
     if (result.success) {
       setModelsRefresh((v) => v + 1);
-      const models = await reloadAvailableModels();
-      const selected = getSelectedModelId();
-      const entry = models.find((m) => m.id === selected);
-      setModelSupportsReasoning(entry?.supportsReasoning ?? false);
       setModelError(null);
       setIsModelReady(true);
       setModelsRefresh((v) => v + 1);
@@ -149,38 +142,36 @@ export function useChat() {
   // Chat Actions
   // ==========================================================================
 
-  const initChat = useCallback(async (id: string | null) => {
-    setStreamingMessage(null);
-    setIsGenerating(false);
-    setShowCancelOption(false);
-    setThinkingEnabledState(getThinkingEnabled());
-    setConversationError(null);
+  const initChat = useCallback(
+    async (id: string | null) => {
+      setStreamingMessage(null);
+      setIsGenerating(false);
+      setShowCancelOption(false);
+      setThinkingEnabledState(getThinkingEnabled());
+      setConversationError(null);
 
-    const model = getAIRuntime().getCurrentModel();
-    const entry = availableModels.find((m) => m.id === model?.id);
-    const supports = entry?.supportsReasoning ?? false;
-    setModelSupportsReasoning(supports);
+      // If no ID, just reset and return
+      if (!id) {
+        setConversationId(null);
+        setConversationTitle("Nova conversa");
+        return;
+      }
 
-    // If no ID, just reset and return
-    if (!id) {
-      setConversationId(null);
-      setConversationTitle("Nova conversa");
-      return;
-    }
+      // Validate conversation exists in storage
+      const loadResult = DatabaseChat.loadConversation(id);
+      if (!loadResult.success || !loadResult.data) {
+        setConversationId(null);
+        setConversationTitle("Nova conversa");
+        setConversationError("Conversa não encontrada");
+        return;
+      }
 
-    // Validate conversation exists in storage
-    const loadResult = DatabaseChat.loadConversation(id);
-    if (!loadResult.success || !loadResult.data) {
-      setConversationId(null);
-      setConversationTitle("Nova conversa");
-      setConversationError("Conversa não encontrada");
-      return;
-    }
-
-    // Conversation exists, set it
-    setConversationId(id);
-    setConversationTitle(loadResult.data.title || "Nova conversa");
-  }, [availableModels]);
+      // Conversation exists, set it
+      setConversationId(id);
+      setConversationTitle(loadResult.data.title || "Nova conversa");
+    },
+    [availableModels],
+  );
 
   /** Helper to add error message to conversation */
   const addErrorMessageToConversation = useCallback(
@@ -218,10 +209,6 @@ export function useChat() {
     }
 
     setIsModelReady(loaded);
-
-    const entry = availableModels.find((m) => m.id === model?.id);
-    const supports = entry?.supportsReasoning ?? false;
-    setModelSupportsReasoning(supports);
     setModelsRefresh((v) => v + 1);
   }, [availableModels]);
 
@@ -315,7 +302,7 @@ export function useChat() {
 
       const thinking = thinkingEnabled;
       let fullResponse = "";
-      let reasoningContent = "";
+      let localReasoning = "";
       let rawAccumulated = "";
 
       const streamResult = await runtime.streamCompletion(messages, {
@@ -323,28 +310,34 @@ export function useChat() {
         onStreamChunk: (data) => {
           if (controller.signal.aborted) return;
 
-          // llama.rn may not separate reasoning_content natively.
-          // Parse <think> tags from the raw token stream.
-          if (thinking) {
-            rawAccumulated += data.token;
+          // Prefer structured reasoning provided by the runtime when available.
+          const runtimeReasoning = (data as any).reasoning;
 
-            // Check if we have a complete think block
-            const thinkStartMatch = rawAccumulated.match(
-              /<think>([\s\S]*?)<\/think>/,
-            );
-            if (thinkStartMatch) {
-              reasoningContent = thinkStartMatch[1].trim();
-              fullResponse = rawAccumulated
-                .replace(/<think>[\s\S]*?<\/think>/, "")
-                .trim();
-            } else if (rawAccumulated.includes("<think>")) {
-              // Still accumulating thinking content
-              const partial = rawAccumulated.split("<think>")[1];
-              if (partial) reasoningContent = partial;
-              fullResponse = "";
-            } else {
-              // No thinking tags — treat all as response
+          if (thinking) {
+            if (runtimeReasoning) {
+              // Runtime provides reasoning separately — treat tokens as response
+              rawAccumulated += data.token;
               fullResponse = rawAccumulated;
+              localReasoning = String(runtimeReasoning).trim();
+            } else {
+              // Fallback to legacy <think> parsing when runtime doesn't supply reasoning
+              rawAccumulated += data.token;
+
+              const thinkStartMatch = rawAccumulated.match(
+                /<think>([\s\S]*?)<\/think>/,
+              );
+              if (thinkStartMatch) {
+                localReasoning = thinkStartMatch[1].trim();
+                fullResponse = rawAccumulated
+                  .replace(/<think>[\s\S]*?<\/think>/, "")
+                  .trim();
+              } else if (rawAccumulated.includes("<think>")) {
+                const partial = rawAccumulated.split("<think>")[1];
+                if (partial) localReasoning = partial;
+                fullResponse = "";
+              } else {
+                fullResponse = rawAccumulated;
+              }
             }
           } else {
             if (data.token) fullResponse += data.token;
@@ -353,7 +346,7 @@ export function useChat() {
           const updatedMsg: StreamingMessage = {
             role: "assistant",
             content: fullResponse,
-            thinking: reasoningContent || undefined,
+            thinking: localReasoning || undefined,
             modelId: currentModelId,
             timestamp: new Date().toISOString(),
             _isStreaming: true,
@@ -428,15 +421,23 @@ export function useChat() {
         return;
       }
 
-      // Success: persist the assistant message
+      // Success: persist the assistant message (prefer runtime's final output)
       const conv3 = DatabaseChat.loadConversation(convId!);
       if (conv3.success && conv3.data) {
-        const final = streamingMessageRef.current;
+        const finalText =
+          streamResult.data?.text ??
+          streamingMessageRef.current?.content ??
+          fullResponse;
+        const finalThinking =
+          (streamResult.data?.reasoning ??
+            streamingMessageRef.current?.thinking ??
+            localReasoning) ||
+          undefined;
         conv3.data.messages.push(
           createChatMessage(
             "assistant",
-            final?.content ?? fullResponse,
-            final?.thinking || reasoningContent || undefined,
+            finalText,
+            finalThinking,
             currentModelId,
           ),
         );
@@ -504,20 +505,17 @@ export function useChat() {
   // ==========================================================================
 
   // Centralize conversation loading and error handling to avoid duplicate DB calls
-  const getConversationData = useCallback(
-    (id: string | null) => {
-      if (!id) return null;
-      const result = DatabaseChat.loadConversation(id);
-      if (!result.success) {
-        // Log failure — keep UI resilient and return null
-        // Avoid throwing or setting state from render path
-        console.error("Failed to load conversation:", result.error);
-        return null;
-      }
-      return result.data;
-    },
-    [],
-  );
+  const getConversationData = useCallback((id: string | null) => {
+    if (!id) return null;
+    const result = DatabaseChat.loadConversation(id);
+    if (!result.success) {
+      // Log failure — keep UI resilient and return null
+      // Avoid throwing or setting state from render path
+      console.error("Failed to load conversation:", result.error);
+      return null;
+    }
+    return result.data;
+  }, []);
 
   const displayMessages = useMemo(() => {
     if (!conversationId) {
@@ -561,7 +559,6 @@ export function useChat() {
       conversationError,
       showCancelOption: showCancelOption && isGenerating,
       thinkingEnabled,
-      modelSupportsReasoning,
       displayMessages,
       hasContent,
       activeModelName,
@@ -595,7 +592,6 @@ export function useChat() {
       conversationError,
       showCancelOption,
       thinkingEnabled,
-      modelSupportsReasoning,
       displayMessages,
       hasContent,
       activeModelName,
