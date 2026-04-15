@@ -1,6 +1,7 @@
 import { Result, createError, err, ok } from "@/shared/utils/app-error";
 import type { LlamaContext, TokenData } from "llama.rn";
-import { initLlama } from "llama.rn";
+import { initLlama, loadLlamaModelInfo } from "llama.rn";
+import { findModelById } from "./catalog";
 import type { ChatMessage } from "./types/chat";
 import type {
   CompletionOutput,
@@ -22,6 +23,7 @@ const STOP_WORDS = [
 
 export class AIRuntime {
   private currentModel: LoadedModel | null = null;
+  private currentModelInfo: Object = {};
   private context: LlamaContext | null = null;
   private parallelStop: (() => Promise<void>) | null = null;
 
@@ -36,6 +38,9 @@ export class AIRuntime {
       if (this.context) {
         await this.unloadModel();
       }
+
+      const modelInfo = await loadLlamaModelInfo(modelPath);
+      this.currentModelInfo = modelInfo;
 
       this.context = await initLlama({
         model: modelPath,
@@ -114,6 +119,11 @@ export class AIRuntime {
       let fullReasoning = "";
       let aborted = false;
 
+      const currentModelSupportsReasoning =
+        findModelById(this.currentModel.id)?.supportsReasoning ?? false;
+      const enableThinking =
+        options?.enableThinking && currentModelSupportsReasoning;
+
       // Always accumulate tokens internally for the final result
       const streamCallback = (data: {
         token: string;
@@ -135,17 +145,12 @@ export class AIRuntime {
       const { promise, stop } = await this.context.parallel.completion(
         {
           messages,
+          jinja: true,
+          thinking_forced_open: enableThinking,
+          enable_thinking: enableThinking,
           n_predict: options?.maxTokens ?? 4096,
           temperature: options?.temperature ?? 0.7,
           stop: STOP_WORDS,
-          // Only include chat_template_kwargs when thinking is actually enabled
-          ...(options?.enableThinking
-            ? {
-                chat_template_kwargs: {
-                  enable_thinking: "true",
-                },
-              }
-            : {}),
         },
         (_requestId: number, data: TokenData) => {
           const token = data.token ?? "";
@@ -178,7 +183,7 @@ export class AIRuntime {
       // Return combined text: reasoning + response
       // The caller (use-chat) separates them via onStreamChunk
       const combinedText = fullReasoning
-        ? `<thinking>${fullReasoning}</thinking>${fullResponse}`
+        ? `<think>${fullReasoning}</think>${fullResponse}`
         : fullResponse;
 
       if (!combinedText.trim() && !fullReasoning.trim()) {
@@ -192,6 +197,7 @@ export class AIRuntime {
 
       return ok({ text: combinedText });
     } catch (error) {
+      console.error("Error during generation:", error);
       if (error instanceof Error && error.name === "AbortError") {
         return err(createError("ABORTED", "Geração cancelada pelo usuário."));
       }
@@ -206,6 +212,10 @@ export class AIRuntime {
           error as Error,
         ),
       );
+    } finally {
+      if (options?.abortSignal) {
+        options.abortSignal.removeEventListener("abort", this.cancelGeneration);
+      }
     }
   }
 

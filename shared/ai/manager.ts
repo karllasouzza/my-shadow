@@ -1,24 +1,49 @@
 import { Result, createError, err, ok } from "@/shared/utils/app-error";
 import { Directory, File, Paths } from "expo-file-system";
 import * as FileSystemLegacy from "expo-file-system/legacy";
+import { getAIRuntime } from "./runtime";
 import { OnDownloadProgress } from "./types/manager";
 
-const MODELS_DIR = new Directory(Paths.document, "models");
+function getModelsDir(): Directory | null {
+  const documentPath = Paths.document;
+  if (!documentPath) {
+    return null;
+  }
+
+  try {
+    return new Directory(documentPath, "models");
+  } catch (error) {
+    console.error("Failed to create models directory handle", error);
+    return null;
+  }
+}
 
 /**
  * Ensures the models directory exists.
  */
-function ensureModelsDir(): void {
-  if (!MODELS_DIR.exists) {
-    MODELS_DIR.create({ intermediates: true, idempotent: true });
+function ensureModelsDir(): Directory | null {
+  const modelsDir = getModelsDir();
+  if (!modelsDir) {
+    return null;
   }
+
+  if (!modelsDir.exists) {
+    modelsDir.create({ intermediates: true, idempotent: true });
+  }
+
+  return modelsDir;
 }
 
 /**
  * Returns the destination File for a given model ID.
  */
-function modelFileInstance(modelId: string): File {
-  return new File(MODELS_DIR, `${modelId}.gguf`);
+function modelFileInstance(modelId: string): File | null {
+  const modelsDir = getModelsDir();
+  if (!modelsDir) {
+    return null;
+  }
+
+  return new File(modelsDir, `${modelId}.gguf`);
 }
 
 /**
@@ -38,9 +63,18 @@ export async function downloadModelById(
   onProgress?: OnDownloadProgress,
 ): Promise<Result<string>> {
   try {
-    ensureModelsDir();
+    const modelsDir = ensureModelsDir();
+    if (!modelsDir) {
+      return err(
+        createError(
+          "STORAGE_ERROR",
+          "Falha ao acessar diretório local de modelos.",
+          { modelId },
+        ),
+      );
+    }
 
-    const dest = modelFileInstance(modelId);
+    const dest = new File(modelsDir, `${modelId}.gguf`);
 
     if (dest.exists) {
       return ok(dest.uri);
@@ -55,12 +89,15 @@ export async function downloadModelById(
       dest.uri,
       {},
       (progress) => {
+        const totalBytes = progress.totalBytesExpectedToWrite;
+        const rawProgress =
+          totalBytes > 0
+            ? (progress.totalBytesWritten / totalBytes) * 100
+            : 0;
+
         onProgress?.({
           modelId,
-          progress: Math.round(
-            (progress.totalBytesWritten / progress.totalBytesExpectedToWrite) *
-              100,
-          ),
+          progress: Math.max(0, Math.min(100, Math.round(rawProgress))),
         });
       },
     );
@@ -93,26 +130,57 @@ export async function downloadModelById(
  * @returns {Record<string, string>} Map of model IDs to local file paths
  */
 export function getDownloadedModels(): Record<string, string> {
-  if (!MODELS_DIR.exists) return {};
+  try {
+    const modelsDir = getModelsDir();
+    if (!modelsDir?.exists) return {};
 
-  const map: Record<string, string> = {};
-  const items = MODELS_DIR.list();
+    const map: Record<string, string> = {};
+    const items = modelsDir.list();
 
-  for (const item of items) {
-    if (item instanceof File && item.name.endsWith(".gguf")) {
-      const modelId = item.name.replace(/\.gguf$/, "");
-      map[modelId] = item.uri;
+    for (const item of items) {
+      if (item instanceof File && item.name.endsWith(".gguf")) {
+        const modelId = item.name.replace(/\.gguf$/, "");
+        map[modelId] = item.uri;
+      }
     }
-  }
 
-  return map;
+    return map;
+  } catch (error) {
+    console.error("Failed to list downloaded models", error);
+    return {};
+  }
+}
+
+/**
+ * Async version for screens/view-models to avoid sync filesystem reads in render paths.
+ */
+export async function getDownloadedModelsAsync(): Promise<Record<string, string>> {
+  try {
+    const modelsDir = getModelsDir();
+    if (!modelsDir) return {};
+
+    const info = await FileSystemLegacy.getInfoAsync(modelsDir.uri);
+    if (!info.exists || !info.isDirectory) return {};
+
+    const names = await FileSystemLegacy.readDirectoryAsync(modelsDir.uri);
+    const map: Record<string, string> = {};
+    for (const name of names) {
+      if (!name.endsWith(".gguf")) continue;
+      const modelId = name.replace(/\.gguf$/, "");
+      map[modelId] = `${modelsDir.uri}/${name}`;
+    }
+    return map;
+  } catch (error) {
+    console.error("Failed to list downloaded models (async)", error);
+    return {};
+  }
 }
 
 /**
  * Checks whether a model is present on the device.
  */
 export function isModelDownloaded(modelId: string): boolean {
-  return modelFileInstance(modelId).exists;
+  return modelFileInstance(modelId)?.exists ?? false;
 }
 
 /**
@@ -120,15 +188,44 @@ export function isModelDownloaded(modelId: string): boolean {
  */
 export function getModelLocalPath(modelId: string): string | null {
   const file = modelFileInstance(modelId);
+  if (!file) return null;
   return file.exists ? file.uri : null;
 }
 
 /**
  * Removes a downloaded model from the device (deletes the .gguf file).
+ * If the model is currently loaded in the runtime, it will be unloaded first.
+ *
+ * @param modelId - Model ID to remove
+ * @returns Result indicating success or failure
  */
-export function removeDownloadedModel(modelId: string): void {
-  const file = modelFileInstance(modelId);
-  if (file.exists) {
+export async function removeDownloadedModel(
+  modelId: string,
+): Promise<Result<void>> {
+  try {
+    const runtime = getAIRuntime();
+    const loadedModel = runtime.getCurrentModel();
+
+    // Unload from runtime first if this is the active model
+    if (loadedModel?.id === modelId) {
+      await runtime.unloadModel();
+    }
+
+    const file = modelFileInstance(modelId);
+    if (!file?.exists) {
+      return ok(undefined); // Already gone
+    }
+
     file.delete();
+    return ok(undefined);
+  } catch (error) {
+    return err(
+      createError(
+        "STORAGE_ERROR",
+        "Falha ao remover modelo do dispositivo.",
+        { modelId },
+        error as Error,
+      ),
+    );
   }
 }

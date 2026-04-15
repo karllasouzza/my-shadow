@@ -2,12 +2,17 @@ import { setLastUsedModelId } from "@/database/actions/chat/last-model";
 import DeviceInfo from "react-native-device-info";
 import { findModelById, getAllModels } from "./catalog";
 import {
-    getDownloadedModels,
-    getModelLocalPath,
-    isModelDownloaded,
+  getDownloadedModels,
+  getDownloadedModelsAsync,
+  getModelLocalPath,
+  isModelDownloaded,
+  removeDownloadedModel,
 } from "./manager";
 import { getAIRuntime } from "./runtime";
 import { AvailableModel, ModelLoadResult } from "./types/model-loader";
+
+// Re-export for external consumers
+export { isModelDownloaded, removeDownloadedModel };
 
 /**
  * Loads a model into memory.
@@ -21,10 +26,11 @@ export async function loadModel(modelId: string): Promise<ModelLoadResult> {
 
   // Check RAM
   const totalRam = await DeviceInfo.getTotalMemory();
-  if (totalRam < model.estimatedRamBytes) {
+  const usedRam = await DeviceInfo.getUsedMemory();
+  if (totalRam - usedRam < model.estimatedRamBytes) {
     return {
       success: false,
-      error: `RAM insuficiente: ${Math.round(totalRam / 1024 / 1024)}MB disponível, ${Math.round(model.estimatedRamBytes / 1024 / 1024)}MB necessário.`,
+      error: `RAM insuficiente: ${Math.round((totalRam - usedRam) / 1024 / 1024)}MB disponível, ${Math.round(model.estimatedRamBytes / 1024 / 1024)}MB necessário.`,
     };
   }
 
@@ -40,7 +46,6 @@ export async function loadModel(modelId: string): Promise<ModelLoadResult> {
     return { success: false, error: result.error.message };
   }
 
-  // Persist last used
   setLastUsedModelId(modelId);
 
   return { success: true };
@@ -64,22 +69,53 @@ export async function unloadModel(): Promise<ModelLoadResult> {
  * Returns available models for selection (downloaded).
  */
 export function getAvailableModels(): AvailableModel[] {
-  const downloaded = getDownloadedModels();
-  const runtime = getAIRuntime();
-  const loadedId = runtime.getCurrentModel()?.id;
-  const catalog = getAllModels();
+  try {
+    const downloaded = getDownloadedModels();
+    const runtime = getAIRuntime();
+    const loadedId = runtime.getCurrentModel()?.id;
+    const catalog = getAllModels();
 
-  return Object.keys(downloaded)
-    .map((id) => {
-      const entry = catalog.find((m: { id: string }) => m.id === id);
-      return {
-        id,
-        displayName: entry?.displayName ?? id,
-        isLoaded: id === loadedId,
-        supportsReasoning: entry?.supportsReasoning ?? false,
-      };
-    })
-    .sort((a, b) => a.displayName.localeCompare(b.displayName));
+    return Object.keys(downloaded)
+      .map((id) => {
+        const entry = catalog.find((m: { id: string }) => m.id === id);
+        return {
+          id,
+          displayName: entry?.displayName ?? id,
+          bytes: entry?.bytes ?? "0",
+          isLoaded: id === loadedId,
+          supportsReasoning: entry?.supportsReasoning ?? false,
+        };
+      })
+      .sort((a, b) => a.displayName.localeCompare(b.displayName));
+  } catch (error) {
+    console.error("Failed to build available models list", error);
+    return [];
+  }
+}
+
+export async function getAvailableModelsAsync(): Promise<AvailableModel[]> {
+  try {
+    const downloaded = await getDownloadedModelsAsync();
+    const runtime = getAIRuntime();
+    const loadedId = runtime.getCurrentModel()?.id;
+    const catalog = getAllModels();
+
+    return Object.keys(downloaded)
+      .map((id) => {
+        const entry = catalog.find((m: { id: string }) => m.id === id);
+        return {
+          id,
+          displayName: entry?.displayName ?? id,
+          bytes: entry?.bytes ?? "0",
+          isLoaded: id === loadedId,
+          supportsReasoning: entry?.supportsReasoning ?? false,
+        };
+      })
+      .sort((a, b) => a.displayName.localeCompare(b.displayName));
+  } catch (error) {
+    console.error("Failed to build available models list (async)", error);
+    return [];
+  }
 }
 
 /** Returns the currently selected model ID */

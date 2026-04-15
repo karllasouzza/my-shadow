@@ -52,11 +52,11 @@ export const MODEL_CATALOG: Model[] = [
     displayName: "Qwen 2.5",
     description:
       "Modelo leve e rápido, ideal para dispositivos com pouca RAM (< 4GB).",
-    huggingFaceId: "Sekinna/Qwen2.5-0.5B-Instruct-GGUF",
+    huggingFaceId: "Qwen/Qwen2.5-0.5B-Instruct-GGUF",
     fileSizeBytes: 491 * 1024 * 1024,
     estimatedRamBytes: 800 * 1024 * 1024,
     downloadLink:
-      "https://huggingface.co/Sekinna/Qwen2.5-0.5B-Instruct-GGUF/blob/main/qwen2.5-0.5b-instruct-q4_k_m.gguf",
+      "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf",
     bytes: "0.5B",
     tags: ["ultra-leve", "rápido"],
   },
