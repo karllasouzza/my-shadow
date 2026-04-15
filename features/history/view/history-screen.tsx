@@ -1,10 +1,12 @@
 import { TopBar } from "@/components/top-bar";
+import { Button } from "@/components/ui/button";
+import { Icon } from "@/components/ui/icon";
 import type { ChatConversationIndex } from "@/features/chat/model/chat-conversation";
 import { ConversationList } from "@/features/history/components/conversation-list";
 import { EmptyHistory } from "@/features/history/components/empty-history";
 import { useHistory } from "@/features/history/view-model/use-history";
 import { observer } from "@legendapp/state/react";
-import { router, useFocusEffect } from "expo-router";
+import { Link, router, useFocusEffect } from "expo-router";
 import React, { memo, useCallback } from "react";
 import { ActivityIndicator, Alert, Text, View } from "react-native";
 
@@ -112,7 +114,21 @@ const HistoryScreenInner = observer(function HistoryScreenInner() {
 
   return (
     <View className="flex-1 bg-background">
-      <TopBar title="Histórico" onBack={() => router.back()} showBack />
+      <TopBar
+        title="Histórico"
+        rightAction={
+          <Link href="/?new=1" asChild>
+            <Button variant="outline" className="!border-primary">
+              <Text className="text-primary">Nova Conversa</Text>
+              <Icon
+                as={require("lucide-react-native").Plus}
+                className="size-5 text-primary p-0 stroke-2"
+              />
+            </Button>
+          </Link>
+        }
+      />
+
       {conversations.length === 0 ? (
         <EmptyHistory />
       ) : (

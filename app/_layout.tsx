@@ -20,9 +20,24 @@ export default function RootLayout() {
               }}
               initialRouteName="index"
             >
-              <Stack.Screen name="index" />
-              <Stack.Screen name="models" />
-              <Stack.Screen name="history" />
+              <Stack.Screen
+                name="history"
+                options={{
+                  animation: "slide_from_left",
+                }}
+              />
+              <Stack.Screen
+                name="index"
+                options={{
+                  animation: "fade",
+                }}
+              />
+              <Stack.Screen
+                name="models"
+                options={{
+                  animation: "slide_from_right",
+                }}
+              />
             </Stack>
             <PortalHost />
             <Toaster />

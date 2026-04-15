@@ -34,7 +34,7 @@ export function ConversationItem({
         {conversation.title}
       </Text>
       <View className="flex flex-row justify-between">
-        <Text className="text-foreground text-xs bg-red-300">
+        <Text className="text-foreground/75 text-xs truncate" numberOfLines={1}>
           {conversation.lastMessageSnippet}
         </Text>
         <Text className="text-muted-foreground/55 text-xs">

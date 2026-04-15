@@ -4,12 +4,7 @@ import { Icon } from "@/components/ui/icon";
 import ChatBottomBar from "@/features/chat/components/chat-bottom-bar";
 import { useChat } from "@/features/chat/view-model/use-chat";
 import { observer } from "@legendapp/state/react";
-import {
-  Link,
-  router,
-  useFocusEffect,
-  useLocalSearchParams,
-} from "expo-router";
+import { Link, useFocusEffect, useLocalSearchParams } from "expo-router";
 import React, { memo, useCallback, useState } from "react";
 import { View } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
@@ -97,19 +92,18 @@ const ChatScreenInner = observer(function ChatScreenInner() {
             </>
           }
           leftAction={
-            <Button
-              variant="ghost"
-              size="icon"
-              onPress={() => {
-                router.push("/history");
-              }}
-              accessibilityLabel="Ver histórico de conversas"
-            >
-              <Icon
-                as={require("lucide-react-native").History}
-                className="size-5 text-muted-foreground p-0 stroke-2"
-              />
-            </Button>
+            <Link href="/history" asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                accessibilityLabel="Ver histórico de conversas"
+              >
+                <Icon
+                  as={require("lucide-react-native").TextAlignStart}
+                  className="size-5 text-muted-foreground p-0 stroke-2"
+                />
+              </Button>
+            </Link>
           }
         />
 
