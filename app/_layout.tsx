@@ -7,7 +7,6 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Toaster } from "sonner-native";
 import "../global.css";
-import "../lib/polyfills";
 
 export default function RootLayout() {
   return (
@@ -21,9 +20,24 @@ export default function RootLayout() {
               }}
               initialRouteName="index"
             >
-              <Stack.Screen name="index" />
-              <Stack.Screen name="models" />
-              <Stack.Screen name="history" />
+              <Stack.Screen
+                name="history"
+                options={{
+                  animation: "slide_from_left",
+                }}
+              />
+              <Stack.Screen
+                name="index"
+                options={{
+                  animation: "fade",
+                }}
+              />
+              <Stack.Screen
+                name="models"
+                options={{
+                  animation: "slide_from_right",
+                }}
+              />
             </Stack>
             <PortalHost />
             <Toaster />

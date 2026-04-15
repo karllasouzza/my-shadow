@@ -102,6 +102,14 @@ export function ModelSelector({
         <Text className="text-foreground text-sm font-medium" numberOfLines={1}>
           {isLoading ? "Carregando modelo" : displayText}
         </Text>
+        {selectedModel && !isLoading && (
+          <Text
+            className="text-muted-foreground text-xs ml-1"
+            numberOfLines={1}
+          >
+            ({selectedModel.bytes})
+          </Text>
+        )}
         <Icon
           as={
             isLoading
@@ -110,7 +118,7 @@ export function ModelSelector({
           }
           className={cn(
             "text-muted-foreground size-4",
-            isLoading && "animate-spin",
+            isLoading ? "animate-spin" : "animate-none",
           )}
         />
       </Button>
@@ -138,25 +146,22 @@ export function ModelSelector({
                     accessibilityRole="button"
                     accessibilityLabel={model.displayName}
                   >
-                    <View className="size-8 items-center justify-center rounded-full bg-muted">
-                      <Icon
-                        as={require("lucide-react-native").Cpu}
-                        className={cn(
-                          isSelected
-                            ? "text-primary size-4"
-                            : "text-muted-foreground size-4",
-                        )}
-                      />
-                    </View>
-
-                    <View className="flex-1">
+                    <View className="flex-1 flex-row gap-2 items-center">
                       <Text
                         className="text-foreground font-medium"
                         numberOfLines={1}
                       >
                         {model.displayName}
                       </Text>
+                      <Text
+                        className="text-muted-foreground text-xs"
+                        numberOfLines={1}
+                      >
+                        ({model.bytes})
+                      </Text>
                     </View>
+
+                    <View></View>
 
                     {isSelected && (
                       <Icon

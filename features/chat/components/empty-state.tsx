@@ -13,9 +13,11 @@ export function EmptyState() {
       <Text className="text-foreground text-2xl font-bold mb-3">
         Como posso ajudar?
       </Text>
-      <Text className="text-muted text-center text-base leading-6">
-        Envie uma mensagem para iniciar uma conversa.{"\n"}
-        A IA responderá em tempo real.
+      <Text className="text-muted-foreground text-center text-base leading-6">
+        Me pergunte qualquer coisa ou peça para realizar uma tarefa.
+      </Text>
+      <Text className="text-muted-foreground text-center text-base leading-6">
+        Estou aqui para ajudar!
       </Text>
     </View>
   );

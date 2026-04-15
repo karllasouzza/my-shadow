@@ -1,21 +1,26 @@
 /**
  * Streaming Text
  *
- * Texto com scroll auto-para-baixo quando atualiza.
- * Reutilizável em thinking-section e ai-bubble.
+ * Simple, robust typing-like renderer that gradually reveals appended
+ * characters. Removes the ScrollView-based auto-scroll logic which caused
+ * bugs. When `numberOfLines` is provided the container is bottom-anchored
+ * (new lines push the content upward) by constraining the height and
+ * aligning content to the bottom — no ScrollView required.
  */
 
-import React, { useRef } from "react";
-import { ScrollView, Text } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Text, View } from "react-native";
 
 interface StreamingTextProps {
   text: string;
   className?: string;
   selectable?: boolean;
-  /** Auto-scroll to bottom when text updates */
+  /** kept for API compatibility (no-op here) */
   autoScroll?: boolean;
-  /** Limit visible lines — uses constrained ScrollView */
+  /** Limit visible lines — uses constrained container with bottom alignment */
   numberOfLines?: number;
+  /** Typing speed in ms per character */
+  typingSpeed?: number;
 }
 
 const LINE_HEIGHT = 20;
@@ -24,49 +29,85 @@ export function StreamingText({
   text,
   className = "",
   selectable = true,
-  autoScroll = false,
   numberOfLines,
+  typingSpeed = 20,
 }: StreamingTextProps) {
-  const scrollViewRef = useRef<ScrollView>(null);
-  const prevTextRef = useRef(text);
+  const [displayedText, setDisplayedText] = useState(text);
+  const displayedRef = useRef(displayedText);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Scroll to bottom when text changes
-  React.useEffect(() => {
-    if ((autoScroll || numberOfLines) && text !== prevTextRef.current) {
-      prevTextRef.current = text;
-      requestAnimationFrame(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
-      });
+  useEffect(() => {
+    displayedRef.current = displayedText;
+  }, [displayedText]);
+
+  useEffect(() => {
+    // clear any running timer
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
     }
-  }, [text, autoScroll, numberOfLines]);
+
+    if (text === displayedRef.current) return;
+
+    // If the new text simply appends to what's already shown, reveal the
+    // suffix character-by-character to simulate typing. Otherwise replace
+    // immediately.
+    if (text.startsWith(displayedRef.current)) {
+      const suffix = text.slice(displayedRef.current.length);
+      let i = 0;
+      timerRef.current = setInterval(() => {
+        i += 1;
+        setDisplayedText((prev) => {
+          const next = prev + suffix[i - 1];
+          displayedRef.current = next;
+          return next;
+        });
+        if (i >= suffix.length && timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+      }, typingSpeed);
+    } else {
+      setDisplayedText(text);
+      displayedRef.current = text;
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [text, typingSpeed]);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, []);
 
   const hasLineLimit = numberOfLines != null;
   const maxHeight = hasLineLimit ? numberOfLines * LINE_HEIGHT : undefined;
+  const containerStyle = hasLineLimit
+    ? ({ maxHeight, overflow: "hidden", justifyContent: "flex-end" } as any)
+    : undefined;
 
-  // Constrained ScrollView for line limit or auto-scroll
-  if (hasLineLimit || autoScroll) {
+  if (hasLineLimit) {
     return (
-      <ScrollView
-        ref={scrollViewRef}
-        style={hasLineLimit ? { maxHeight } : undefined}
-        className={className}
-        showsVerticalScrollIndicator={false}
-        scrollEnabled={false}
-        onContentSizeChange={() => {
-          scrollViewRef.current?.scrollToEnd({ animated: true });
-        }}
-      >
+      <View style={containerStyle}>
         <Text className={className} selectable={selectable}>
-          {text}
+          {displayedText}
         </Text>
-      </ScrollView>
+      </View>
     );
   }
 
-  // Plain text, no scrolling
   return (
     <Text className={className} selectable={selectable}>
-      {text}
+      {displayedText}
     </Text>
   );
 }

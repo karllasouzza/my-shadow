@@ -1,36 +1,23 @@
 import { Result, createError, err, ok } from "@/shared/utils/app-error";
-import { Directory, File, Paths } from "expo-file-system";
-import * as FileSystemLegacy from "expo-file-system/legacy";
+import * as FileSystem from "expo-file-system/legacy";
+import { getAIRuntime } from "./runtime";
 import { OnDownloadProgress } from "./types/manager";
 
-const MODELS_DIR = new Directory(Paths.document, "models");
+const MODELS_DIR = `${FileSystem.documentDirectory}models/`;
 
-/**
- * Ensures the models directory exists.
- */
-function ensureModelsDir(): void {
-  if (!MODELS_DIR.exists) {
-    MODELS_DIR.create({ intermediates: true, idempotent: true });
+function getModelUri(modelId: string): string {
+  return `${MODELS_DIR}${modelId}.gguf`;
+}
+
+async function ensureModelsDir(): Promise<void> {
+  const info = await FileSystem.getInfoAsync(MODELS_DIR);
+  if (!info.exists) {
+    await FileSystem.makeDirectoryAsync(MODELS_DIR, { intermediates: true });
   }
 }
 
 /**
- * Returns the destination File for a given model ID.
- */
-function modelFileInstance(modelId: string): File {
-  return new File(MODELS_DIR, `${modelId}.gguf`);
-}
-
-/**
- * Downloads a model using createDownloadResumable (expo-file-system/legacy).
- *
- * The file is saved at {MODELS_DIR}/{modelId}.gguf.
- * Supports an optional progress callback.
- *
- * @param modelId - Logical model ID in the catalog
- * @param link - Download URL or HuggingFace file identifier (e.g., "owner/repo/file.gguf")
- * @param onProgress - Progress callback invoked during download
- * @returns Result containing the local path to the GGUF file
+ * Downloads a model using createDownloadResumable.
  */
 export async function downloadModelById(
   modelId: string,
@@ -38,30 +25,28 @@ export async function downloadModelById(
   onProgress?: OnDownloadProgress,
 ): Promise<Result<string>> {
   try {
-    ensureModelsDir();
+    await ensureModelsDir();
 
-    const dest = modelFileInstance(modelId);
+    const destUri = getModelUri(modelId);
+    const fileInfo = await FileSystem.getInfoAsync(destUri);
 
-    if (dest.exists) {
-      return ok(dest.uri);
+    if (fileInfo.exists) {
+      return ok(destUri);
     }
-
-    const downloadUrl = link;
 
     onProgress?.({ modelId, progress: 0 });
 
-    const downloadResumable = FileSystemLegacy.createDownloadResumable(
-      downloadUrl,
-      dest.uri,
+    const downloadResumable = FileSystem.createDownloadResumable(
+      link,
+      destUri,
       {},
       (progress) => {
-        onProgress?.({
-          modelId,
-          progress: Math.round(
-            (progress.totalBytesWritten / progress.totalBytesExpectedToWrite) *
-              100,
-          ),
-        });
+        const { totalBytesExpectedToWrite, totalBytesWritten } = progress;
+        const percent =
+          totalBytesExpectedToWrite > 0
+            ? Math.round((totalBytesWritten / totalBytesExpectedToWrite) * 100)
+            : 0;
+        onProgress?.({ modelId, progress: percent });
       },
     );
 
@@ -73,13 +58,12 @@ export async function downloadModelById(
     }
 
     onProgress?.({ modelId, progress: 100 });
-
-    return ok(dest.uri);
+    return ok(destUri);
   } catch (error) {
     return err(
       createError(
         "STORAGE_ERROR",
-        "Falha ao baixar o modelo. Verifique sua conexão com a internet.",
+        "Falha ao baixar o modelo. Verifique sua conexão.",
         { modelId, link },
         error as Error,
       ),
@@ -88,46 +72,75 @@ export async function downloadModelById(
 }
 
 /**
- * Returns a map of downloaded models: { modelId: filePath }.
- * Lists files in the models directory and filters by the .gguf extension.
+ * Lists downloaded models.
  */
-export function getDownloadedModels(): Record<string, string> {
-  if (!MODELS_DIR.exists) return {};
+export async function getDownloadedModels(): Promise<Record<string, string>> {
+  try {
+    const info = await FileSystem.getInfoAsync(MODELS_DIR);
+    if (!info.exists) return {};
 
-  const map: Record<string, string> = {};
-  const items = MODELS_DIR.list();
+    const files = await FileSystem.readDirectoryAsync(MODELS_DIR);
 
-  for (const item of items) {
-    if (item instanceof File && item.name.endsWith(".gguf")) {
-      const modelId = item.name.replace(/\.gguf$/, "");
-      map[modelId] = item.uri;
-    }
+    return files.reduce(
+      (map, name) => {
+        if (name.endsWith(".gguf")) {
+          map[name.replace(/\.gguf$/, "")] = MODELS_DIR + name;
+        }
+        return map;
+      },
+      {} as Record<string, string>,
+    );
+  } catch {
+    return {};
   }
-
-  return map;
 }
 
 /**
- * Checks whether a model is present on the device.
+ * Checks if a model is downloaded.
  */
-export function isModelDownloaded(modelId: string): boolean {
-  return modelFileInstance(modelId).exists;
+export async function isModelDownloaded(modelId: string): Promise<boolean> {
+  const info = await FileSystem.getInfoAsync(getModelUri(modelId));
+  return info.exists;
 }
 
 /**
- * Returns the local path of the model, or null if it does not exist.
+ * Returns local path or null.
  */
-export function getModelLocalPath(modelId: string): string | null {
-  const file = modelFileInstance(modelId);
-  return file.exists ? file.uri : null;
+export async function getModelLocalPath(
+  modelId: string,
+): Promise<string | null> {
+  const info = await FileSystem.getInfoAsync(getModelUri(modelId));
+  return info.exists ? getModelUri(modelId) : null;
 }
 
 /**
- * Removes a downloaded model from the device (deletes the .gguf file).
+ * Removes a downloaded model.
  */
-export function removeDownloadedModel(modelId: string): void {
-  const file = modelFileInstance(modelId);
-  if (file.exists) {
-    file.delete();
+export async function removeDownloadedModel(
+  modelId: string,
+): Promise<Result<void>> {
+  try {
+    const runtime = getAIRuntime();
+    if (runtime.getCurrentModel()?.id === modelId) {
+      await runtime.unloadModel();
+    }
+
+    const uri = getModelUri(modelId);
+    const info = await FileSystem.getInfoAsync(uri);
+
+    if (info.exists) {
+      await FileSystem.deleteAsync(uri);
+    }
+
+    return ok(undefined);
+  } catch (error) {
+    return err(
+      createError(
+        "STORAGE_ERROR",
+        "Falha ao remover modelo.",
+        { modelId },
+        error as Error,
+      ),
+    );
   }
 }

@@ -3,9 +3,9 @@ import { cn } from "@/lib/utils";
 import { Brain } from "lucide-react-native";
 import React, { useEffect, useRef } from "react";
 import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
+    useAnimatedStyle,
+    useSharedValue,
+    withSpring,
 } from "react-native-reanimated";
 
 interface ThinkingToggleProps {
@@ -14,19 +14,18 @@ interface ThinkingToggleProps {
 }
 
 export function ThinkingToggle({ enabled, onToggle }: ThinkingToggleProps) {
-  const fillOpacity = useSharedValue(0);
+  const fillOpacity = useSharedValue(enabled ? 1 : 0);
   const prevEnabled = useRef(enabled);
 
   useEffect(() => {
-    if (prevEnabled.current !== enabled) {
-      // Glow: fade in/out — no scale
-      fillOpacity.value = withSpring(enabled ? 1 : 0, {
-        damping: 15,
-        stiffness: 80,
-      });
-      prevEnabled.current = enabled;
-    }
-  }, [enabled, fillOpacity]);
+    if (prevEnabled.current === enabled) return;
+    prevEnabled.current = enabled;
+
+    fillOpacity.value = withSpring(enabled ? 1 : 0, {
+      damping: 15,
+      stiffness: 80,
+    });
+  }, [enabled]);
 
   const glowStyle = useAnimatedStyle(() => ({
     opacity: fillOpacity.value,

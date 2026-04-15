@@ -1,9 +1,9 @@
 import type {
-  AppModalContextType,
-  AppModalDragContextType,
-  AppModalFooterProps,
-  AppModalHeaderProps,
-  AppModalProps,
+    AppModalContextType,
+    AppModalDragContextType,
+    AppModalFooterProps,
+    AppModalHeaderProps,
+    AppModalProps,
 } from "@/components/molecules/app-modal/types";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
@@ -13,23 +13,23 @@ import { cn } from "@/lib/utils";
 import * as DialogPrimitive from "@rn-primitives/dialog";
 import * as React from "react";
 import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  View,
-  type ViewProps,
+    KeyboardAvoidingView,
+    Platform,
+    Pressable,
+    View,
+    type ViewProps,
 } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import {
-  default as Animated,
-  FadeIn,
-  FadeOut,
-  SlideInDown,
-  SlideOutDown,
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
+    default as Animated,
+    FadeIn,
+    FadeOut,
+    SlideInDown,
+    SlideOutDown,
+    runOnJS,
+    useAnimatedStyle,
+    useSharedValue,
+    withSpring,
 } from "react-native-reanimated";
 import { FullWindowOverlay as RNFullWindowOverlay } from "react-native-screens";
 
@@ -106,7 +106,7 @@ function AppModalContent({
     if (modalCtx?.open) {
       translateY.value = 0;
     }
-  }, [modalCtx?.open, translateY]);
+  }, [modalCtx?.open]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
@@ -244,15 +244,14 @@ function AppModalFooter({
         )}
         variant={confirmVariant}
       >
-        {isLoading && (
-          <Icon
-            as={require("lucide-react-native").Loader2}
-            className={cn(
-              "text-primary-foreground animate-spin",
-              confirmLabelClassName,
-            )}
-          />
-        )}
+        <Icon
+          as={require("lucide-react-native").Loader2}
+          className={cn(
+            "text-primary-foreground",
+            isLoading ? "animate-spin" : "animate-none",
+            confirmLabelClassName,
+          )}
+        />
 
         <Text
           className={cn(
@@ -268,10 +267,10 @@ function AppModalFooter({
 }
 
 export {
-  AppModal,
-  AppModalContent,
-  AppModalFooter,
-  AppModalHandle,
-  AppModalHeader
+    AppModal,
+    AppModalContent,
+    AppModalFooter,
+    AppModalHandle,
+    AppModalHeader
 };
 

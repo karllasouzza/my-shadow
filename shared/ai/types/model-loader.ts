@@ -6,6 +6,7 @@ export interface ModelLoadResult {
 export interface AvailableModel {
   id: string;
   displayName: string;
+  bytes: string;
   isLoaded: boolean;
   supportsReasoning: boolean;
 }

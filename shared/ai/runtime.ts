@@ -1,6 +1,13 @@
-import { Result, createError, err, ok } from "@/shared/utils/app-error";
-import type { LlamaContext, TokenData } from "llama.rn";
-import { initLlama } from "llama.rn";
+import { createError, err, ok, Result } from "@/shared/utils/app-error";
+// @ts-ignore
+import type {
+  LlamaContext,
+  RNLlamaOAICompatibleMessage,
+  TokenData,
+} from "llama.rn";
+import { initLlama, loadLlamaModelInfo } from "llama.rn";
+import { findModelById } from "./catalog";
+import { calculateMetrics, GenerationMetrics } from "./metrics";
 import type { ChatMessage } from "./types/chat";
 import type {
   CompletionOutput,
@@ -8,7 +15,7 @@ import type {
   StreamCompletionOptions,
 } from "./types/runtime";
 
-let runtimeInstance: AIRuntime | null = null;
+let instance: AIRuntime | null = null;
 
 const STOP_WORDS = [
   "</s>",
@@ -21,183 +28,129 @@ const STOP_WORDS = [
 ];
 
 export class AIRuntime {
-  private currentModel: LoadedModel | null = null;
+  private model: LoadedModel | null = null;
   private context: LlamaContext | null = null;
-  private parallelStop: (() => Promise<void>) | null = null;
+  private stop: (() => Promise<void>) | null = null;
 
-  /**
-   * Loads a model into memory. If another model is already loaded, it will be unloaded first.
-   */
-  async loadModel(
-    modelId: string,
-    modelPath: string,
-  ): Promise<Result<LoadedModel>> {
+  async loadModel(modelId: string, path: string): Promise<Result<LoadedModel>> {
     try {
-      if (this.context) {
-        await this.unloadModel();
-      }
+      await this.unloadModel();
+      await loadLlamaModelInfo(path);
 
       this.context = await initLlama({
-        model: modelPath,
-        n_ctx: 2048,
+        model: path,
+        n_ctx: 4096,
+        n_threads: 4,
+        n_batch: 512,
         n_gpu_layers: 99,
         use_mlock: true,
         flash_attn_type: "on",
-        cache_type_k: "f16",
-        cache_type_v: "f16",
+        flash_attn: true,
       });
 
-      this.currentModel = { id: modelId, isLoaded: true };
-
-      return ok(this.currentModel);
+      this.model = { id: modelId, isLoaded: true };
+      return ok(this.model);
     } catch (error) {
-      this.currentModel = null;
+      this.model = null;
       this.context = null;
-
       return err(
         createError(
           "NOT_READY",
-          "Falha ao carregar modelo na memória.",
-          { modelId, modelPath },
+          "Falha ao carregar modelo.",
+          { modelId, path },
           error as Error,
         ),
       );
     }
   }
 
-  /**
-   * Unloads the model from memory, freeing RAM.
-   */
   async unloadModel(): Promise<Result<void>> {
-    try {
-      if (!this.context) return ok(undefined);
+    if (!this.context) return ok(undefined);
 
-      await this.cancelGeneration();
-      await this.context.parallel.disable().catch(() => {});
-      this.context = null;
-      this.currentModel = null;
-
-      return ok(undefined);
-    } catch (error) {
-      return err(
-        createError(
-          "NOT_READY",
-          "Falha ao descarregar modelo.",
-          {},
-          error as Error,
-        ),
-      );
-    }
+    await this.cancelGeneration();
+    await this.context.parallel.disable().catch(() => {});
+    this.context = null;
+    this.model = null;
+    return ok(undefined);
   }
 
-  /**
-   * Streaming completion using llama.rn native .completion() with callback.
-   *
-   * Tokens are delivered in real-time via the onToken callback.
-   * Supports abort and thinking toggle.
-   */
   async streamCompletion(
     messages: ChatMessage[],
     options?: StreamCompletionOptions,
   ): Promise<Result<CompletionOutput>> {
-    if (!this.context || !this.currentModel) {
-      return err(
-        createError(
-          "NOT_READY",
-          "Nenhum modelo carregado. Carregue um modelo antes de gerar texto.",
-        ),
-      );
+    if (!this.context || !this.model) {
+      return err(createError("NOT_READY", "Nenhum modelo carregado."));
     }
 
+    const enableThinking =
+      !!options?.enableThinking &&
+      (findModelById(this.model.id)?.supportsReasoning ?? false);
+
+    let text = "";
+    let reasoning = "";
+    let tokenCount = 0;
+    let firstTokenTime: number | null = null;
+    const messagesForContext = this.sanitizeMessagesForLLMContext(messages);
+    const startTime = performance.now();
+
+    const signal = options?.abortSignal;
+    const onAbort = () => void this.cancelGeneration();
+
     try {
-      let fullResponse = "";
-      let fullReasoning = "";
-      let aborted = false;
-
-      // Always accumulate tokens internally for the final result
-      const streamCallback = (data: {
-        token: string;
-        reasoningContent: string;
-      }) => {
-        if (data.token) fullResponse += data.token;
-        if (data.reasoningContent) fullReasoning += data.reasoningContent;
-        // Forward to caller callback
-        options?.onStreamChunk?.(data);
-        // Legacy fallback
-        if (!options?.onStreamChunk && data.token) {
-          options?.onToken?.(data.token);
-        }
-      };
-
-      // Enable parallel mode if not already enabled
       await this.context.parallel.enable({ n_parallel: 1 });
 
       const { promise, stop } = await this.context.parallel.completion(
         {
-          messages,
+          messages: messagesForContext,
+          jinja: true,
+          enable_thinking: enableThinking,
+          thinking_forced_open: enableThinking,
           n_predict: options?.maxTokens ?? 4096,
           temperature: options?.temperature ?? 0.7,
           stop: STOP_WORDS,
-          // Only include chat_template_kwargs when thinking is actually enabled
-          ...(options?.enableThinking
-            ? {
-                chat_template_kwargs: {
-                  enable_thinking: "true",
-                },
-              }
-            : {}),
+          dry_penalty_last_n: 64,
         },
-        (_requestId: number, data: TokenData) => {
-          const token = data.token ?? "";
-          const reasoning = data.reasoning_content ?? "";
-          if (token || reasoning) {
-            streamCallback({ token, reasoningContent: reasoning });
-          }
+        (_: number, data: TokenData) => {
+          const t = data.token ?? "";
+          const r = data.reasoning_content ?? "";
+          if (!t && !r) return;
+
+          if (firstTokenTime === null) firstTokenTime = performance.now(); // <-- aqui
+          if (t) tokenCount++;
+
+          text += t;
+          reasoning += r;
+          options?.onStreamChunk?.({ token: t, reasoning: r || undefined });
         },
       );
 
-      this.parallelStop = stop;
-
-      if (options?.abortSignal) {
-        options.abortSignal.addEventListener("abort", () => {
-          aborted = true;
-          this.cancelGeneration();
-        });
-      }
-
+      this.stop = stop;
+      this.bindAbort(signal, onAbort);
       await promise;
-      this.parallelStop = null;
 
-      // Disable parallel mode after completion
-      await this.context.parallel.disable();
-
-      if (aborted) {
-        return err(createError("ABORTED", "Geração cancelada pelo usuário."));
+      if (signal?.aborted) {
+        return err(createError("ABORTED", "Geração cancelada."));
       }
 
-      // Return combined text: reasoning + response
-      // The caller (use-chat) separates them via onStreamChunk
-      const combinedText = fullReasoning
-        ? `<thinking>${fullReasoning}</thinking>${fullResponse}`
-        : fullResponse;
-
-      if (!combinedText.trim() && !fullReasoning.trim()) {
+      if (!text.trim() && !reasoning.trim()) {
         return err(
-          createError(
-            "LOCAL_GENERATION_UNAVAILABLE",
-            "Modelo retornou texto vazio.",
-          ),
+          createError("LOCAL_GENERATION_UNAVAILABLE", "Resposta vazia."),
         );
       }
 
-      return ok({ text: combinedText });
+      const metrics = calculateMetrics(
+        startTime,
+        firstTokenTime,
+        performance.now(),
+        tokenCount,
+      );
+
+      return ok({ text, reasoning: reasoning || undefined, metrics });
     } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") {
-        return err(createError("ABORTED", "Geração cancelada pelo usuário."));
+      console.error("Erro durante geração local:", error);
+      if ((error as Error).name === "AbortError") {
+        return err(createError("ABORTED", "Geração cancelada."));
       }
-
-      this.parallelStop = null;
-
       return err(
         createError(
           "LOCAL_GENERATION_UNAVAILABLE",
@@ -206,44 +159,73 @@ export class AIRuntime {
           error as Error,
         ),
       );
+    } finally {
+      this.stop = null;
+      this.unbindAbort(signal, onAbort);
+      await this.context?.parallel.disable().catch(() => {});
     }
   }
 
-  /**
-   * Cancels an ongoing generation.
-   */
   async cancelGeneration(): Promise<void> {
-    if (this.parallelStop) {
-      await this.parallelStop();
-      this.parallelStop = null;
-    }
-    // Disable parallel mode after cancellation
-    if (this.context) {
-      await this.context.parallel.disable();
-    }
+    await this.stop?.();
+    this.stop = null;
   }
 
-  /**
-   * Checks whether a model is loaded.
-   */
-  isModelLoaded(modelId?: string): boolean {
-    if (!this.currentModel) return false;
-    if (modelId && this.currentModel.id !== modelId) return false;
-    return this.currentModel.isLoaded;
+  isModelLoaded(id?: string): boolean {
+    if (!this.model?.isLoaded) return false;
+    return id ? this.model.id === id : true;
   }
 
-  /**
-   * Returns the currently loaded model.
-   */
   getCurrentModel(): LoadedModel | null {
-    return this.currentModel;
+    return this.model;
+  }
+
+  private bindAbort(
+    signal: AbortSignal | undefined,
+    handler: () => void,
+  ): void {
+    if (!signal) return;
+    try {
+      signal.addEventListener?.("abort", handler) ?? (signal.onabort = handler);
+    } catch {
+      // ignore
+    }
+  }
+
+  private unbindAbort(
+    signal: AbortSignal | undefined,
+    handler: () => void,
+  ): void {
+    if (!signal) return;
+    try {
+      signal.removeEventListener?.("abort", handler) ?? (signal.onabort = null);
+    } catch {
+      // ignore
+    }
+  }
+
+  private sanitizeMessagesForLLMContext(
+    messages: ChatMessage[],
+  ): RNLlamaOAICompatibleMessage[] {
+    return messages.map((msg) => {
+      const { role, content, reasoning_content } = msg;
+      if (role === "user") {
+        return {
+          role,
+          content,
+        } as RNLlamaOAICompatibleMessage;
+      }
+      return {
+        role,
+        content,
+        reasoning_content,
+      } as RNLlamaOAICompatibleMessage;
+    });
   }
 }
 
-/** Returns the singleton instance of AIRuntime */
 export function getAIRuntime(): AIRuntime {
-  if (!runtimeInstance) {
-    runtimeInstance = new AIRuntime();
-  }
-  return runtimeInstance;
+  return (instance ??= new AIRuntime());
 }
+
+export type { GenerationMetrics };

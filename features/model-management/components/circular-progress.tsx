@@ -1,18 +1,11 @@
-/**
- * Circular Progress
- *
- * Animação de progresso circular usando stroke.
- * Vai de 0 a 100% formando um círculo completo.
- */
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { View } from "react-native";
 import Animated, {
-    Easing,
-    useAnimatedProps,
-    useSharedValue,
-    withTiming,
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
 } from "react-native-reanimated";
-import { Circle, Svg } from "react-native-svg";
 
 interface CircularProgressProps {
   progress: number; // 0-100
@@ -22,8 +15,19 @@ interface CircularProgressProps {
   strokeColor?: string;
 }
 
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
-
+/**
+ * Circular progress ring using the rotating-halves technique.
+ *
+ * Implemented with react-native-reanimated + View (no react-native-svg),
+ * which avoids a crash caused by the native SVG module being evaluated at
+ * module-init time before the native bridge is ready.
+ *
+ * How it works:
+ *  - A right-half clipping container (overflow: hidden) reveals 0-50%.
+ *  - A left-half clipping container reveals 50-100%.
+ *  - Each contains a full-size filled circle that rotates from -180° → 0°.
+ *  - A centre hole (bg-background) on top creates the ring appearance.
+ */
 export function CircularProgress({
   progress,
   size = 24,
@@ -31,52 +35,111 @@ export function CircularProgress({
   trackColor = "rgba(153, 159, 243, 0.15)",
   strokeColor = "#999ff3",
 }: CircularProgressProps) {
-  const progressValue = useSharedValue(0);
+  const progressValue = useSharedValue(progress);
+  const prevProgress = useRef(progress);
 
   useEffect(() => {
+    if (prevProgress.current === progress) return;
+    prevProgress.current = progress;
     progressValue.value = withTiming(progress, {
       duration: 300,
       easing: Easing.out(Easing.cubic),
     });
   }, [progress]);
 
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
+  const halfSize = size / 2;
+  const innerSize = size - strokeWidth * 2;
 
-  const animatedProps = useAnimatedProps(() => {
-    const progressRatio = Math.min(progressValue.value / 100, 1);
-    const strokeDashoffset = circumference * (1 - progressRatio);
-    return {
-      strokeDashoffset,
-    };
+  // Right half: reveals 0–50% sweeping CW from 12 o'clock to 6 o'clock.
+  // The inner circle rotates around the overall centre (its default origin).
+  const rightStyle = useAnimatedStyle(() => {
+    const p = Math.min(progressValue.value, 50);
+    const deg = (p / 50) * 180 - 180;
+    return { transform: [{ rotate: `${deg}deg` }] };
+  });
+
+  // Left half: reveals 50–100% sweeping CW from 6 o'clock to 12 o'clock.
+  const leftStyle = useAnimatedStyle(() => {
+    const remaining = Math.max(progressValue.value - 50, 0);
+    const deg = (remaining / 50) * 180 - 180;
+    return { transform: [{ rotate: `${deg}deg` }] };
   });
 
   return (
     <View style={{ width: size, height: size }}>
-      <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        {/* Track circle */}
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke={trackColor}
-          strokeWidth={strokeWidth}
-          fill="none"
+      {/* Track */}
+      <View
+        style={{
+          position: "absolute",
+          width: size,
+          height: size,
+          borderRadius: halfSize,
+          backgroundColor: trackColor,
+        }}
+      />
+
+      {/* Right-half fill (0–50%): overflow hides the left half of the circle */}
+      <View
+        style={{
+          position: "absolute",
+          width: halfSize,
+          height: size,
+          left: halfSize,
+          overflow: "hidden",
+        }}
+      >
+        <Animated.View
+          style={[
+            {
+              position: "absolute",
+              width: size,
+              height: size,
+              borderRadius: halfSize,
+              backgroundColor: strokeColor,
+              left: -halfSize,
+            },
+            rightStyle,
+          ]}
         />
-        {/* Progress circle */}
-        <AnimatedCircle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke={strokeColor}
-          strokeWidth={strokeWidth}
-          fill="none"
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          animatedProps={animatedProps}
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+      </View>
+
+      {/* Left-half fill (50–100%): overflow hides the right half of the circle */}
+      <View
+        style={{
+          position: "absolute",
+          width: halfSize,
+          height: size,
+          left: 0,
+          overflow: "hidden",
+        }}
+      >
+        <Animated.View
+          style={[
+            {
+              position: "absolute",
+              width: size,
+              height: size,
+              borderRadius: halfSize,
+              backgroundColor: strokeColor,
+              left: 0,
+            },
+            leftStyle,
+          ]}
         />
-      </Svg>
+      </View>
+
+      {/* Centre hole — creates the ring appearance */}
+      <View
+        className="bg-background"
+        style={{
+          position: "absolute",
+          top: strokeWidth,
+          left: strokeWidth,
+          width: innerSize,
+          height: innerSize,
+          borderRadius: innerSize / 2,
+        }}
+      />
     </View>
   );
 }

@@ -5,9 +5,9 @@
  * Tap → switch to Chat tab + load conversation.
  * Long-press → action sheet for rename/delete (Phase 6).
  */
-import React from "react";
-import { TouchableOpacity, Text } from "react-native";
 import type { ChatConversationIndex } from "@/features/chat/model/chat-conversation";
+import React from "react";
+import { Text, TouchableOpacity, View } from "react-native";
 
 interface ConversationItemProps {
   conversation: ChatConversationIndex;
@@ -28,17 +28,19 @@ export function ConversationItem({
       accessibilityLabel={`Conversa: ${conversation.title}`}
       accessibilityHint={`Última atualização: ${formatRelativeDate(conversation.updatedAt)}`}
       accessibilityRole="button"
-      className="px-5 py-4 border-b border-border/30 bg-card active:bg-muted"
+      className="px-5 py-4 flex gap-1 flex-col border-b border-border bg-card active:bg-muted"
     >
-      <Text
-        className="text-foreground text-base font-medium"
-        numberOfLines={1}
-      >
+      <Text className="text-foreground text-base font-medium" numberOfLines={1}>
         {conversation.title}
       </Text>
-      <Text className="text-muted text-xs mt-1">
-        {formatRelativeDate(conversation.updatedAt)}
-      </Text>
+      <View className="flex flex-row justify-between">
+        <Text className="text-foreground/75 text-xs truncate" numberOfLines={1}>
+          {conversation.lastMessageSnippet}
+        </Text>
+        <Text className="text-muted-foreground/55 text-xs">
+          {formatRelativeDate(conversation.updatedAt)}
+        </Text>
+      </View>
     </TouchableOpacity>
   );
 }

@@ -1,7 +1,7 @@
 import AutoResizingInput from "@/components/ui/auto-resizing-input";
 import { cn } from "@/lib/utils";
 import { AvailableModel } from "@/shared/ai/types/model-loader";
-import React from "react";
+import React, { useCallback } from "react";
 import { Platform, View } from "react-native";
 import { ModelSelector } from "./model-selector";
 import QuickActions from "./quick-actions";
@@ -24,7 +24,6 @@ interface ChatBottomBarProps {
   modelError: string | null;
   handleModelSelect: (modelId: string) => void;
 
-  modelSupportsReasoning: boolean;
   thinkingEnabled: boolean;
   toggleThinking: () => void;
 }
@@ -47,7 +46,6 @@ function ChatBottomBar({
   modelError,
   handleModelSelect,
 
-  modelSupportsReasoning,
   thinkingEnabled,
   toggleThinking,
 }: ChatBottomBarProps) {
@@ -60,11 +58,17 @@ function ChatBottomBar({
 
   if (availableModels.length === 0 && !isModelLoading) return null;
 
+  const modelSupportsReasoning = useCallback(() => {
+    if (!selectedModel) return false;
+    const model = availableModels.find((m) => m.id === selectedModel);
+    return model?.supportsReasoning || false;
+  }, [selectedModel, availableModels])();
+
   return (
     <View className={cn("flex w-full p-0 bg-transparent", className)}>
-      {hasContent && <QuickActions />}
+      {!hasContent && <QuickActions />}
 
-      <View className="flex w-full p-3 pt-0  bg-transparent">
+      <View className="flex w-full p-3 pt-6  bg-transparent">
         <View className="bg-card border border-border rounded-2xl p-3 pt-3">
           {/* Text Input */}
           <AutoResizingInput
@@ -83,7 +87,7 @@ function ChatBottomBar({
             onSubmitEditing={handleSend}
             returnKeyType="send"
             accessibilityLabel="Campo de mensagem do chat"
-            className="w-full"
+            className="w-full text-foreground placeholder:text-muted-foreground bg-transparent outline-none"
           />
 
           <View className="flex-row items-center justify-between pt-1">

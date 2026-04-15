@@ -15,9 +15,11 @@ import type {
 } from "@/features/chat/model/chat-conversation";
 import {
   autoGenerateTitle,
+  getLastMessageSnippet,
   validateTitle,
 } from "@/features/chat/model/chat-conversation";
 import { createChatMessage } from "@/features/chat/model/chat-message";
+import type { ChatMessage } from "@/shared/ai/types/chat";
 import { Result, createError, err, ok } from "@/shared/utils/app-error";
 import { randomUUID } from "expo-crypto";
 import { createMMKV, type MMKV } from "react-native-mmkv";
@@ -211,6 +213,7 @@ function updateIndex(conversation: ChatConversation): void {
   const entry: ChatConversationIndex = {
     id: conversation.id,
     title: conversation.title,
+    lastMessageSnippet: getLastMessageSnippet(conversation.messages),
     updatedAt: conversation.updatedAt,
   };
 
@@ -240,4 +243,104 @@ function saveAndReturn(conv: ChatConversation): Result<ChatConversation> {
   const saveResult = saveConversation(conv);
   if (!saveResult.success) return err(saveResult.error);
   return ok(conv);
+}
+
+// --------------------------------------------------------------------------
+// Streaming partials (persist transient streaming assistant messages)
+// Stored under key `chat:{conversationId}:streaming` to survive restarts.
+// --------------------------------------------------------------------------
+
+function streamingKey(convId: string) {
+  return `chat:${convId}:streaming`;
+}
+
+/** Upsert a streaming partial for a conversation (overwrites previous) */
+export function upsertStreamingMessage(
+  conversationId: string,
+  message: ChatMessage,
+): Result<void> {
+  try {
+    const store = getStorage();
+    store.set(streamingKey(conversationId), JSON.stringify(message));
+    return ok(undefined);
+  } catch (error) {
+    return err(
+      createError(
+        "STORAGE_ERROR",
+        "Failed to upsert streaming message",
+        {},
+        error as Error,
+      ),
+    );
+  }
+}
+
+/** Load the persisted streaming partial for a conversation, if any */
+export function loadStreamingMessage(
+  conversationId: string,
+): Result<ChatMessage | null> {
+  try {
+    const store = getStorage();
+    const raw = store.getString(streamingKey(conversationId));
+    if (!raw) return ok(null);
+    const msg = JSON.parse(raw) as ChatMessage;
+    return ok(msg);
+  } catch (error) {
+    return err(
+      createError(
+        "STORAGE_ERROR",
+        "Failed to load streaming message",
+        {},
+        error as Error,
+      ),
+    );
+  }
+}
+
+/** Remove persisted streaming partial */
+export function clearStreamingMessage(conversationId: string): Result<void> {
+  try {
+    const store = getStorage();
+    store.set(streamingKey(conversationId), "");
+    return ok(undefined);
+  } catch (error) {
+    return err(
+      createError(
+        "STORAGE_ERROR",
+        "Failed to clear streaming message",
+        {},
+        error as Error,
+      ),
+    );
+  }
+}
+
+/** Commit persisted partial into conversation (append final message and clear partial) */
+export function commitStreamingMessage(
+  conversationId: string,
+  finalMessage: ChatMessage,
+): Result<void> {
+  try {
+    const load = loadConversation(conversationId);
+    if (!load.success) return err(load.error);
+    const conv = load.data;
+    if (!conv) return ok(undefined);
+
+    conv.messages.push(finalMessage);
+    conv.updatedAt = new Date().toISOString();
+    const saveRes = saveConversation(conv);
+    if (!saveRes.success) return err(saveRes.error);
+    // Clear the partial after saving final message
+    clearStreamingMessage(conversationId);
+    return ok(undefined);
+  } catch (error) {
+    return err(
+      createError(
+        "STORAGE_ERROR",
+        "Failed to commit streaming message",
+        {},
+        error as Error,
+      ),
+    );
+  }
 }

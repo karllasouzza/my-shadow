@@ -1,27 +1,29 @@
 import {
   getThinkingEnabled,
   setThinkingEnabled,
-} from "@/database/actions/chat-actions";
+} from "@/database/actions/chat/think-mode";
 import * as DatabaseChat from "@/database/chat";
 import { autoGenerateTitle } from "@/features/chat/model/chat-conversation";
 import {
   createChatMessage,
   validateChatMessage,
-  type ChatMessage,
 } from "@/features/chat/model/chat-message";
 import {
   autoLoadLastModel,
   getAvailableModels,
   getSelectedModelId,
+  isModelDownloaded,
   loadModel,
   unloadModel,
 } from "@/shared/ai/model-loader";
 import { getAIRuntime } from "@/shared/ai/runtime";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { ChatMessage } from "@/shared/ai/types/chat";
+import type { AvailableModel } from "@/shared/ai/types/model-loader";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 interface StreamingMessage extends ChatMessage {
   _isStreaming: true;
-  _key: string; // Unique key for LegendList
+  _key: string;
 }
 
 export function useChat() {
@@ -35,9 +37,11 @@ export function useChat() {
   const [thinkingEnabled, setThinkingEnabledState] = useState(() =>
     getThinkingEnabled(),
   );
-  const [modelSupportsReasoning, setModelSupportsReasoning] = useState(false);
   const [isModelLoading, setIsModelLoading] = useState(false);
   const [modelError, setModelError] = useState<string | null>(null);
+  const [currentLoadedModelId, setCurrentLoadedModelId] = useState<
+    string | null
+  >(null);
 
   // Global conversation error (shown as overlay, not in chat)
   const [conversationError, setConversationError] = useState<string | null>(
@@ -46,9 +50,51 @@ export function useChat() {
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Refs to avoid stale closures in async callbacks (onToken, abort)
+  // Refs to avoid stale closures in async callbacks (stream updates, abort)
   const streamingMessageRef = useRef<StreamingMessage | null>(null);
   const streamingKeyRef = useRef<string>("");
+  // Throttle/queue for persisting streaming partials
+  const upsertTimerRef = useRef<number | null>(null);
+  const lastUpsertMsgRef = useRef<StreamingMessage | null>(null);
+  const UPLOAD_THROTTLE_MS = 500;
+
+  const schedulePersistPartial = useCallback(
+    (convId: string, msg: StreamingMessage) => {
+      lastUpsertMsgRef.current = msg;
+      if (upsertTimerRef.current !== null) return;
+      upsertTimerRef.current = setTimeout(() => {
+        const toSave = lastUpsertMsgRef.current;
+        if (toSave) {
+          try {
+            DatabaseChat.upsertStreamingMessage(convId, toSave as any);
+          } catch (e) {
+            // best-effort
+            // eslint-disable-next-line no-console
+            console.warn("Failed to persist streaming partial", e);
+          }
+        }
+        upsertTimerRef.current = null;
+        lastUpsertMsgRef.current = null;
+      }, UPLOAD_THROTTLE_MS) as unknown as number;
+    },
+    [],
+  );
+
+  const flushPersistPartial = useCallback((convId?: string) => {
+    if (upsertTimerRef.current !== null) {
+      clearTimeout(upsertTimerRef.current as unknown as number);
+      upsertTimerRef.current = null;
+      const toSave = lastUpsertMsgRef.current;
+      if (toSave && convId) {
+        try {
+          DatabaseChat.upsertStreamingMessage(convId, toSave as any);
+        } catch (e) {
+          // ignore
+        }
+      }
+      lastUpsertMsgRef.current = null;
+    }
+  }, []);
 
   // Ref to store last user message for retry functionality
   const lastUserMessageRef = useRef<string>("");
@@ -61,36 +107,46 @@ export function useChat() {
 
   // Refresh available models when model state changes
   const [modelsRefresh, setModelsRefresh] = useState(0);
-  const availableModels = useMemo(
-    () => getAvailableModels(),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [modelsRefresh],
-  );
+  const [availableModels, setAvailableModels] = useState<AvailableModel[]>([]);
+
+  const reloadAvailableModels = useCallback(async () => {
+    const models = await getAvailableModels();
+    setAvailableModels(models);
+    return models;
+  }, []);
+
+  useEffect(() => {
+    void reloadAvailableModels();
+  }, [modelsRefresh, reloadAvailableModels]);
+
+  /** Call this when screen gains focus to refresh model list */
+  const refreshModelsOnFocus = useCallback(() => {
+    setModelsRefresh((v) => v + 1);
+  }, []);
 
   const selectedModelId = useMemo(
-    () => getSelectedModelId(),
-    [isModelReady, modelsRefresh],
+    () => currentLoadedModelId ?? getSelectedModelId(),
+    [isModelReady, modelsRefresh, currentLoadedModelId],
   );
 
-  const handleLoadModel = useCallback(async (modelId: string) => {
-    setIsModelLoading(true);
-    setModelError(null);
-    const result = await loadModel(modelId);
-    setIsModelLoading(false);
+  const handleLoadModel = useCallback(
+    async (modelId: string) => {
+      setIsModelLoading(true);
+      setModelError(null);
+      const result = await loadModel(modelId);
+      setIsModelLoading(false);
 
-    if (!result.success) {
-      setModelError(result.error ?? "Falha ao carregar modelo.");
-      return;
-    }
+      if (!result.success) {
+        setModelError(result.error ?? "Falha ao carregar modelo.");
+        return;
+      }
 
-    setIsModelReady(true);
-    setModelsRefresh((v) => v + 1);
-
-    // Check reasoning support
-    const models = getAvailableModels();
-    const entry = models.find((m) => m.id === modelId);
-    setModelSupportsReasoning(entry?.supportsReasoning ?? false);
-  }, []);
+      setCurrentLoadedModelId(modelId);
+      setIsModelReady(true);
+      setModelsRefresh((v) => v + 1);
+    },
+    [reloadAvailableModels],
+  );
 
   const handleUnloadModel = useCallback(async () => {
     setIsModelLoading(true);
@@ -102,6 +158,7 @@ export function useChat() {
       return;
     }
 
+    setCurrentLoadedModelId(null);
     setIsModelReady(false);
     setModelError(null);
     setModelsRefresh((v) => v + 1);
@@ -119,113 +176,334 @@ export function useChat() {
 
     if (result.success) {
       setModelsRefresh((v) => v + 1);
-      const models = getAvailableModels();
-      const selected = getSelectedModelId();
-      const entry = models.find((m) => m.id === selected);
-      setModelSupportsReasoning(entry?.supportsReasoning ?? false);
       setModelError(null);
+      setIsModelReady(true);
+      setModelsRefresh((v) => v + 1);
       return;
     } else {
       setModelError(result.error ?? "Falha ao carregar modelo.");
     }
-  }, []);
+  }, [reloadAvailableModels]);
 
   // ==========================================================================
   // Chat Actions
   // ==========================================================================
 
-  const initChat = useCallback(async (id: string | null) => {
-    setStreamingMessage(null);
-    setIsGenerating(false);
-    setShowCancelOption(false);
-    setThinkingEnabledState(getThinkingEnabled());
-    setConversationError(null);
+  const initChat = useCallback(
+    async (id: string | null) => {
+      setStreamingMessage(null);
+      setIsGenerating(false);
+      setShowCancelOption(false);
+      setThinkingEnabledState(getThinkingEnabled());
+      setConversationError(null);
 
-    const model = getAIRuntime().getCurrentModel();
-    const catalog = getAvailableModels();
-    const entry = catalog.find((m) => m.id === model?.id);
-    const supports = entry?.supportsReasoning ?? false;
-    setModelSupportsReasoning(supports);
+      // If no ID, just reset and return
+      if (!id) {
+        setConversationId(null);
+        setConversationTitle("Nova conversa");
+        return;
+      }
 
-    // If no ID, just reset and return
-    if (!id) {
-      setConversationId(null);
-      setConversationTitle("Nova conversa");
-      return;
-    }
+      // Validate conversation exists in storage
+      const loadResult = DatabaseChat.loadConversation(id);
+      if (!loadResult.success || !loadResult.data) {
+        setConversationId(null);
+        setConversationTitle("Nova conversa");
+        setConversationError("Conversa não encontrada");
+        return;
+      }
 
-    // Validate conversation exists in storage
-    const loadResult = DatabaseChat.loadConversation(id);
-    if (!loadResult.success || !loadResult.data) {
-      setConversationId(null);
-      setConversationTitle("Nova conversa");
-      setConversationError("Conversa não encontrada");
-      return;
-    }
+      // Conversation exists, set it
+      setConversationId(id);
+      setConversationTitle(loadResult.data.title || "Nova conversa");
 
-    // Conversation exists, set it
-    setConversationId(id);
-    setConversationTitle(loadResult.data.title || "Nova conversa");
-  }, []);
+      // If there's a persisted streaming partial for this conversation, load it
+      try {
+        const persisted = DatabaseChat.loadStreamingMessage(id);
+        if (persisted.success && persisted.data) {
+          const pm = persisted.data as unknown as StreamingMessage;
+          pm._isStreaming = true;
+          pm._key = pm._key ?? makeKey();
+          streamingMessageRef.current = pm;
+          setStreamingMessage(pm);
+        }
+      } catch (e) {
+        // ignore — best-effort
+      }
+    },
+    [availableModels],
+  );
 
   /** Helper to add error message to conversation */
-  const addErrorMessageToConversation = useCallback(
-    (convId: string, errorMessage: string, errorCode?: string) => {
+  const attachErrorToUserMessage = useCallback(
+    (convId: string, userMessageIndex: number, errorCode?: string) => {
       const result = DatabaseChat.loadConversation(convId);
       if (!result.success || !result.data) return;
 
-      result.data.messages.push(
-        createChatMessage(
-          "error",
-          errorMessage,
-          undefined,
-          undefined,
-          errorCode,
-        ),
-      );
-      result.data.updatedAt = new Date().toISOString();
-      DatabaseChat.saveConversation(result.data);
+      const msg = result.data.messages[userMessageIndex];
+      if (msg && msg.role === "user") {
+        msg.errorCode = errorCode;
+        result.data.updatedAt = new Date().toISOString();
+        DatabaseChat.saveConversation(result.data);
+      }
     },
     [],
   );
 
   const syncModelStatus = useCallback(() => {
-    const loaded = getAIRuntime().isModelLoaded();
+    const runtime = getAIRuntime();
+    const loaded = runtime.isModelLoaded();
+    const model = runtime.getCurrentModel();
+
+    // If runtime says loaded but file was deleted, unload it
+    if (loaded && model && !isModelDownloaded(model.id)) {
+      runtime.unloadModel();
+      setIsModelReady(false);
+      setModelError("Modelo removido do dispositivo.");
+      setModelsRefresh((v) => v + 1);
+      return;
+    }
+
     setIsModelReady(loaded);
-
-    const model = getAIRuntime().getCurrentModel();
-    const models = getAvailableModels();
-    const entry = models.find((m) => m.id === model?.id);
-    const supports = entry?.supportsReasoning ?? false;
-    setModelSupportsReasoning(supports);
     setModelsRefresh((v) => v + 1);
-  }, []);
+  }, [availableModels]);
 
-  const sendMessage = useCallback(
-    async (content: string) => {
-      // Store for retry functionality
-      lastUserMessageRef.current = content;
+  // Internal: generate response for a user message (by index in conversation)
+  // Handles streaming, error attachment, and success persistence
+  const _performGeneration = useCallback(
+    async (convId: string, userMessageIndex: number) => {
+      const loadResult = DatabaseChat.loadConversation(convId);
+      if (!loadResult.success || !loadResult.data) return;
+      const conv = loadResult.data;
 
-      const validation = validateChatMessage(content);
-      if (!validation.isValid) {
-        if (conversationId) {
-          addErrorMessageToConversation(
-            conversationId,
-            validation.error ?? "Mensagem inválida.",
-            "VALIDATION_ERROR",
+      // Clear any previous error on this user message
+      if (conv.messages[userMessageIndex]) {
+        conv.messages[userMessageIndex].errorCode = undefined;
+        DatabaseChat.saveConversation(conv);
+      }
+
+      const currentModelId = getAIRuntime().getCurrentModel()?.id ?? "unknown";
+      setIsGenerating(true);
+      const stableKey = makeKey();
+      streamingKeyRef.current = stableKey;
+
+      const initialMsg: StreamingMessage = {
+        role: "assistant",
+        content: "",
+        reasoning_content: "",
+        modelId: currentModelId,
+        timestamp: new Date().toISOString(),
+        _isStreaming: true,
+        _key: stableKey,
+      };
+
+      streamingMessageRef.current = initialMsg;
+      setStreamingMessage(initialMsg);
+      setShowCancelOption(false);
+      // Persist initial partial (best-effort)
+      try {
+        DatabaseChat.upsertStreamingMessage(convId, initialMsg as any);
+      } catch (e) {
+        // ignore
+      }
+
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
+      const runtime = getAIRuntime();
+      const messages = conv.messages.map((m) => ({
+        role: m.role as "system" | "user" | "assistant",
+        content: m.content,
+      }));
+
+      const thinking = thinkingEnabled;
+      let fullResponse = "";
+      let localReasoning = "";
+      let rawAccumulated = "";
+
+      const streamResult = await runtime.streamCompletion(messages, {
+        enableThinking: thinking,
+        onStreamChunk: (data) => {
+          if (controller.signal.aborted) return;
+
+          const runtimeReasoning = (data as any).reasoning;
+
+          if (thinking) {
+            if (runtimeReasoning) {
+              rawAccumulated += data.token;
+              fullResponse = rawAccumulated;
+              localReasoning = String(runtimeReasoning).trim();
+            } else {
+              rawAccumulated += data.token;
+
+              const thinkStartMatch = rawAccumulated.match(
+                /<think>([\s\S]*?)<\/think>/,
+              );
+              if (thinkStartMatch) {
+                localReasoning = thinkStartMatch[1].trim();
+                fullResponse = rawAccumulated
+                  .replace(/<think>[\s\S]*?<\/think>/, "")
+                  .trim();
+              } else if (rawAccumulated.includes("<think>")) {
+                const partial = rawAccumulated.split("<think>")[1];
+                if (partial) localReasoning = partial;
+                fullResponse = "";
+              } else {
+                fullResponse = rawAccumulated;
+              }
+            }
+          } else {
+            if (data.token) fullResponse += data.token;
+          }
+
+          const updatedMsg: StreamingMessage = {
+            role: "assistant",
+            content: fullResponse,
+            reasoning_content: localReasoning || undefined,
+            modelId: currentModelId,
+            timestamp: new Date().toISOString(),
+            _isStreaming: true,
+            _key: streamingKeyRef.current,
+          };
+
+          streamingMessageRef.current = updatedMsg;
+          setStreamingMessage(updatedMsg);
+          setShowCancelOption(true);
+          // schedule a throttled upsert of the partial
+          try {
+            schedulePersistPartial(convId, updatedMsg);
+          } catch (e) {
+            // ignore
+          }
+        },
+        abortSignal: controller.signal,
+      });
+
+      setIsGenerating(false);
+      setShowCancelOption(false);
+
+      if (controller.signal.aborted) {
+        const partial = streamingMessageRef.current;
+        if (partial && (partial.reasoning_content || partial.content)) {
+          const conv2 = DatabaseChat.loadConversation(convId);
+          if (conv2.success && conv2.data) {
+            conv2.data.messages.push(
+              createChatMessage(
+                "assistant",
+                partial.content + " [cancelado]",
+                partial.reasoning_content,
+                currentModelId,
+              ),
+            );
+            conv2.data.updatedAt = new Date().toISOString();
+            DatabaseChat.saveConversation(conv2.data);
+          }
+        }
+        // flush and clear persisted partial
+        try {
+          flushPersistPartial(convId);
+          DatabaseChat.clearStreamingMessage(convId);
+        } catch (e) {
+          // ignore
+        }
+        streamingMessageRef.current = null;
+        setStreamingMessage(null);
+        abortControllerRef.current = null;
+        return;
+      }
+
+      if (!streamResult.success) {
+        const partial = streamingMessageRef.current;
+        streamingMessageRef.current = null;
+        setStreamingMessage(null);
+        abortControllerRef.current = null;
+
+        const errorCode = streamResult.error?.code ?? "GENERATION_FAILED";
+
+        if (!partial?.content?.trim() && !partial?.reasoning_content?.trim()) {
+          attachErrorToUserMessage(convId, userMessageIndex, errorCode);
+          return;
+        }
+
+        const conv3 = DatabaseChat.loadConversation(convId);
+        if (conv3.success && conv3.data) {
+          conv3.data.messages.push(
+            createChatMessage(
+              "assistant",
+              (partial.content ?? "") + " [erro na geração]",
+              partial.reasoning_content || undefined,
+              currentModelId,
+            ),
           );
+          conv3.data.updatedAt = new Date().toISOString();
+          DatabaseChat.saveConversation(conv3.data);
+          // clear persisted partial
+          try {
+            flushPersistPartial(convId);
+            DatabaseChat.clearStreamingMessage(convId);
+          } catch (e) {
+            // ignore
+          }
         }
         return;
       }
 
-      if (!isModelReady) {
-        if (conversationId) {
-          addErrorMessageToConversation(
-            conversationId,
-            "Nenhum modelo carregado. Selecione um modelo no seletor acima.",
-            "MODEL_NOT_LOADED",
-          );
+      // Extract final values at top level for access in metrics update
+      const finalText =
+        streamResult.data?.text ??
+        streamingMessageRef.current?.content ??
+        fullResponse;
+      const finalThinking =
+        (streamResult.data?.reasoning ??
+          streamingMessageRef.current?.reasoning_content ??
+          localReasoning) ||
+        undefined;
+
+      const conv3 = DatabaseChat.loadConversation(convId);
+      if (conv3.success && conv3.data) {
+        const finalMsg = createChatMessage(
+          "assistant",
+          finalText,
+          finalThinking,
+          currentModelId,
+        );
+
+        // Attach generation metrics if available
+        if (streamResult.data?.metrics) {
+          (finalMsg as any).generationMetrics = streamResult.data.metrics;
         }
+
+        conv3.data.messages.push(finalMsg);
+        conv3.data.updatedAt = new Date().toISOString();
+        DatabaseChat.saveConversation(conv3.data);
+        // flush any pending partial writes and clear persisted partial
+        try {
+          flushPersistPartial(convId);
+          DatabaseChat.clearStreamingMessage(convId);
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      // Clear streaming message immediately so displayMessages reloads from DB
+      // The message now has metrics in persistent storage
+      setStreamingMessage(null);
+      streamingMessageRef.current = null;
+      abortControllerRef.current = null;
+    },
+    [thinkingEnabled, makeKey, attachErrorToUserMessage],
+  );
+
+  const sendMessage = useCallback(
+    async (content: string) => {
+      lastUserMessageRef.current = content;
+
+      const validation = validateChatMessage(content);
+      if (!validation.isValid) {
+        return;
+      }
+
+      if (!isModelReady) {
         return;
       }
 
@@ -240,16 +518,12 @@ export function useChat() {
 
       const loadResult = DatabaseChat.loadConversation(convId);
       if (!loadResult.success || !loadResult.data) {
-        addErrorMessageToConversation(
-          convId,
-          "Falha ao carregar conversa.",
-          "CONVERSATION_LOAD_FAILED",
-        );
         return;
       }
       const conv = loadResult.data;
 
       conv.messages.push(createChatMessage("user", content));
+      const userMessageIndex = conv.messages.length - 1;
       conv.updatedAt = new Date().toISOString();
 
       if (conv.messages.filter((m) => m.role === "user").length === 1) {
@@ -259,194 +533,35 @@ export function useChat() {
 
       DatabaseChat.saveConversation(conv);
 
-      // Current model ID for this message
-      const currentModelId = getAIRuntime().getCurrentModel()?.id ?? "unknown";
-
-      setIsGenerating(true);
-      const stableKey = makeKey();
-      streamingKeyRef.current = stableKey;
-
-      const initialMsg: StreamingMessage = {
-        role: "assistant",
-        content: "",
-        thinking: "",
-        modelId: currentModelId,
-        timestamp: new Date().toISOString(),
-        _isStreaming: true,
-        _key: stableKey,
-      };
-
-      streamingMessageRef.current = initialMsg;
-      setStreamingMessage(initialMsg);
-      setShowCancelOption(false);
-
-      const controller = new AbortController();
-      abortControllerRef.current = controller;
-
-      const runtime = getAIRuntime();
-      const messages = conv.messages.map((m) => ({
-        role: m.role as "system" | "user" | "assistant",
-        content: m.content,
-      }));
-
-      const thinking = thinkingEnabled;
-      let fullResponse = "";
-      let reasoningContent = "";
-      let rawAccumulated = "";
-
-      const streamResult = await runtime.streamCompletion(messages, {
-        enableThinking: thinking,
-        onStreamChunk: (data) => {
-          if (controller.signal.aborted) return;
-
-          // llama.rn may not separate reasoning_content natively.
-          // Parse <think> tags from the raw token stream.
-          if (thinking) {
-            rawAccumulated += data.token;
-
-            // Check if we have a complete think block
-            const thinkStartMatch = rawAccumulated.match(
-              /<think>([\s\S]*?)<\/think>/,
-            );
-            if (thinkStartMatch) {
-              reasoningContent = thinkStartMatch[1].trim();
-              fullResponse = rawAccumulated
-                .replace(/<think>[\s\S]*?<\/think>/, "")
-                .trim();
-            } else if (rawAccumulated.includes("<think>")) {
-              // Still accumulating thinking content
-              const partial = rawAccumulated.split("<think>")[1];
-              if (partial) reasoningContent = partial;
-              fullResponse = "";
-            } else {
-              // No thinking tags — treat all as response
-              fullResponse = rawAccumulated;
-            }
-          } else {
-            if (data.token) fullResponse += data.token;
-          }
-
-          const updatedMsg: StreamingMessage = {
-            role: "assistant",
-            content: fullResponse,
-            thinking: reasoningContent || undefined,
-            modelId: currentModelId,
-            timestamp: new Date().toISOString(),
-            _isStreaming: true,
-            _key: streamingKeyRef.current,
-          };
-
-          streamingMessageRef.current = updatedMsg;
-          setStreamingMessage(updatedMsg);
-          setShowCancelOption(true);
-        },
-        abortSignal: controller.signal,
-      });
-
-      setIsGenerating(false);
-      setShowCancelOption(false);
-
-      // Handle cancellation (user-initiated)
-      if (controller.signal.aborted) {
-        const partial = streamingMessageRef.current;
-        if (partial && (partial.thinking || partial.content)) {
-          const conv2 = DatabaseChat.loadConversation(convId!);
-          if (conv2.success && conv2.data) {
-            conv2.data.messages.push(
-              createChatMessage(
-                "assistant",
-                partial.content + " [cancelado]",
-                partial.thinking,
-                currentModelId,
-              ),
-            );
-            conv2.data.updatedAt = new Date().toISOString();
-            DatabaseChat.saveConversation(conv2.data);
-          }
-        }
-        streamingMessageRef.current = null;
-        setStreamingMessage(null);
-        abortControllerRef.current = null;
-        return;
-      }
-
-      // Handle streaming errors (runtime failures, empty response, etc.)
-      if (!streamResult.success) {
-        const partial = streamingMessageRef.current;
-        streamingMessageRef.current = null;
-        setStreamingMessage(null);
-        abortControllerRef.current = null;
-
-        const errorCode = streamResult.error?.code ?? "GENERATION_FAILED";
-        const errorMsg =
-          streamResult.error?.message ?? "Falha ao gerar resposta.";
-
-        // Only add error message if there's no user-visible content
-        if (!partial?.content?.trim() && !partial?.thinking?.trim()) {
-          addErrorMessageToConversation(convId!, errorMsg, errorCode);
-          return;
-        }
-
-        // If we have partial content, persist it despite the error
-        const conv3 = DatabaseChat.loadConversation(convId!);
-        if (conv3.success && conv3.data) {
-          conv3.data.messages.push(
-            createChatMessage(
-              "assistant",
-              (partial.content ?? "") + " [erro na geração]",
-              partial.thinking || undefined,
-              currentModelId,
-            ),
-          );
-          conv3.data.updatedAt = new Date().toISOString();
-          DatabaseChat.saveConversation(conv3.data);
-        }
-        return;
-      }
-
-      // Success: persist the assistant message
-      const conv3 = DatabaseChat.loadConversation(convId!);
-      if (conv3.success && conv3.data) {
-        const final = streamingMessageRef.current;
-        conv3.data.messages.push(
-          createChatMessage(
-            "assistant",
-            final?.content ?? fullResponse,
-            final?.thinking || reasoningContent || undefined,
-            currentModelId,
-          ),
-        );
-        conv3.data.updatedAt = new Date().toISOString();
-        DatabaseChat.saveConversation(conv3.data);
-      }
-
-      setStreamingMessage(null);
-      streamingMessageRef.current = null;
-      abortControllerRef.current = null;
+      await _performGeneration(convId, userMessageIndex);
     },
-    [conversationId, isModelReady, thinkingEnabled, makeKey],
+    [conversationId, isModelReady, _performGeneration],
   );
 
-  /** Retry last message by re-sending the last user message */
-  const retryLastMessage = useCallback(async () => {
-    const lastMessage = lastUserMessageRef.current;
-    if (!lastMessage) return;
+  /** Retry last user message by regenerating assistant response without duplicating user message */
+  const retryLastUserMessage = useCallback(async () => {
+    if (!conversationId) return;
 
-    // Remove the last error message before retrying
-    if (conversationId) {
-      const result = DatabaseChat.loadConversation(conversationId);
-      if (result.success && result.data) {
-        const lastMsg = result.data.messages[result.data.messages.length - 1];
-        if (lastMsg?.role === "error") {
-          result.data.messages.pop();
-          result.data.updatedAt = new Date().toISOString();
-          DatabaseChat.saveConversation(result.data);
-        }
-      }
+    const result = DatabaseChat.loadConversation(conversationId);
+    if (!result.success || !result.data) return;
+
+    const messages = result.data.messages;
+    const lastUserIdx = messages.findLastIndex((m) => m.role === "user");
+    if (lastUserIdx < 0) return;
+
+    // Delete any assistant messages after the last user message
+    const lastAssistantAfterUserIdx = messages.findLastIndex(
+      (m, i) => m.role === "assistant" && i > lastUserIdx,
+    );
+    if (lastAssistantAfterUserIdx > lastUserIdx) {
+      result.data.messages.splice(lastAssistantAfterUserIdx, 1);
+      result.data.updatedAt = new Date().toISOString();
+      DatabaseChat.saveConversation(result.data);
     }
 
-    await sendMessage(lastMessage);
-  }, [conversationId, sendMessage]);
+    // Regenerate (errorCode will be cleared by _performGeneration)
+    await _performGeneration(conversationId, lastUserIdx);
+  }, [conversationId, _performGeneration]);
 
   const cancelGeneration = useCallback(() => {
     abortControllerRef.current?.abort();
@@ -455,6 +570,14 @@ export function useChat() {
     setIsGenerating(false);
     setShowCancelOption(false);
     setStreamingMessage(null);
+    try {
+      if (conversationId) {
+        flushPersistPartial(conversationId);
+        DatabaseChat.clearStreamingMessage(conversationId);
+      }
+    } catch (e) {
+      // ignore
+    }
   }, []);
 
   const toggleThinking = useCallback(() => {
@@ -473,36 +596,61 @@ export function useChat() {
     setIsGenerating(false);
     setStreamingMessage(null);
     setShowCancelOption(false);
+    try {
+      if (conversationId) {
+        flushPersistPartial(conversationId);
+        DatabaseChat.clearStreamingMessage(conversationId);
+      }
+    } catch (e) {
+      // ignore
+    }
   }, []);
 
   // ==========================================================================
   // Derived state
   // ==========================================================================
 
+  // Centralize conversation loading and error handling to avoid duplicate DB calls
+  const getConversationData = useCallback((id: string | null) => {
+    if (!id) return null;
+    const result = DatabaseChat.loadConversation(id);
+    if (!result.success) {
+      // Log failure — keep UI resilient and return null
+      // Avoid throwing or setting state from render path
+      console.error("Failed to load conversation:", result.error);
+      return null;
+    }
+    return result.data;
+  }, []);
+
   const displayMessages = useMemo(() => {
     if (!conversationId) {
       return streamingMessage ? [streamingMessage] : [];
     }
-    const result = DatabaseChat.loadConversation(conversationId);
-    const messages = result.success && result.data ? result.data.messages : [];
+
+    const conv = getConversationData(conversationId);
+    const messages = conv?.messages ?? [];
+
     return streamingMessage ? [...messages, streamingMessage] : messages;
-  }, [conversationId, streamingMessage]);
+  }, [conversationId, streamingMessage, getConversationData]);
 
   const hasContent = useMemo(() => {
     if (!conversationId) return !!streamingMessage;
-    const result = DatabaseChat.loadConversation(conversationId);
-    const msgCount =
-      result.success && result.data ? result.data.messages.length : 0;
+
+    // Reuse already-computed displayMessages to avoid extra DB calls
+    const messages = displayMessages;
+    const msgCount = messages.length;
+
     const hasStreaming =
       !!streamingMessage &&
-      !!(streamingMessage.thinking || streamingMessage.content);
+      !!(streamingMessage.reasoning_content || streamingMessage.content);
+
     return msgCount > 0 || hasStreaming;
-  }, [conversationId, streamingMessage]);
+  }, [conversationId, streamingMessage, displayMessages]);
 
   const activeModelName = useMemo(
-    () => getSelectedModelId(),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [isModelReady, modelsRefresh],
+    () => currentLoadedModelId ?? getSelectedModelId(),
+    [isModelReady, modelsRefresh, currentLoadedModelId],
   );
 
   return useMemo(
@@ -517,7 +665,6 @@ export function useChat() {
       conversationError,
       showCancelOption: showCancelOption && isGenerating,
       thinkingEnabled,
-      modelSupportsReasoning,
       displayMessages,
       hasContent,
       activeModelName,
@@ -532,13 +679,14 @@ export function useChat() {
       cancelGeneration,
       toggleThinking,
       resetChatState,
-      retryLastMessage,
+      retryLastUserMessage,
       clearConversationError: () => setConversationError(null),
 
       // Model Actions
       handleLoadModel,
       handleUnloadModel,
       handleAutoLoadLastModel,
+      refreshModelsOnFocus,
     }),
     [
       conversationId,
@@ -550,7 +698,6 @@ export function useChat() {
       conversationError,
       showCancelOption,
       thinkingEnabled,
-      modelSupportsReasoning,
       displayMessages,
       hasContent,
       activeModelName,
@@ -563,9 +710,11 @@ export function useChat() {
       cancelGeneration,
       toggleThinking,
       resetChatState,
+      retryLastUserMessage,
       handleLoadModel,
       handleUnloadModel,
       handleAutoLoadLastModel,
+      refreshModelsOnFocus,
     ],
   );
 }

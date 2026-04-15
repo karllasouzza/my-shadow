@@ -20,6 +20,9 @@ interface TopBarProps {
   searchQuery?: string;
   onSearchChange?: (query: string) => void;
   searchPlaceholder?: string;
+  /** Ações à esquerda do título (depois do botão voltar) */
+  leftAction?: React.ReactNode;
+  /** Ações à direita (substituídas pelo modo busca) */
   rightAction?: React.ReactNode;
   className?: string;
 }
@@ -32,11 +35,13 @@ export const TopBar = ({
   searchQuery = "",
   onSearchChange,
   searchPlaceholder = "Search...",
+  leftAction,
   rightAction,
   className,
 }: TopBarProps) => {
   const [isSearchActive, setIsSearchActive] = useState(false);
   const searchInputRef = useRef<TextInput>(null);
+  const prevSearchActive = useRef(isSearchActive);
 
   // Animation values
   const searchBarOpacity = useSharedValue(0);
@@ -62,6 +67,9 @@ export const TopBar = ({
   }));
 
   useEffect(() => {
+    if (prevSearchActive.current === isSearchActive) return;
+    prevSearchActive.current = isSearchActive;
+
     if (isSearchActive) {
       searchInputRef.current?.focus();
 
@@ -86,6 +94,15 @@ export const TopBar = ({
     return () => backHandler.remove();
   }, [isSearchActive, searchBarOpacity, titleOpacity, handleCloseSearch]);
 
+  // Helper para renderizar ações com segurança
+  const renderActions = (actions: React.ReactNode): React.ReactNode => {
+    if (!actions) return null;
+    return React.Children.map(actions, (child) => {
+      if (!React.isValidElement(child)) return child;
+      return child;
+    });
+  };
+
   return (
     <View
       className={cn(
@@ -93,13 +110,76 @@ export const TopBar = ({
         className,
       )}
     >
-      {/* Left Section */}
-      <View className="flex-row items-center gap-3 flex-1 min-w-0">
-        {showBack && !isSearchActive && (
+      {/* === MODO NORMAL (Título visível) === */}
+      {!isSearchActive && (
+        <>
+          {/* Left Section */}
+          <View className="flex-row items-center gap-2 flex-1 min-w-0">
+            {showBack && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onPress={onBack}
+                className="active:opacity-70 shrink-0"
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Icon
+                  as={require("lucide-react-native").ArrowLeft}
+                  className="text-muted-foreground size-5"
+                />
+              </Button>
+            )}
+
+            {/* Left Actions */}
+            {leftAction && (
+              <View className="flex-row items-center gap-1 shrink-0">
+                {renderActions(leftAction)}
+              </View>
+            )}
+
+            {/* Title */}
+            <Animated.View style={titleStyle} className="flex-1 min-w-0">
+              <Text
+                className="font-bold text-foreground text-lg"
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {title}
+              </Text>
+            </Animated.View>
+          </View>
+
+          {/* Right Section */}
+          <View className="flex-row items-center gap-2 shrink-0">
+            {showSearch && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onPress={handleOpenSearch}
+                className="bg-muted/50 active:opacity-70 p-2 rounded-full"
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Icon
+                  as={require("lucide-react-native").Search}
+                  className="text-primary size-5"
+                />
+              </Button>
+            )}
+            {renderActions(rightAction)}
+          </View>
+        </>
+      )}
+
+      {/* === MODO BUSCA (SearchBar visível) === */}
+      {isSearchActive && (
+        <Animated.View
+          style={searchBarStyle}
+          className="flex-row items-center gap-2 w-full"
+        >
           <Button
             variant="ghost"
             size="icon"
-            onPress={onBack}
+            onPress={handleCloseSearch}
             className="active:opacity-70 shrink-0"
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
@@ -108,95 +188,37 @@ export const TopBar = ({
               className="text-muted-foreground size-5"
             />
           </Button>
-        )}
 
-        {/* Title - always rendered, animated visibility */}
-        <Animated.View
-          style={[
-            titleStyle,
-            { display: isSearchActive ? "none" : "flex", minWidth: 0, flex: 1 },
-          ]}
-        >
-          <Text
-            className="font-bold text-foreground text-lg"
-            numberOfLines={1}
-            ellipsizeMode="tail"
-          >
-            {title}
-          </Text>
-        </Animated.View>
-
-        {/* Search Input - always rendered, animated visibility */}
-        <Animated.View
-          style={[
-            searchBarStyle,
-            { flexDirection: "row", display: isSearchActive ? "flex" : "none" },
-          ]}
-          className="flex-row items-center gap-4"
-        >
-          <Button
-            variant="ghost"
-            size="icon"
-            onPress={handleCloseSearch}
-            className="active:opacity-70"
-          >
+          <View className="flex-row flex-1 items-center gap-2 px-2 py-1 rounded-xl bg-muted/30">
             <Icon
-              as={require("lucide-react-native").ArrowLeft}
-              className="text-muted-foreground size-5"
+              as={require("lucide-react-native").Search}
+              className="text-muted-foreground size-4 ml-1"
             />
-          </Button>
-
-          <View className="flex-row flex-1 items-center gap-2 px-2 py-1 rounded-xl">
             <Input
               ref={searchInputRef}
               placeholder={searchPlaceholder}
               value={searchQuery}
               onChangeText={onSearchChange}
-              className="flex-1 bg-muted/50 shadow-none border-0"
+              className="flex-1 bg-transparent shadow-none border-0 px-0"
+              autoFocus
             />
-
             {searchQuery.length > 0 && (
               <Button
                 variant="ghost"
                 size="icon"
                 onPress={handleClearSearch}
-                className="active:opacity-70"
+                className="active:opacity-70 shrink-0"
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
                 <Icon
                   as={require("lucide-react-native").X}
-                  className="text-destructive/70 size-5"
+                  className="text-muted-foreground size-4"
                 />
               </Button>
             )}
           </View>
         </Animated.View>
-      </View>
-
-      {/* Right Section */}
-      <Animated.View
-        style={[
-          titleStyle,
-          { display: isSearchActive ? "none" : "flex", flexDirection: "row" },
-        ]}
-        className="flex-row items-center gap-2"
-      >
-        {showSearch && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onPress={handleOpenSearch}
-            className="bg-muted/50 active:opacity-70 p-2 rounded-full"
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Icon
-              as={require("lucide-react-native").Search}
-              className="text-primary size-5"
-            />
-          </Button>
-        )}
-        {rightAction}
-      </Animated.View>
+      )}
     </View>
   );
 };

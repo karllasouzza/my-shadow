@@ -1,20 +1,11 @@
-/**
- * Scroll To Bottom Button
- *
- * Botão flutuante que aparece quando o usuário rola para cima.
- * Animações sutis:
- * - Entrada: sobe de baixo para cima com fade-in
- * - Saída: desce de cima para baixo com fade-out
- */
-
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import Animated, {
-    Easing,
-    useAnimatedStyle,
-    useSharedValue,
-    withTiming,
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
 } from "react-native-reanimated";
 
 interface ScrollToBottomButtonProps {
@@ -28,12 +19,15 @@ export function ScrollToBottomButton({
   visible,
   onPress,
 }: ScrollToBottomButtonProps) {
-  const translateY = useSharedValue(20);
-  const opacity = useSharedValue(0);
+  const translateY = useSharedValue(visible ? 0 : 20);
+  const opacity = useSharedValue(visible ? 1 : 0);
+  const prevVisible = useRef(visible);
 
-  React.useEffect(() => {
+  useEffect(() => {
+    if (prevVisible.current === visible) return;
+    prevVisible.current = visible;
+
     if (visible) {
-      // Entrada: sobe + fade-in
       translateY.value = withTiming(0, {
         duration: ANIM_DURATION,
         easing: Easing.out(Easing.cubic),
@@ -43,7 +37,6 @@ export function ScrollToBottomButton({
         easing: Easing.out(Easing.cubic),
       });
     } else {
-      // Saída: desce + fade-out
       translateY.value = withTiming(10, {
         duration: ANIM_DURATION * 0.7,
         easing: Easing.in(Easing.cubic),
@@ -53,7 +46,7 @@ export function ScrollToBottomButton({
         easing: Easing.in(Easing.cubic),
       });
     }
-  }, [visible, translateY, opacity]);
+  }, [visible]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
@@ -62,7 +55,7 @@ export function ScrollToBottomButton({
 
   return (
     <Animated.View
-      className="absolute bottom-0 left-0 right-0 items-center pb-24 pointer-events-none"
+      className="absolute bottom-0 left-0 right-0 items-center pointer-events-none"
       style={animatedStyle}
     >
       <Button
