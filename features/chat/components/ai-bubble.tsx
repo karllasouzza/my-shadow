@@ -19,6 +19,7 @@ import React, { useMemo } from "react";
 import { Text, View } from "react-native";
 import { MarkdownStream } from "react-native-markdown-stream";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 interface AIBubbleProps {
   message: ChatMessage;
@@ -113,25 +114,53 @@ export function AIBubble({
 
             {metrics && (
               <View className="flex-row items-center gap-2 mt-1 flex-wrap">
-                <Badge variant="outline" className="flex-row items-center gap-1">
-                  <Icon as={require("lucide-react-native").Hash} className="size-3 text-muted-foreground" />
-                  <Text className="text-muted-foreground text-xs">{metrics.tokenCount} tok</Text>
-                </Badge>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge variant="outline" className="flex-row items-center gap-1">
+                      <Icon as={require("lucide-react-native").Hash} className="size-3 text-muted-foreground" />
+                      <Text className="text-muted-foreground text-xs">{metrics.tokenCount} tok</Text>
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    Número estimado de tokens gerados pela resposta (contagem heurística)
+                  </TooltipContent>
+                </Tooltip>
 
-                <Badge variant="outline" className="flex-row items-center gap-1">
-                  <Icon as={require("lucide-react-native").Clock} className="size-3 text-muted-foreground" />
-                  <Text className="text-muted-foreground text-xs">{metrics.totalDuration} ms</Text>
-                </Badge>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge variant="outline" className="flex-row items-center gap-1">
+                      <Icon as={require("lucide-react-native").Clock} className="size-3 text-muted-foreground" />
+                      <Text className="text-muted-foreground text-xs">{metrics.totalDuration} ms</Text>
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    Tempo total de geração da resposta (ms)
+                  </TooltipContent>
+                </Tooltip>
 
-                <Badge variant="outline" className="flex-row items-center gap-1">
-                  <Icon as={require("lucide-react-native").Play} className="size-3 text-muted-foreground" />
-                  <Text className="text-muted-foreground text-xs">{metrics.tttf} ms</Text>
-                </Badge>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge variant="outline" className="flex-row items-center gap-1">
+                      <Icon as={require("lucide-react-native").Play} className="size-3 text-muted-foreground" />
+                      <Text className="text-muted-foreground text-xs">{metrics.tttf} ms</Text>
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    Tempo até o primeiro token (ms)
+                  </TooltipContent>
+                </Tooltip>
 
-                <Badge variant="outline" className="flex-row items-center gap-1">
-                  <Icon as={require("lucide-react-native").Zap} className="size-3 text-muted-foreground" />
-                  <Text className="text-muted-foreground text-xs">{metrics.tokensPerSecond.toFixed(2)} tok/s</Text>
-                </Badge>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge variant="outline" className="flex-row items-center gap-1">
+                      <Icon as={require("lucide-react-native").Zap} className="size-3 text-muted-foreground" />
+                      <Text className="text-muted-foreground text-xs">{metrics.tokensPerSecond.toFixed(2)} tok/s</Text>
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    Velocidade média de geração (tokens por segundo)
+                  </TooltipContent>
+                </Tooltip>
               </View>
             )}
           </View>
