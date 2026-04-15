@@ -250,13 +250,13 @@ export function useChat() {
     [],
   );
 
-  const syncModelStatus = useCallback(() => {
+  const syncModelStatus = useCallback(async () => {
     const runtime = getAIRuntime();
     const loaded = runtime.isModelLoaded();
     const model = runtime.getCurrentModel();
 
     // If runtime says loaded but file was deleted, unload it
-    if (loaded && model && !isModelDownloaded(model.id)) {
+    if (loaded && model && !(await isModelDownloaded(model.id))) {
       runtime.unloadModel();
       setIsModelReady(false);
       setModelError("Modelo removido do dispositivo.");
