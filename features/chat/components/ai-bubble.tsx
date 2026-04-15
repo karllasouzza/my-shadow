@@ -113,19 +113,23 @@ export function AIBubble({
 
             {metrics && (
               <View className="flex-row items-center gap-2 mt-1 flex-wrap">
-                <Badge variant="outline">
+                <Badge variant="outline" className="flex-row items-center gap-1">
+                  <Icon as={require("lucide-react-native").Hash} className="size-3 text-muted-foreground" />
                   <Text className="text-muted-foreground text-xs">{metrics.tokenCount} tok</Text>
                 </Badge>
 
-                <Badge variant="outline">
+                <Badge variant="outline" className="flex-row items-center gap-1">
+                  <Icon as={require("lucide-react-native").Clock} className="size-3 text-muted-foreground" />
                   <Text className="text-muted-foreground text-xs">{metrics.totalDuration} ms</Text>
                 </Badge>
 
-                <Badge variant="outline">
+                <Badge variant="outline" className="flex-row items-center gap-1">
+                  <Icon as={require("lucide-react-native").Play} className="size-3 text-muted-foreground" />
                   <Text className="text-muted-foreground text-xs">{metrics.tttf} ms</Text>
                 </Badge>
 
-                <Badge variant="outline">
+                <Badge variant="outline" className="flex-row items-center gap-1">
+                  <Icon as={require("lucide-react-native").Zap} className="size-3 text-muted-foreground" />
                   <Text className="text-muted-foreground text-xs">{metrics.tokensPerSecond.toFixed(2)} tok/s</Text>
                 </Badge>
               </View>
