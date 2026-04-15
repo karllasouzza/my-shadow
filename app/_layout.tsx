@@ -7,7 +7,6 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Toaster } from "sonner-native";
 import "../global.css";
-import "../lib/polyfills";
 
 export default function RootLayout() {
   return (
