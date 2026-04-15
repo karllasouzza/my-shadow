@@ -33,8 +33,8 @@ export function ConversationItem({
       <Text className="text-foreground text-base font-medium" numberOfLines={1}>
         {conversation.title}
       </Text>
-      <View>
-        <Text className="text-muted-foreground text-xs">
+      <View className="flex flex-row justify-between">
+        <Text className="text-foreground text-xs bg-red-300">
           {conversation.lastMessageSnippet}
         </Text>
         <Text className="text-muted-foreground/55 text-xs">

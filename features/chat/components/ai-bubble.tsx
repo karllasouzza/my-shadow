@@ -32,7 +32,8 @@ export function AIBubble({
 }: AIBubbleProps) {
   const { colorScheme } = useTheme();
 
-  const hasThinking = !!message.thinking || (isStreaming && !message.content);
+  const hasReasoning =
+    !!message.reasoning_content || (isStreaming && !message.content);
   const hasContent = !!message.content || isStreaming;
 
   // Get model display name
@@ -64,9 +65,9 @@ export function AIBubble({
   return (
     <View className="flex gap-2 self-start max-w-[100%] w-full my-6">
       {/* Thinking section */}
-      {hasThinking && (
+      {hasReasoning && (
         <ThinkingSection
-          thinking={message.thinking ?? ""}
+          reasoning_content={message.reasoning_content ?? ""}
           isStreaming={isStreaming && !message.content}
         />
       )}

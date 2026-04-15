@@ -7,7 +7,6 @@ import { autoGenerateTitle } from "@/features/chat/model/chat-conversation";
 import {
   createChatMessage,
   validateChatMessage,
-  type ChatMessage,
 } from "@/features/chat/model/chat-message";
 import {
   autoLoadLastModel,
@@ -18,6 +17,7 @@ import {
   unloadModel,
 } from "@/shared/ai/model-loader";
 import { getAIRuntime } from "@/shared/ai/runtime";
+import { ChatMessage } from "@/shared/ai/types/chat";
 import type { AvailableModel } from "@/shared/ai/types/model-loader";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -234,7 +234,7 @@ export function useChat() {
       const initialMsg: StreamingMessage = {
         role: "assistant",
         content: "",
-        thinking: "",
+        reasoning_content: "",
         modelId: currentModelId,
         timestamp: new Date().toISOString(),
         _isStreaming: true,
@@ -297,7 +297,7 @@ export function useChat() {
           const updatedMsg: StreamingMessage = {
             role: "assistant",
             content: fullResponse,
-            thinking: localReasoning || undefined,
+            reasoning_content: localReasoning || undefined,
             modelId: currentModelId,
             timestamp: new Date().toISOString(),
             _isStreaming: true,
@@ -316,14 +316,14 @@ export function useChat() {
 
       if (controller.signal.aborted) {
         const partial = streamingMessageRef.current;
-        if (partial && (partial.thinking || partial.content)) {
+        if (partial && (partial.reasoning_content || partial.content)) {
           const conv2 = DatabaseChat.loadConversation(convId);
           if (conv2.success && conv2.data) {
             conv2.data.messages.push(
               createChatMessage(
                 "assistant",
                 partial.content + " [cancelado]",
-                partial.thinking,
+                partial.reasoning_content,
                 currentModelId,
               ),
             );
@@ -345,7 +345,7 @@ export function useChat() {
 
         const errorCode = streamResult.error?.code ?? "GENERATION_FAILED";
 
-        if (!partial?.content?.trim() && !partial?.thinking?.trim()) {
+        if (!partial?.content?.trim() && !partial?.reasoning_content?.trim()) {
           attachErrorToUserMessage(convId, userMessageIndex, errorCode);
           return;
         }
@@ -356,7 +356,7 @@ export function useChat() {
             createChatMessage(
               "assistant",
               (partial.content ?? "") + " [erro na geração]",
-              partial.thinking || undefined,
+              partial.reasoning_content || undefined,
               currentModelId,
             ),
           );
@@ -373,7 +373,7 @@ export function useChat() {
         fullResponse;
       const finalThinking =
         (streamResult.data?.reasoning ??
-          streamingMessageRef.current?.thinking ??
+          streamingMessageRef.current?.reasoning_content ??
           localReasoning) ||
         undefined;
 
@@ -538,7 +538,7 @@ export function useChat() {
 
     const hasStreaming =
       !!streamingMessage &&
-      !!(streamingMessage.thinking || streamingMessage.content);
+      !!(streamingMessage.reasoning_content || streamingMessage.content);
 
     return msgCount > 0 || hasStreaming;
   }, [conversationId, streamingMessage, displayMessages]);

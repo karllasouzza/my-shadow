@@ -16,7 +16,7 @@ import {
 } from "react-native";
 
 interface ThinkingSectionProps {
-  thinking: string;
+  reasoning_content: string;
   isStreaming?: boolean;
 }
 
@@ -26,14 +26,14 @@ if (Platform.OS === "android") {
 }
 
 export const ThinkingSection = observer(function ThinkingSection({
-  thinking,
+  reasoning_content,
   isStreaming = false,
 }: ThinkingSectionProps) {
   const [expanded, setExpanded] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const rotateAnim = useRef(new Animated.Value(0)).current;
 
-  if (!thinking && !isStreaming) return null;
+  if (!reasoning_content && !isStreaming) return null;
 
   // Animação do ícone
   useEffect(() => {
@@ -47,10 +47,10 @@ export const ThinkingSection = observer(function ThinkingSection({
 
   // Quando fecha: scroll para o final (conteúdo mais recente)
   useEffect(() => {
-    if (!expanded && scrollViewRef.current && thinking) {
+    if (!expanded && scrollViewRef.current && reasoning_content) {
       scrollViewRef.current.scrollToEnd({ animated: false });
     }
-  }, [expanded, thinking]);
+  }, [expanded, reasoning_content]);
 
   const toggleExpanded = useCallback(() => {
     LayoutAnimation.configureNext(
@@ -59,8 +59,8 @@ export const ThinkingSection = observer(function ThinkingSection({
     setExpanded((prev) => !prev);
   }, []);
 
-  const displayText = thinking || (isStreaming ? "Pensando…" : "");
-  const isPlaceholder = isStreaming && !thinking;
+  const displayText = reasoning_content || (isStreaming ? "Pensando…" : "");
+  const isPlaceholder = isStreaming && !reasoning_content;
 
   return (
     <View className="w-full border border-border rounded-2xl bg-background mb-1 overflow-hidden">
