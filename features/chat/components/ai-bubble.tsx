@@ -6,9 +6,8 @@ import { getAllModels } from "@/shared/ai/catalog";
 import type { GenerationMetrics } from "@/shared/ai/metrics";
 import React, { useMemo } from "react";
 import { View } from "react-native";
-import { Text } from "@/components/ui/text";
 import { MarkdownStream } from "react-native-markdown-stream";
-import { AIBubbleFooter } from "./ai-bubble.parts";
+import { AIBubbleFooter } from "./ai-bubble-footer";
 
 interface AIBubbleProps {
   message: ChatMessage;
@@ -65,7 +64,7 @@ export function AIBubble({
 
       {/* Output principal */}
       {hasContent && (
-        <View className="flex items-center justify-center my-3">
+        <View className="flex items-center justify-center my-3 mb-0">
           {message.content ? (
             <MarkdownStream
               codeCopyLabel="Copiar"
@@ -88,18 +87,11 @@ export function AIBubble({
       {!isStreaming && (
         <AIBubbleFooter
           modelDisplayName={modelDisplayName}
-          formattedTime={message.timestamp ? formatTime(message.timestamp) : undefined}
+          timestamp={message.timestamp}
           metrics={metrics}
           onRetry={onRetry}
         />
       )}
     </View>
   );
-}
-
-function formatTime(timestamp: string): string {
-  return new Date(timestamp).toLocaleTimeString("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
