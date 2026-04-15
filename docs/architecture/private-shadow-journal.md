@@ -160,7 +160,7 @@ React Native screens using NativeWind v5 (className only, no style prop):
    }
    ```
 
-4. **Inference**: Text is tokenized via `context.tokenize()`, then streamed through `context.completion()` with token-by-token callbacks for real-time UI updates.
+4. **Inference**: Text is tokenized via `context.tokenize()`, then streamed through `context.completion()` with token-by-token callbacks for real-time UI updates. The runtime exposes a helper that returns a `CompletionOutput` object (`{ text: string; reasoning?: string }`) and streams chunks via `onStreamChunk` with `{ token: string; reasoning?: string }`. Callers should prefer the structured `reasoning` when present and only fall back to parsing `<think>` tags embedded in the token stream if necessary.
 
 5. **Model Unloading**: `context.release()` frees GPU/CPU memory when switching models or on app background.
 
