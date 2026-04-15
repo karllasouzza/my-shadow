@@ -95,6 +95,12 @@
 - **FR-006**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]
 - **FR-007**: System MUST retain user data for [NEEDS CLARIFICATION: retention period not specified]
 
+## Constraints (mandatory)
+
+- **C-001**: All commits, inline comments, and documentation MUST be written in English.
+- **C-002**: All user-facing text (UI strings, labels, helper text) MUST be in Brazilian Portuguese (pt-BR).
+- **C-003**: UI and feature implementation MUST favor small, composable micro-components and micro-logics (single responsibility). Large components require documented justification.
+
 ### Key Entities *(include if feature involves data)*
 
 - **[Entity 1]**: [What it represents, key attributes without implementation]

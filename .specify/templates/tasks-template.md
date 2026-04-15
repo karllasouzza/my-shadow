@@ -25,6 +25,13 @@ description: "Task list template for feature implementation"
 - **Mobile**: `api/src/`, `ios/src/` or `android/src/`
 - Paths shown below assume single project - adjust based on plan.md structure
 
+## Language & Component Conventions (Required)
+
+- All commit messages, PR descriptions, documentation files, and inline code comments MUST be written in English.
+- All user-facing text MUST be in Brazilian Portuguese (pt-BR); tasks that add or change UI text MUST include pt-BR localization artifacts and verification steps.
+- Implementation tasks MUST prefer micro-components and micro-logics: aim for single responsibility, small files, and high composability. When a component is intentionally large, include a refactor task explaining the rationale.
+
+
 <!-- 
   ============================================================================
   IMPORTANT: The tasks below are SAMPLE TASKS for illustration purposes only.
