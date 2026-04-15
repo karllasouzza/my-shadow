@@ -15,6 +15,7 @@ import type {
 } from "@/features/chat/model/chat-conversation";
 import {
   autoGenerateTitle,
+  getLastMessageSnippet,
   validateTitle,
 } from "@/features/chat/model/chat-conversation";
 import { createChatMessage } from "@/features/chat/model/chat-message";
@@ -211,6 +212,7 @@ function updateIndex(conversation: ChatConversation): void {
   const entry: ChatConversationIndex = {
     id: conversation.id,
     title: conversation.title,
+    lastMessageSnippet: getLastMessageSnippet(conversation.messages),
     updatedAt: conversation.updatedAt,
   };
 
