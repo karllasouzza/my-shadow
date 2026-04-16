@@ -89,15 +89,15 @@ My Shadow automatically adapts to your device's hardware. No configuration neede
 
 ### Three-Tier Device Support
 
-| Tier | Available RAM | Key Settings | Expected Throughput |
-|------|--------------|-------------|---------------------|
-| **Budget** | < 5 GB | n_ctx=1024, CPU-only, q8_0 KV cache | 6–8 tok/s |
-| **Mid-Range** | 5–7 GB | n_ctx=2048, 50 GPU layers, q8_0 KV cache | 8–10 tok/s |
-| **Premium** | ≥ 7 GB | n_ctx=4096, full GPU offload, f16 KV cache | 12–15 tok/s |
+| Tier          | Available RAM | Key Settings                               | Expected Throughput |
+| ------------- | ------------- | ------------------------------------------ | ------------------- |
+| **Budget**    | < 5 GB        | n_ctx=1024, CPU-only, q8_0 KV cache        | 6–8 tok/s           |
+| **Mid-Range** | 5–7 GB        | n_ctx=2048, 50 GPU layers, q8_0 KV cache   | 8–10 tok/s          |
+| **Premium**   | ≥ 7 GB        | n_ctx=4096, full GPU offload, f16 KV cache | 12–15 tok/s         |
 
 ### Key Optimizations
 
-- **40–50% RAM reduction** via KV cache quantization (q8\_0) on budget/mid-range devices
+- **40–50% RAM reduction** via KV cache quantization (q8_0) on budget/mid-range devices
 - **Crash rate reduced from ~35% → ~3%** on 4 GB devices through adaptive context sizing
 - **Automatic OOM fallback**: if inference fails due to memory pressure, context is halved and retried automatically
 - **mmap model loading** on budget devices reduces cold-start memory by 40–60%
@@ -112,6 +112,7 @@ await aiRuntime.loadModel(modelId, modelPath, { n_ctx: 512 });
 ```
 
 For details, see:
+
 - [Device Profile Reference](docs/runtime/device-profiles.md)
 - [Troubleshooting Guide](docs/runtime/optimization-troubleshooting.md)
 - [Research Notes](docs/research/kv-cache-optimization-research.md)

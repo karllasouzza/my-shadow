@@ -29,7 +29,10 @@ const profile = generator.selectDeviceProfile(deviceInfo);
 
 console.log("Detected tier:", profile.tier);
 console.log("Available RAM:", deviceInfo.availableRAM.toFixed(2), "GB");
-console.log("Config:", generator.generateRuntimeConfig(deviceInfo, "/path/to/model.gguf"));
+console.log(
+  "Config:",
+  generator.generateRuntimeConfig(deviceInfo, "/path/to/model.gguf"),
+);
 ```
 
 ---
@@ -53,7 +56,10 @@ To test with a simulated device (unit tests), use the DI pattern:
 
 ```typescript
 import { DeviceDetector } from "@/shared/ai/device-detector";
-import type { IDeviceInfoProvider, IPlatformProvider } from "@/shared/ai/device-detector";
+import type {
+  IDeviceInfoProvider,
+  IPlatformProvider,
+} from "@/shared/ai/device-detector";
 
 const mockProvider: IDeviceInfoProvider = {
   getTotalMemory: () => Promise.resolve(4 * 1024 ** 3), // 4 GB
@@ -84,8 +90,8 @@ const pressure = await monitor.evaluate();
 
 console.log({
   utilization: `${pressure.utilizationPercent}%`,
-  critical: pressure.criticalLevel,     // > 85% is critical
-  canInfer: pressure.canRunInference,   // false if RAM exhausted
+  critical: pressure.criticalLevel, // > 85% is critical
+  canInfer: pressure.canRunInference, // false if RAM exhausted
   maxCtx: pressure.recommendedMaxContext,
 });
 ```
@@ -103,6 +109,7 @@ console.log({
 ### Q: The OOM fallback triggered — what happened?
 
 The AIRuntime automatically:
+
 1. Detects the OOM error in `streamCompletion()`
 2. Checks `MemoryMonitor.evaluate()` for critical pressure (> 85%)
 3. Reduces `n_ctx` by 50% (e.g., 1024 → 512)
@@ -110,6 +117,7 @@ The AIRuntime automatically:
 5. Retries inference once
 
 You'll see this in logs:
+
 ```
 [AIRuntime] Memory critical (87%). Reloading with degraded config (n_ctx=512).
 ```
@@ -117,6 +125,7 @@ You'll see this in logs:
 If the retry also fails, the user sees: `"Memória insuficiente. Tente novamente com contexto < X tokens."`
 
 **To prevent frequent fallbacks:**
+
 - Reduce conversation history before sending
 - Clear chat context when approaching token limit
 
@@ -125,7 +134,8 @@ If the retry also fails, the user sees: `"Memória insuficiente. Tente novamente
 ### Q: Why does the GPU setting seem ignored on Android?
 
 Android GPU detection is heuristic (30% of system RAM as estimated VRAM). On budget devices:
-- 4 GB total × 30% = 1.2 GB estimated VRAM  
+
+- 4 GB total × 30% = 1.2 GB estimated VRAM
 - If estimated VRAM < 1 GB, `n_gpu_layers` is capped to 20
 
 On iOS, the Metal GPU shares system RAM — no heuristic override is needed.
@@ -135,6 +145,7 @@ On iOS, the Metal GPU shares system RAM — no heuristic override is needed.
 ### Q: KV cache quantization (`q8_0`) — does it affect output quality?
 
 Per spec validation:
+
 - `q8_0` reduces memory by ~50% vs `f16` (1 byte vs 2 bytes per element)
 - Perplexity degradation is < 2% in standard benchmarks
 - Outputs may occasionally differ from `f16` by ±1 token (within acceptable range)
@@ -158,6 +169,7 @@ const detector = new DeviceDetector(mockProvider, mockPlatform);
 ```
 
 All services that depend on `react-native` accept DI interfaces:
+
 - `DeviceDetector(IDeviceInfoProvider?, IPlatformProvider?)`
 - `MemoryMonitor(IMemoryInfoProvider?)`
 
@@ -170,19 +182,19 @@ All fields that can be overridden at `loadModel()` call time:
 ```typescript
 await aiRuntime.loadModel(modelId, modelPath, {
   // Context & batching
-  n_ctx: 1024,       // 128–8192
-  n_batch: 64,       // 32–2048
-  n_ubatch: 32,      // optional micro-batch
+  n_ctx: 1024, // 128–8192
+  n_batch: 64, // 32–2048
+  n_ubatch: 32, // optional micro-batch
 
   // Threading
-  n_threads: 4,      // 1–16
+  n_threads: 4, // 1–16
 
   // GPU
-  n_gpu_layers: 0,   // 0 = CPU-only, 99 = full GPU
+  n_gpu_layers: 0, // 0 = CPU-only, 99 = full GPU
 
   // Memory
-  use_mmap: true,    // always true on low-RAM
-  use_mlock: false,  // never true on mobile
+  use_mmap: true, // always true on low-RAM
+  use_mlock: false, // never true on mobile
 
   // KV cache
   cache_type_k: "q8_0", // "f16" | "q8_0" | "q4_0"

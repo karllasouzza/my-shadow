@@ -39,20 +39,20 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
 
 **Purpose**: Project initialization and TypeScript type definitions
 
-- [X] T001 Create device type definitions in shared/types/device.ts
+- [x] T001 Create device type definitions in shared/types/device.ts
   - Add DeviceInfo interface (RAM, CPU cores, GPU detection)
   - Add DeviceProfile interface (tier, label, config, expectations)
   - Add RuntimeConfig interface (n_ctx, n_batch, cache_type_k/v, etc.)
   - Add CacheMetadata and MemoryPressure interfaces
   - Document constraints for each field (n_ctx: 128-8192, etc.)
 
-- [X] T002 [P] Create test utilities for device simulation in tests/utils/device-simulator.ts
+- [x] T002 [P] Create test utilities for device simulation in tests/utils/device-simulator.ts
   - Implement mockDeviceInfo() for budget 4GB tier
   - Implement mockDeviceInfo() for mid-range 6GB tier
   - Implement mockDeviceInfo() for premium 8GB+ tier
   - Create helpers for memory pressure simulation
 
-- [X] T003 [P] Initialize Bun test configuration for native tests
+- [x] T003 [P] Initialize Bun test configuration for native tests
   - Configure test runner for iOS/Android compatibility
   - Add device capability mocks (RAM, CPU), use `bun:test`
   - Ensure ES modules work with React Native imports
@@ -65,7 +65,7 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
 
 **⚠️ CRITICAL**: Must complete before runtime integration
 
-- [X] T004 Implement DeviceDetector service in shared/ai/device-detector.ts
+- [x] T004 Implement DeviceDetector service in shared/ai/device-detector.ts
   - Add `detect(): Promise<DeviceInfo>` method
   - Detect total and available RAM (use react-native-device-info)
   - Detect CPU cores via os.cpus() or native API
@@ -73,20 +73,20 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
   - Add detection timestamp and method metadata
   - Export DeviceDetector class
 
-- [X] T005 [P] Implement device RAM detection (platform-specific) in shared/ai/device-detector.ts
+- [x] T005 [P] Implement device RAM detection (platform-specific) in shared/ai/device-detector.ts
   - iOS: Use native NSProcessInfo.processInfo.physicalMemory
   - Android: Use ActivityManager.MemoryInfo
   - Fallback to react-native-device-info if native unavailable
   - Ensure available RAM excludes OS + system processes
 
-- [X] T006 [P] Implement GPU/VRAM detection (fallback strategy) in shared/ai/device-detector.ts
+- [x] T006 [P] Implement GPU/VRAM detection (fallback strategy) in shared/ai/device-detector.ts
   - Android Vulkan detection: Check vkGetPhysicalDeviceMemoryProperties() via native module
   - Android EGL fallback: Attempt eglQuerySurface() if Vulkan unavailable
   - Heuristic fallback: Use 30% of system RAM as estimated VRAM
   - iOS: GPU is unified memory; return system RAM as effective GPU memory
   - Store detection method in DeviceInfo.detectionMethod for debugging
 
-- [X] T007 Implement RuntimeConfigGenerator service in shared/ai/runtime-config-generator.ts
+- [x] T007 Implement RuntimeConfigGenerator service in shared/ai/runtime-config-generator.ts
   - Add device profile definitions (budget, midRange, premium)
   - Implement `selectDeviceProfile(deviceInfo): DeviceProfile` method
   - Implement `generateRuntimeConfig(deviceInfo, modelPath): RuntimeConfig` method
@@ -95,7 +95,7 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
   - Adjust n_gpu_layers based on available VRAM
   - Return config with all required fields (n_ctx, n_batch, cache_type_k/v, use_mmap, use_mlock)
 
-- [X] T008 [P] Create device profile definitions in shared/ai/device-profiles.ts
+- [x] T008 [P] Create device profile definitions in shared/ai/device-profiles.ts
   - Define `budgetProfile` (3-5GB): n_ctx=1024, n_batch=64, cache_type=q8_0, n_gpu_layers=0
   - Define `midRangeProfile` (5-7GB): n_ctx=2048, n_batch=128, cache_type=q8_0, n_gpu_layers=50
   - Define `premiumProfile` (7GB+): n_ctx=4096, n_batch=512, cache_type=f16, n_gpu_layers=99
@@ -103,7 +103,7 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
   - Export as map: `const deviceProfiles = { budget, midRange, premium }`
   - Add classification algorithm: `classifyDeviceTier(availableRAM): DeviceTier`
 
-- [X] T009 Implement MemoryMonitor service in shared/ai/memory-monitor.ts
+- [x] T009 Implement MemoryMonitor service in shared/ai/memory-monitor.ts
   - Add `evaluate(): MemoryPressure` method (return current RAM state)
   - Calculate utilizationPercent (used/total \* 100)
   - Compute criticalLevel (true if > 85%)
@@ -111,7 +111,7 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
   - Add `canRunInference`: boolean (check if available RAM > n_batch \* ~100 bytes)
   - Return MemoryPressure with timestamp
 
-- [X] T010 [P] Add lifecycle hooks for memory management in shared/ai/memory-monitor.ts
+- [x] T010 [P] Add lifecycle hooks for memory management in shared/ai/memory-monitor.ts
   - Implement `onAppBackground()` (unload model if pressure high)
   - Implement `onAppForeground()` (reload model if available)
   - Implement `onMemoryWarning()` callback (reduce context or fallback)
@@ -125,14 +125,14 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
 
 **Purpose**: Implement or wrap KV cache quantization capabilities
 
-- [X] T011 Upgrade `llama.rn` to latest version and verify cache quantization support (shared/ai/cache-quantization.ts)
+- [x] T011 Upgrade `llama.rn` to latest version and verify cache quantization support (shared/ai/cache-quantization.ts)
   - Upgrade `llama.rn` dependency in `package.json` to the latest compatible release
   - Verify whether the upgraded `llama.rn` exposes `cache_type_k` / `cache_type_v` parameters
   - If supported: Create wrapper that passes `cache_type_k`/`cache_type_v` to `initLlama()`
   - If NOT supported after upgrade: Implement an Expo native module wrapper (Phase 2) and document limitation
   - Add CI check that validates `initLlama` accepts cache quantization params
 
-- [X] T012 Add cache quantization validation in shared/ai/runtime-config-generator.ts
+- [x] T012 Add cache quantization validation in shared/ai/runtime-config-generator.ts
   - Validate cache_type_k and cache_type_v are in enum (f16|q8_0|q4_0)
   - Ensure budget tier gets q8_0 default, premium tier gets f16 default
   - Add warning comment if q4_0 used (explains quality trade-off)
@@ -144,14 +144,14 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
 
 **Purpose**: Integrate device detection and adaptive config into existing AIRuntime
 
-- [X] T013 Modify AIRuntime class in shared/ai/runtime.ts
+- [x] T013 Modify AIRuntime class in shared/ai/runtime.ts
   - Add private `deviceDetector: DeviceDetector` property
   - Add private `configGenerator: RuntimeConfigGenerator` property
   - Add private `memoryMonitor: MemoryMonitor` property
   - Modify constructor to initialize detectors (async initialization)
   - Do NOT break existing public API (loadModel, streamCompletion remain unchanged)
 
-- [X] T014 [P] Update AIRuntime.loadModel() to use adaptive config in shared/ai/runtime.ts
+- [x] T014 [P] Update AIRuntime.loadModel() to use adaptive config in shared/ai/runtime.ts
   - Before: `loadModel(modelId, path)` — called llama.rn with hardcoded config
   - After: `loadModel(modelId, path, optionalOverrideConfig?)` — calls:
     1. `deviceDetector.detect()` to get DeviceInfo
@@ -161,7 +161,7 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
   - Backward compatible: If optionalOverrideConfig not provided, use auto-generated config
   - Log selected tier: `console.log('[AIRuntime] Selected tier:', profile.tier)`
 
-- [X] T015 [P] Update AIRuntime.streamCompletion() for memory pressure fallback in shared/ai/runtime.ts
+- [x] T015 [P] Update AIRuntime.streamCompletion() for memory pressure fallback in shared/ai/runtime.ts
   - Before: If inference fails, return error
   - After: On failure (OOM), check `memoryMonitor.evaluate()`:
     1. If critical memory pressure (>85%), reduce n_ctx by 50%
@@ -170,7 +170,7 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
     4. If still fails, return error with helpful message
   - Add fallback context suggestion: "Try again with context < X tokens"
 
-- [X] T016 Add startup memory check in shared/ai/runtime.ts
+- [x] T016 Add startup memory check in shared/ai/runtime.ts
   - In constructor or app initialization, call `memoryMonitor.evaluate()`
   - If availableRAM < 1.5GB, log warning: "Insufficient RAM for local inference"
   - Store device profile in app state for UI display (optional)
@@ -181,14 +181,14 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
 
 **Purpose**: Ensure runtime configs are valid and tested across device tiers
 
-- [X] T017 [P] Add unit tests for DeviceDetector in tests/unit/device-detector.test.ts
+- [x] T017 [P] Add unit tests for DeviceDetector in tests/unit/device-detector.test.ts
   - Test RAM detection accuracy (mock native APIs)
   - Test CPU core detection
   - Test GPU detection fallback chain (Vulkan → EGL → Heuristic)
   - Test detection metadata recording (method, timestamp)
   - Ensure tests pass on simulated budget/mid/premium tiers
 
-- [X] T018 [P] Add unit tests for RuntimeConfigGenerator in tests/unit/runtime-config-generator.test.ts
+- [x] T018 [P] Add unit tests for RuntimeConfigGenerator in tests/unit/runtime-config-generator.test.ts
   - Test `selectDeviceProfile()` returns correct tier for each RAM range
   - Test budget tier config (n_ctx=1024, n_batch=64, cache_type=q8_0)
   - Test mid-range tier config (n_ctx=2048, n_batch=128, cache_type=q8_0)
@@ -196,13 +196,13 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
   - Test config adjustment based on CPU cores (cap n_threads)
   - Test config adjustment based on VRAM (reduce n_gpu_layers if low VRAM)
 
-- [X] T019 [P] Add unit tests for MemoryMonitor in tests/unit/memory-monitor.test.ts
+- [x] T019 [P] Add unit tests for MemoryMonitor in tests/unit/memory-monitor.test.ts
   - Test utilization percent calculation
   - Test critical level detection (>85% = critical)
   - Test `canRunInference()` returns true if available > batch threshold
   - Test `recommendedMaxContext` calculation
 
-- [X] T020 [P] Add integration test for config validation in tests/integration/runtime-config-validation.test.ts
+- [x] T020 [P] Add integration test for config validation in tests/integration/runtime-config-validation.test.ts
   - Validate all configs against JSON Schema (contracts/runtime-config.schema.json)
   - Test each device profile config passes schema validation
   - Ensure config paths match actual model files
@@ -214,26 +214,26 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
 
 **Purpose**: Validate model loading works reliably on low-RAM devices
 
-- [X] T021 [P] Add integration test for budget tier loading in tests/integration/ai-runtime-loading.test.ts
+- [x] T021 [P] Add integration test for budget tier loading in tests/integration/ai-runtime-loading.test.ts
   - Simulate 4GB RAM device (use device-simulator)
   - Load model with auto-generated budget config
   - Verify config has: n_ctx=1024, n_batch=64, use_mmap=true, use_mlock=false
   - Verify model loads without OOM
   - Verify memory usage stays < 3.5GB (peak)
 
-- [X] T022 [P] Add integration test for mid-range tier loading in tests/integration/ai-runtime-loading.test.ts
+- [x] T022 [P] Add integration test for mid-range tier loading in tests/integration/ai-runtime-loading.test.ts
   - Simulate 6GB RAM device
   - Load model with auto-generated mid-range config
   - Verify config has: n_ctx=2048, n_batch=128, use_mmap=true
   - Verify memory usage stays < 5.2GB
 
-- [X] T023 [P] Add integration test for premium tier loading in tests/integration/ai-runtime-loading.test.ts
+- [x] T023 [P] Add integration test for premium tier loading in tests/integration/ai-runtime-loading.test.ts
   - Simulate 8GB+ RAM device
   - Load model with auto-generated premium config
   - Verify config has: n_ctx=4096, n_batch=512, use_mmap=false, cache_type_k=f16
   - Verify memory usage optimal for high-RAM device
 
-- [X] T024 Add fallback behavior test in tests/integration/ai-runtime-loading.test.ts
+- [x] T024 Add fallback behavior test in tests/integration/ai-runtime-loading.test.ts
   - Simulate OOM error during initial load
   - Verify AIRuntime triggers memory fallback
   - Verify config is auto-degraded (reduced n_ctx)
@@ -245,18 +245,18 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
 
 **Purpose**: Ensure KV cache quantization maintains acceptable quality
 
-- [X] T025 [P] Add inference quality test in tests/integration/inference-quality.test.ts
+- [x] T025 [P] Add inference quality test in tests/integration/inference-quality.test.ts
   - Run inference on budget config (q8_0 KV cache)
   - Compare output perplexity vs. baseline (f16)
   - Verify perplexity loss < 2% (accepted threshold)
   - Log comparison metrics
 
-- [X] T026 [P] Add consistency test in tests/integration/inference-quality.test.ts
+- [x] T026 [P] Add consistency test in tests/integration/inference-quality.test.ts
   - Run same prompt 3x on budget tier
   - Verify outputs are consistent (same seeds)
   - Ensure quantization doesn't break determinism
 
-- [X] T027 Add language quality spot-check test in tests/integration/inference-quality.test.ts
+- [x] T027 Add language quality spot-check test in tests/integration/inference-quality.test.ts
   - Generate 100-token reflection prompt on budget tier
   - Manual verification: Output is coherent, not corrupted
   - Check for obvious quantization artifacts (word repetition, nonsense sequences)
@@ -267,7 +267,7 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
 
 **Purpose**: Validate full workflow on low-RAM device simulation
 
-- [X] T028 [P] Add E2E test for chat inference on budget device in tests/e2e/ai-inference-low-ram.test.ts
+- [x] T028 [P] Add E2E test for chat inference on budget device in tests/e2e/ai-inference-low-ram.test.ts
   - Simulate 4GB RAM device
   - Launch app (use Expo dev client or simulator)
   - Load model via existing ChatScreen flow
@@ -275,13 +275,13 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
   - Verify response arrives without app crash
   - Check memory usage during inference (peak < 3.5GB)
 
-- [X] T029 [P] Add E2E test for context limit on budget device in tests/e2e/ai-inference-low-ram.test.ts
+- [x] T029 [P] Add E2E test for context limit on budget device in tests/e2e/ai-inference-low-ram.test.ts
   - Simulate 4GB RAM device with budget config (n_ctx=1024)
   - Send multiple messages to build up context
   - Verify inference still works at max context (~1K tokens)
   - App should degrade gracefully, not crash
 
-- [X] T030 Add E2E test for memory pressure warning in tests/e2e/ai-inference-low-ram.test.ts
+- [x] T030 Add E2E test for memory pressure warning in tests/e2e/ai-inference-low-ram.test.ts
   - Simulate 4GB device with OS memory usage at 70%
   - Trigger inference
   - Verify MemoryMonitor detects pressure
@@ -293,20 +293,20 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
 
 **Purpose**: Measure and validate optimization gains against targets
 
-- [X] T031 [P] Create benchmark suite in tests/performance/runtime-optimization-benchmark.ts
+- [x] T031 [P] Create benchmark suite in tests/performance/runtime-optimization-benchmark.ts
   - Measure model load time (cold start) on each device tier
   - Measure TTFT (time-to-first-token) for 100-token generation
   - Measure throughput (tokens/sec) sustained
   - Measure peak memory during inference
   - Compare before/after for each tier
 
-- [X] T032 [P] Add memory usage benchmarks in tests/performance/runtime-optimization-benchmark.ts
+- [x] T032 [P] Add memory usage benchmarks in tests/performance/runtime-optimization-benchmark.ts
   - Measure RAM usage with use_mmap=true vs. false
   - Measure KV cache impact with f16 vs. q8_0 quantization
   - Measure impact of n_batch size (64 vs. 128 vs. 512)
   - Log comparative results to results.json
 
-- [X] T033 Add crash rate statistical test in tests/performance/runtime-optimization-benchmark.ts
+- [x] T033 Add crash rate statistical test in tests/performance/runtime-optimization-benchmark.ts
   - Run 100 inference iterations on simulated 4GB device
   - Count successful completions vs. OOM failures
   - Target: < 1% crash rate (verify against current ~35%)
@@ -318,30 +318,30 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
 
 **Purpose**: Validate integration guide, update app context, finalize docs
 
-- [X] T034 Verify quickstart.md integration examples in docs/
+- [x] T034 Verify quickstart.md integration examples in docs/
   - Run each code example from quickstart.md (DeviceDetector, RuntimeConfigGenerator, MemoryMonitor usage)
   - Ensure examples are executable in app context
   - Update any deprecated imports or APIs
 
-- [X] T035 [P] Create device profile reference documentation in docs/runtime/device-profiles.md
+- [x] T035 [P] Create device profile reference documentation in docs/runtime/device-profiles.md
   - Table of all three profiles with exact config values
   - Expectations per tier (latency, throughput, crash risk)
   - Model size recommendations per tier
   - Common issues and workarounds
 
-- [X] T036 [P] Create runtime optimization troubleshooting guide in docs/runtime/optimization-troubleshooting.md
+- [x] T036 [P] Create runtime optimization troubleshooting guide in docs/runtime/optimization-troubleshooting.md
   - FAQ from quickstart.md (converted to detailed guide)
   - How to override device classification (for testing)
   - How to check detected device info (logging)
   - How to interpret memory monitor warnings
 
-- [X] T037 Update GitHub Copilot context (.github/copilot-instructions.md)
+- [x] T037 Update GitHub Copilot context (.github/copilot-instructions.md)
   - Confirm TypeScript, llama.rn, React Native marked in context
   - Add device profile selection pattern as example workflow
   - Add memory monitoring pattern as example
   - Document constraint: no new web APIs (iOS/Android native only)
 
-- [X] T038 Add integration validation checklist in specs/001-optimize-runtime-planning/
+- [x] T038 Add integration validation checklist in specs/001-optimize-runtime-planning/
   - Checklist: Device detection on iOS 14+, Android 8+
   - Checklist: Memory monitor responds to OS pressure
   - Checklist: Adaptive config reduces RAM by 40%+ on 4GB device
@@ -354,7 +354,7 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
 
 **Purpose**: Final refinement and optional enhancements
 
-- [X] T039 Refactor AI
+- [x] T039 Refactor AI
 
 Runtime class for clarity in shared/ai/runtime.ts
 
@@ -363,12 +363,12 @@ Runtime class for clarity in shared/ai/runtime.ts
 - Ensure error messages are user-friendly
 - Add TODO comment if KV cache quantization requires Expo native wrapper
 
-- [X] T040 [P] Add TypeScript strict mode validation to shared/ai/
+- [x] T040 [P] Add TypeScript strict mode validation to shared/ai/
   - Ensure all services use strict types (no `any`)
   - Add type guards for optional fields (gpuMemoryMB?)
   - Validate all runtime configs against RuntimeConfig type
 
-- [X] T041 [P] Optimize imports and reduce bundle size in shared/ai/
+- [x] T041 [P] Optimize imports and reduce bundle size in shared/ai/
   - Ensure lazy loading of device profiles (not all loaded at startup)
   - Mark MemoryMonitor as background service (non-critical import)
   - Consider code-splitting for device detection logic
@@ -379,13 +379,13 @@ Runtime class for clarity in shared/ai/runtime.ts
   - Show current memory utilization from MemoryMonitor
   - Add "Force Tier Override" option for testing (debug-only)
 
-- [X] T043 Update README.md with optimization section
+- [x] T043 Update README.md with optimization section
   - Explain three-tier profile strategy
   - Add performance expectations table
   - Link to research.md for technical details
   - Note: Optimization is transparent to users
 
-- [X] T044 [P] Run tests across all test suites
+- [x] T044 [P] Run tests across all test suites
   - `npm test` → unit tests pass
   - `npm run test:integration` → integration tests pass
   - `npm run test:e2e` → E2E tests pass
@@ -397,7 +397,7 @@ Runtime class for clarity in shared/ai/runtime.ts
 
 **Purpose**: Ensure all acceptance criteria met before merge
 
-- [X] T045 Validate against acceptance criteria from spec.md
+- [x] T045 Validate against acceptance criteria from spec.md
   - ✅ Device detection works on iOS 14+ and Android 8+
   - ✅ Dynamic config reduces RAM by ≥ 40% on 4GB devices
   - ✅ Perplexity degradation < 2% with cache quantization
@@ -406,24 +406,24 @@ Runtime class for clarity in shared/ai/runtime.ts
   - ✅ Documentation complete with integration examples
   - ✅ No regressions on high-RAM devices (8GB+)
 
-- [X] T046 Security review of device detection code
+- [x] T046 Security review of device detection code
   - Ensure native API calls don't expose system info beyond what's necessary
   - Verify no data leaves device (all local processing)
   - Validate error handling in native wrappers
 
-- [X] T047 Performance audit: Measure optimizations vs. goals
+- [x] T047 Performance audit: Measure optimizations vs. goals
   - Device load time: Compare baseline vs. optimized
   - RAM usage: Confirm 40-50% reduction on low-RAM tier
   - Crash rate: Confirm < 1% on 4GB device (vs. previous 35%)
   - Quality: Confirm perplexity loss < 2%
 
-- [X] T048 Create release notes for feature
+- [x] T048 Create release notes for feature
   - Summary: "Runtime optimization enables 3GB+ device support"
   - Key benefits: "40% RAM reduction, 5-35% crash rate improvement"
   - Breaking changes: None (backward compatible)
   - Known limitations: "Requires llama.rn v0.11+ for KV quantization (workaround: Expo wrapper)"
 
-- [X] T049 Prepare PR and request review
+- [x] T049 Prepare PR and request review
   - Branch: `001-optimize-runtime-planning` → base: `main`
   - Title: "feat: Optimize llama.rn runtime for low-RAM devices"
   - Description: Link to spec.md, research.md, tasks.md
