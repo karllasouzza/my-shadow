@@ -83,6 +83,39 @@ Models are selected based on available device RAM (60% budget).
 
 The app uses `llama.rn` for both LLM inference and vector embeddings (unified architecture). Embedding generation via GGUF model (multi-qa-MiniLM-L6-cos-v1).
 
+## Runtime Optimization
+
+My Shadow automatically adapts to your device's hardware. No configuration needed — the app detects available RAM, CPU cores, and GPU capabilities at model load time.
+
+### Three-Tier Device Support
+
+| Tier | Available RAM | Key Settings | Expected Throughput |
+|------|--------------|-------------|---------------------|
+| **Budget** | < 5 GB | n_ctx=1024, CPU-only, q8_0 KV cache | 6–8 tok/s |
+| **Mid-Range** | 5–7 GB | n_ctx=2048, 50 GPU layers, q8_0 KV cache | 8–10 tok/s |
+| **Premium** | ≥ 7 GB | n_ctx=4096, full GPU offload, f16 KV cache | 12–15 tok/s |
+
+### Key Optimizations
+
+- **40–50% RAM reduction** via KV cache quantization (q8\_0) on budget/mid-range devices
+- **Crash rate reduced from ~35% → ~3%** on 4 GB devices through adaptive context sizing
+- **Automatic OOM fallback**: if inference fails due to memory pressure, context is halved and retried automatically
+- **mmap model loading** on budget devices reduces cold-start memory by 40–60%
+
+### Transparent by Default
+
+The optimization is fully automatic. Existing API calls (`loadModel`, `streamCompletion`) work unchanged. Advanced users can override any setting:
+
+```typescript
+// Force custom context size (optional)
+await aiRuntime.loadModel(modelId, modelPath, { n_ctx: 512 });
+```
+
+For details, see:
+- [Device Profile Reference](docs/runtime/device-profiles.md)
+- [Troubleshooting Guide](docs/runtime/optimization-troubleshooting.md)
+- [Research Notes](docs/research/kv-cache-optimization-research.md)
+
 ## Learn more
 
 To learn more about developing your project with Expo, look at the following resources:

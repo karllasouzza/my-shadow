@@ -43,12 +43,16 @@ export class AIRuntime {
   private lastModelPath: string | null = null;
   private lastRuntimeConfig: RuntimeConfig | null = null;
 
+  // ── Startup ──────────────────────────────────────────────────────────────
+
   async initializeAdaptiveRuntime(): Promise<void> {
     const pressure = await this.memoryMonitor.evaluate();
     if (pressure.availableRAM / (1024 ** 3) < INSUFFICIENT_RAM_GB) {
       console.warn("[AIRuntime] Insufficient RAM for local inference");
     }
   }
+
+  // ── Model loading: detect → classify → generate → load ───────────────────
 
   async loadModel(
     modelId: string,
@@ -59,21 +63,7 @@ export class AIRuntime {
       await this.unloadModel();
       await loadLlamaModelInfo(path);
 
-      const deviceInfo = await this.deviceDetector.detect();
-      const runtimeConfig = this.configGenerator.generateRuntimeConfig(
-        deviceInfo,
-        path,
-        optionalOverrideConfig,
-      );
-
-      const profile = this.configGenerator.selectDeviceProfile(deviceInfo);
-      console.log("[AIRuntime] Selected tier:", profile.tier);
-
-      this.memoryMonitor.configure({
-        n_batch: runtimeConfig.n_batch,
-        n_ctx: runtimeConfig.n_ctx,
-      });
-
+      const runtimeConfig = await this.buildAdaptiveConfig(path, optionalOverrideConfig);
       this.context = await initLlama({
         ...runtimeConfig,
         flash_attn_type: "on",
@@ -290,6 +280,35 @@ export class AIRuntime {
         reasoning_content,
       } as RNLlamaOAICompatibleMessage;
     });
+  }
+
+  // ── Adaptive config pipeline ──────────────────────────────────────────────
+
+  private async buildAdaptiveConfig(
+    modelPath: string,
+    overrides?: Partial<RuntimeConfig>,
+  ): Promise<RuntimeConfig> {
+    // Step 1: detect device capabilities (RAM, CPU, GPU)
+    const deviceInfo = await this.deviceDetector.detect();
+
+    // Step 2: classify device tier and generate optimised config
+    const profile = this.configGenerator.selectDeviceProfile(deviceInfo);
+    console.log("[AIRuntime] Selected tier:", profile.tier);
+
+    // Step 3: merge with any caller-supplied overrides
+    const runtimeConfig = this.configGenerator.generateRuntimeConfig(
+      deviceInfo,
+      modelPath,
+      overrides,
+    );
+
+    // Step 4: wire memory monitor to the resolved config
+    this.memoryMonitor.configure({
+      n_batch: runtimeConfig.n_batch,
+      n_ctx: runtimeConfig.n_ctx,
+    });
+
+    return runtimeConfig;
   }
 }
 

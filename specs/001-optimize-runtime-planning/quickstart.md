@@ -103,7 +103,8 @@ console.log("Device:", {
 });
 
 // Get suggested profile (auto-classified)
-const profile = RuntimeConfigGenerator.suggestProfile(deviceInfo);
+const generator = new RuntimeConfigGenerator();
+const profile = generator.selectDeviceProfile(deviceInfo);
 console.log(`Suggested tier: ${profile.tier}`);
 console.log(`Recommended config:`, profile.config);
 
@@ -123,7 +124,7 @@ await aiRuntime.loadModel("test-model", modelPath, customProfile.config);
 import { MemoryMonitor } from "@/shared/ai/memory-monitor";
 
 const monitor = new MemoryMonitor();
-const pressure = monitor.evaluate();
+const pressure = await monitor.evaluate();
 
 if (pressure.criticalLevel) {
   console.warn("🔴 Critical memory pressure detected!");
@@ -141,10 +142,14 @@ if (pressure.criticalLevel) {
 ### Scenario: Access device profile recommendations
 
 ```typescript
-import { getDeviceProfile } from '@/shared/ai/device-profiles';
+import { DeviceDetector } from "@/shared/ai/device-detector";
+import { RuntimeConfigGenerator } from "@/shared/ai/runtime-config-generator";
 
-// Load the suggested profile for this device
-const profile = await getDeviceProfile();
+// Detect device and get profile
+const detector = new DeviceDetector();
+const generator = new RuntimeConfigGenerator();
+const deviceInfo = await detector.detect();
+const profile = generator.selectDeviceProfile(deviceInfo);
 
 // Use profile data in UI
 export const DeviceStatusCard = () => {
@@ -155,7 +160,7 @@ export const DeviceStatusCard = () => {
       <Text>Expected Latency: {profile.expectations.ttftSeconds.max}s</Text>
       {profile.expectations.crashRiskPercent > 12 && (
         <Text style={{ color: 'orange' }}>
-          ⚠️ Higher crash risk on this device. Keep context < {profile.compatibleModels.warning}
+          ⚠️ Higher crash risk on this device. Keep context under 1024 tokens.
         </Text>
       )}
     </View>

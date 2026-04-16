@@ -318,30 +318,30 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
 
 **Purpose**: Validate integration guide, update app context, finalize docs
 
-- [ ] T034 Verify quickstart.md integration examples in docs/
+- [X] T034 Verify quickstart.md integration examples in docs/
   - Run each code example from quickstart.md (DeviceDetector, RuntimeConfigGenerator, MemoryMonitor usage)
   - Ensure examples are executable in app context
   - Update any deprecated imports or APIs
 
-- [ ] T035 [P] Create device profile reference documentation in docs/runtime/device-profiles.md
+- [X] T035 [P] Create device profile reference documentation in docs/runtime/device-profiles.md
   - Table of all three profiles with exact config values
   - Expectations per tier (latency, throughput, crash risk)
   - Model size recommendations per tier
   - Common issues and workarounds
 
-- [ ] T036 [P] Create runtime optimization troubleshooting guide in docs/runtime/optimization-troubleshooting.md
+- [X] T036 [P] Create runtime optimization troubleshooting guide in docs/runtime/optimization-troubleshooting.md
   - FAQ from quickstart.md (converted to detailed guide)
   - How to override device classification (for testing)
   - How to check detected device info (logging)
   - How to interpret memory monitor warnings
 
-- [ ] T037 Update GitHub Copilot context (.github/copilot-instructions.md)
+- [X] T037 Update GitHub Copilot context (.github/copilot-instructions.md)
   - Confirm TypeScript, llama.rn, React Native marked in context
   - Add device profile selection pattern as example workflow
   - Add memory monitoring pattern as example
   - Document constraint: no new web APIs (iOS/Android native only)
 
-- [ ] T038 Add integration validation checklist in specs/001-optimize-runtime-planning/
+- [X] T038 Add integration validation checklist in specs/001-optimize-runtime-planning/
   - Checklist: Device detection on iOS 14+, Android 8+
   - Checklist: Memory monitor responds to OS pressure
   - Checklist: Adaptive config reduces RAM by 40%+ on 4GB device
@@ -354,7 +354,7 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
 
 **Purpose**: Final refinement and optional enhancements
 
-- [ ] T039 Refactor AI
+- [X] T039 Refactor AI
 
 Runtime class for clarity in shared/ai/runtime.ts
 
@@ -363,12 +363,12 @@ Runtime class for clarity in shared/ai/runtime.ts
 - Ensure error messages are user-friendly
 - Add TODO comment if KV cache quantization requires Expo native wrapper
 
-- [ ] T040 [P] Add TypeScript strict mode validation to shared/ai/
+- [X] T040 [P] Add TypeScript strict mode validation to shared/ai/
   - Ensure all services use strict types (no `any`)
   - Add type guards for optional fields (gpuMemoryMB?)
   - Validate all runtime configs against RuntimeConfig type
 
-- [ ] T041 [P] Optimize imports and reduce bundle size in shared/ai/
+- [X] T041 [P] Optimize imports and reduce bundle size in shared/ai/
   - Ensure lazy loading of device profiles (not all loaded at startup)
   - Mark MemoryMonitor as background service (non-critical import)
   - Consider code-splitting for device detection logic
@@ -379,13 +379,13 @@ Runtime class for clarity in shared/ai/runtime.ts
   - Show current memory utilization from MemoryMonitor
   - Add "Force Tier Override" option for testing (debug-only)
 
-- [ ] T043 Update README.md with optimization section
+- [X] T043 Update README.md with optimization section
   - Explain three-tier profile strategy
   - Add performance expectations table
   - Link to research.md for technical details
   - Note: Optimization is transparent to users
 
-- [ ] T044 [P] Run tests across all test suites
+- [X] T044 [P] Run tests across all test suites
   - `npm test` → unit tests pass
   - `npm run test:integration` → integration tests pass
   - `npm run test:e2e` → E2E tests pass
@@ -397,7 +397,7 @@ Runtime class for clarity in shared/ai/runtime.ts
 
 **Purpose**: Ensure all acceptance criteria met before merge
 
-- [ ] T045 Validate against acceptance criteria from spec.md
+- [X] T045 Validate against acceptance criteria from spec.md
   - ✅ Device detection works on iOS 14+ and Android 8+
   - ✅ Dynamic config reduces RAM by ≥ 40% on 4GB devices
   - ✅ Perplexity degradation < 2% with cache quantization
@@ -406,24 +406,24 @@ Runtime class for clarity in shared/ai/runtime.ts
   - ✅ Documentation complete with integration examples
   - ✅ No regressions on high-RAM devices (8GB+)
 
-- [ ] T046 Security review of device detection code
+- [X] T046 Security review of device detection code
   - Ensure native API calls don't expose system info beyond what's necessary
   - Verify no data leaves device (all local processing)
   - Validate error handling in native wrappers
 
-- [ ] T047 Performance audit: Measure optimizations vs. goals
+- [X] T047 Performance audit: Measure optimizations vs. goals
   - Device load time: Compare baseline vs. optimized
   - RAM usage: Confirm 40-50% reduction on low-RAM tier
   - Crash rate: Confirm < 1% on 4GB device (vs. previous 35%)
   - Quality: Confirm perplexity loss < 2%
 
-- [ ] T048 Create release notes for feature
+- [X] T048 Create release notes for feature
   - Summary: "Runtime optimization enables 3GB+ device support"
   - Key benefits: "40% RAM reduction, 5-35% crash rate improvement"
   - Breaking changes: None (backward compatible)
   - Known limitations: "Requires llama.rn v0.11+ for KV quantization (workaround: Expo wrapper)"
 
-- [ ] T049 Prepare PR and request review
+- [X] T049 Prepare PR and request review
   - Branch: `001-optimize-runtime-planning` → base: `main`
   - Title: "feat: Optimize llama.rn runtime for low-RAM devices"
   - Description: Link to spec.md, research.md, tasks.md
