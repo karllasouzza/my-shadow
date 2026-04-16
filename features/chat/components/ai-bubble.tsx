@@ -5,8 +5,8 @@ import type { ChatMessage } from "@/features/chat/model/chat-message";
 import { getAllModels } from "@/shared/ai/catalog";
 import type { CompletionOutput } from "@/shared/ai/types/runtime";
 import * as Clipboard from "expo-clipboard";
-import React, { useMemo } from "react";
-import { View } from "react-native";
+import { useMemo } from "react";
+import { Text, View } from "react-native";
 import { MarkdownStream } from "react-native-markdown-stream";
 import { AIBubbleFooter } from "./ai-bubble-footer";
 
@@ -24,12 +24,20 @@ export function AIBubble({
   isReasonEnabled,
 }: AIBubbleProps) {
   const { colorScheme } = useTheme();
+  const content = message.content ?? "";
+  const reasoning = message.reasoning_content ?? "";
 
-  const hasReasoning =
-    !!message.reasoning_content || !!(isStreaming && isReasonEnabled);
-  const hasContent = !!message.content || isStreaming;
+  const lines = useMemo(() => {
+    if (!isStreaming) return { completed: content, current: "" };
+    const allLines = content.split("\n");
+    const current = allLines.pop() ?? "";
+    const completed = allLines.join("\n");
+    return { completed, current };
+  }, [content, isStreaming]);
 
-  // Get model display name
+  const hasReasoning = !!reasoning || (isStreaming && isReasonEnabled);
+  const hasContent = !!content || isStreaming;
+
   const modelDisplayName = message.modelId
     ? (getAllModels().find((m) => m.id === message.modelId)?.displayName ??
       message.modelId)
@@ -39,72 +47,77 @@ export function AIBubble({
     | CompletionOutput["timings"]
     | undefined;
 
-  // Theme-aware markdown colors
-  const markdownTextColor = colorScheme === "dark" ? "#e4e4e7" : "#18181b";
-  const markdownMutedColor = colorScheme === "dark" ? "#71717a" : "#52525b";
+  const textColor = colorScheme === "dark" ? "#e4e4e7" : "#18181b";
+  const mutedColor = colorScheme === "dark" ? "#71717a" : "#52525b";
 
-  const theme = useMemo(
-    () => ({
-      base: colorScheme as "light" | "dark",
-      colors: {
-        textColor: markdownTextColor,
-        mutedTextColor: markdownMutedColor,
-      },
-    }),
-    [colorScheme, markdownTextColor, markdownMutedColor],
-  );
+  const theme = {
+    base: colorScheme as "light" | "dark",
+    colors: { textColor, mutedTextColor: mutedColor },
+  };
 
-  const handleCopyContent = async () => {
-    const textToCopy = message.reasoning_content ?? message.content;
-    if (!textToCopy) return;
+  const handleCopy = async () => {
+    const text = reasoning || content;
+    if (!text) return;
     try {
-      await Clipboard.setStringAsync(textToCopy);
-    } catch (e) {
-      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-        try {
-          await navigator.clipboard.writeText(textToCopy);
-        } catch {}
-      }
+      await Clipboard.setStringAsync(text);
+    } catch {
+      if (navigator.clipboard?.writeText)
+        await navigator.clipboard.writeText(text);
     }
   };
 
   return (
     <View className="flex gap-2 self-start max-w-[100%] w-full my-6">
-      {/* Thinking section */}
       {hasReasoning && (
         <ThinkingSection
-          reasoning_content={message.reasoning_content ?? ""}
+          reasoning_content={reasoning}
           isStreaming={isStreaming}
         />
       )}
 
-      {/* Output principal */}
       {hasContent && (
-        <View className="flex items-center justify-center my-3 mb-0">
-          {message.content ? (
-            <MarkdownStream
-              codeCopyLabel="Copiar"
-              source={isStreaming ? message.content : undefined}
-              content={!isStreaming ? message.content : undefined}
-              textColor={markdownTextColor}
-              mutedTextColor={markdownMutedColor}
-              enableCodeCopy={!isStreaming}
-              theme={theme}
-            />
+        <View className="my-3 mb-0">
+          {!content && isStreaming ? (
+            <StreamingIndicator />
+          ) : isStreaming ? (
+            <View>
+              {lines.completed.length > 0 && (
+                <MarkdownStream
+                  content={lines.completed}
+                  textColor={textColor}
+                  mutedTextColor={mutedColor}
+                  theme={theme}
+                  enableCodeCopy={false}
+                />
+              )}
+              <Text
+                className="text-base leading-relaxed"
+                style={{ color: textColor }}
+              >
+                {lines.current}
+                <Text className="opacity-50">▊</Text>
+              </Text>
+            </View>
           ) : (
-            isStreaming && <StreamingIndicator />
+            <MarkdownStream
+              content={content}
+              textColor={textColor}
+              mutedTextColor={mutedColor}
+              theme={theme}
+              enableCodeCopy
+              codeCopyLabel="Copiar"
+            />
           )}
         </View>
       )}
 
-      {/* Footer with metadata and regenerate button */}
       {!isStreaming && (
         <AIBubbleFooter
           modelDisplayName={modelDisplayName}
           timestamp={message.timestamp}
           timings={timings}
           onRetry={onRetry}
-          onCopy={handleCopyContent}
+          onCopy={handleCopy}
         />
       )}
     </View>

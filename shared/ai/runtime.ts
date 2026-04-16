@@ -1,5 +1,5 @@
-import type { DeviceInfo, RuntimeConfig } from "@/shared/device/types";
 import { detectDevice } from "@/shared/device";
+import type { DeviceInfo, RuntimeConfig } from "@/shared/device/types";
 import { createError, err, ok, Result } from "@/shared/utils/app-error";
 import { initLlama, LlamaContext, loadLlamaModelInfo } from "llama.rn";
 import { findModelById } from "./catalog";
@@ -207,10 +207,10 @@ export class AIRuntime {
           jinja: true,
           enable_thinking: enableThinking,
           thinking_forced_open: enableThinking,
-          n_predict:
-            options?.maxTokens ?? this.lastRuntimeConfig?.n_predict ?? 2048,
+          // n_predict:
+          //   options?.maxTokens ?? this.lastRuntimeConfig?.n_predict ?? 2048,
           temperature: options?.temperature ?? 0.7,
-          stop: STOP_WORDS,
+          // stop: STOP_WORDS,
           top_k: this.lastRuntimeConfig?.top_k ?? 40,
           top_p: this.lastRuntimeConfig?.top_p ?? 0.9,
           min_p: this.lastRuntimeConfig?.min_p ?? 0.05,
@@ -292,6 +292,7 @@ export class AIRuntime {
         timings: result.timings,
       });
     } catch (error) {
+      console.log("[AIRuntime] Erro durante geração:", error);
       if ((error as Error).name === "AbortError") {
         return err(createError("ABORTED", "Geração cancelada."));
       }

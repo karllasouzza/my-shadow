@@ -29,21 +29,23 @@ All Phase 0 research is **complete** (`research.md`). Phase 1 design artifacts a
 **Target Platform**: iOS 14+ / Android 8+ (native only — no web)
 **Project Type**: Mobile app (React Native + Expo Router, MVVM pattern)
 **Performance Goals**:
-  - Tokens/second: +20-50% over baseline (~8-12 t/s → 15-40 t/s)
-  - Time-to-first-token: < 300ms (Phase 2 target); currently 800-1500ms  
-  - Crash rate on 4GB RAM: < 1%  
-  - **Note**: Constitution mandates app cold start < 2s globally; this feature optimizes model load time (< 5s) which is a component of cold start but not the only factor GB (Phase 2 target); currently 2.5-4 GB  
-  - Crash rate on 4GB RAM: < 1%  
-  - **Note**: Constitution mandates app cold start < 2s globally; this feature optimizes model load time (< 5s) which is a component of cold start but not the only factor
+
+- Tokens/second: +20-50% over baseline (~8-12 t/s → 15-40 t/s)
+- Time-to-first-token: < 300ms (Phase 2 target); currently 800-1500ms
+- Crash rate on 4GB RAM: < 1%
+- **Note**: Constitution mandates app cold start < 2s globally; this feature optimizes model load time (< 5s) which is a component of cold start but not the only factor GB (Phase 2 target); currently 2.5-4 GB
+- Crash rate on 4GB RAM: < 1%
+- **Note**: Constitution mandates app cold start < 2s globally; this feature optimizes model load time (< 5s) which is a component of cold start but not the only factor
 
 **Constraints**:
-  - No network calls; local-only processing (privacy requirement)
-  - All user-facing text in pt-BR
-  - MVVM: services must not be called directly from components
-  - Android-focused optimization (iOS support secondary); baseline device configurations Android-first
-  - `react-native` cannot be imported in test files (use DI interfaces)
-  - No `div`/HTML elements; native-only components (`@rn-primitives`)
-  - Android-focused optimization (iOS support secondary); baseline device configurations Android-first
+
+- No network calls; local-only processing (privacy requirement)
+- All user-facing text in pt-BR
+- MVVM: services must not be called directly from components
+- Android-focused optimization (iOS support secondary); baseline device configurations Android-first
+- `react-native` cannot be imported in test files (use DI interfaces)
+- No `div`/HTML elements; native-only components (`@rn-primitives`)
+- Android-focused optimization (iOS support secondary); baseline device configurations Android-first
 
 ---
 
@@ -51,15 +53,15 @@ All Phase 0 research is **complete** (`research.md`). Phase 1 design artifacts a
 
 _GATE: Must pass before implementation. All gates evaluated against constitution v1.2.0._
 
-| Gate | Rule | Status | Notes |
-|------|------|--------|-------|
-| **MVVM Integrity** | ViewModels must delegate to Services; no direct native API calls in components | PASS | `DeviceDetector`, `RuntimeConfigGenerator`, `MemoryMonitor` are injectable services |
-| **Test-Driven (Bun)** | Tests import from `"bun:test"`, >= 80% coverage on Services | PASS | Constitution clarification (2026-04-15): migrate to Bun |
-| **Simplicity** | Micro-components; single-responsibility | PASS | Each service has exactly one concern |
-| **pt-BR Consistency** | Commits & docs in English; user strings in pt-BR | PASS | No user-facing strings in these services |
-| **Local-First Performance** | Inference p95 < 15s; memory < 2GB on 4GB devices | PASS | Plan directly targets these budgets |
-| **Absolute Privacy** | No external API calls | PASS | All optimization is in-process |
-| **Styling** | NativeWind className only | NOT APPLICABLE | Runtime optimization has no UI |
+| Gate                        | Rule                                                                           | Status         | Notes                                                                               |
+| --------------------------- | ------------------------------------------------------------------------------ | -------------- | ----------------------------------------------------------------------------------- |
+| **MVVM Integrity**          | ViewModels must delegate to Services; no direct native API calls in components | PASS           | `DeviceDetector`, `RuntimeConfigGenerator`, `MemoryMonitor` are injectable services |
+| **Test-Driven (Bun)**       | Tests import from `"bun:test"`, >= 80% coverage on Services                    | PASS           | Constitution clarification (2026-04-15): migrate to Bun                             |
+| **Simplicity**              | Micro-components; single-responsibility                                        | PASS           | Each service has exactly one concern                                                |
+| **pt-BR Consistency**       | Commits & docs in English; user strings in pt-BR                               | PASS           | No user-facing strings in these services                                            |
+| **Local-First Performance** | Inference p95 < 15s; memory < 2GB on 4GB devices                               | PASS           | Plan directly targets these budgets                                                 |
+| **Absolute Privacy**        | No external API calls                                                          | PASS           | All optimization is in-process                                                      |
+| **Styling**                 | NativeWind className only                                                      | NOT APPLICABLE | Runtime optimization has no UI                                                      |
 
 No violations. Implementation may proceed.
 
@@ -111,13 +113,13 @@ tests/unit/shared/ai/
 
 All five NEEDS CLARIFICATION items resolved in [research.md](./research.md):
 
-| Question | Resolution |
-|----------|-----------|
-| llama.rn KV cache quantization | Build Expo native wrapper; `cache_type_k/v` confirmed in llama.cpp v2501+ |
-| GPU VRAM detection Android | Vulkan → EGL → Heuristic (30% of system RAM) fallback chain |
-| Perplexity degradation threshold | Q8_0: +/-2-5% (accepted); Q4_0: +/-8-15% (extreme cases only) |
-| Mobile device baselines | 4GB: 35% crash risk; 6GB: 12%; 8GB+: 3% |
-| Cache invalidation strategy | SHA256-based versioning (model hash + config hash + system prompt hash) |
+| Question                         | Resolution                                                                |
+| -------------------------------- | ------------------------------------------------------------------------- |
+| llama.rn KV cache quantization   | Build Expo native wrapper; `cache_type_k/v` confirmed in llama.cpp v2501+ |
+| GPU VRAM detection Android       | Vulkan → EGL → Heuristic (30% of system RAM) fallback chain               |
+| Perplexity degradation threshold | Q8_0: +/-2-5% (accepted); Q4_0: +/-8-15% (extreme cases only)             |
+| Mobile device baselines          | 4GB: 35% crash risk; 6GB: 12%; 8GB+: 3%                                   |
+| Cache invalidation strategy      | SHA256-based versioning (model hash + config hash + system prompt hash)   |
 
 ---
 
@@ -138,28 +140,31 @@ optimized target state:
 
 ### Critical Gaps (High Impact / Low Effort)
 
-| # | Gap | Current State | Target State |
-|---|-----|---------------|-------------|
-| G1 | `n_threads` uses total cores, not performance cores | `cpuCores` count | `performanceCores - 1` (reserve UI thread) |
-| G2 | `n_batch` is fixed per tier | 64/128/512 static | `min(512, max(128, min(n_ctx/2, RAM*0.3)))` |
+| #   | Gap                                                 | Current State     | Target State                                |
+| --- | --------------------------------------------------- | ----------------- | ------------------------------------------- |
+| G1  | `n_threads` uses total cores, not performance cores | `cpuCores` count  | `performanceCores - 1` (reserve UI thread)  |
+| G2  | `n_batch` is fixed per tier                         | 64/128/512 static | `min(512, max(128, min(n_ctx/2, RAM*0.3)))` |
+
 **Device Tier Boundaries**:
-  - **Budget**: `availableRAM < 5` GB
-  - **Mid-Range**: `availableRAM >= 5 AND availableRAM < 7` GB
-  - **Premium**: `availableRAM >= 7` GB| G3 | `n_predict` hardcoded to 4096 | `options?.maxTokens ?? 4096` | Adaptive: 512/1024/2048 by RAM ratio |
-| G4 | `flash_attn` always enabled | `flash_attn_type: "on", flash_attn: true` | Only on GPU-capable devices; off on CPU-only |
-| G5 | No sampling parameter tuning | Default llama.rn params | `top_k: 40`, `top_p: 0.9`, `min_p: 0.05` |
-**Device Tier Boundaries**:
-  - **Budget**: `availableRAM < 5` GB
-  - **Mid-Range**: `availableRAM >= 5 AND availableRAM < 7` GB
-  - **Premium**: `availableRAM >= 7` GB
+
+- **Budget**: `availableRAM < 5` GB
+- **Mid-Range**: `availableRAM >= 5 AND availableRAM < 7` GB
+- **Premium**: `availableRAM >= 7` GB| G3 | `n_predict` hardcoded to 4096 | `options?.maxTokens ?? 4096` | Adaptive: 512/1024/2048 by RAM ratio |
+  | G4 | `flash_attn` always enabled | `flash_attn_type: "on", flash_attn: true` | Only on GPU-capable devices; off on CPU-only |
+  | G5 | No sampling parameter tuning | Default llama.rn params | `top_k: 40`, `top_p: 0.9`, `min_p: 0.05` |
+  **Device Tier Boundaries**:
+- **Budget**: `availableRAM < 5` GB
+- **Mid-Range**: `availableRAM >= 5 AND availableRAM < 7` GB
+- **Premium**: `availableRAM >= 7` GB
+
 ### Important Gaps (Medium Impact)
 
-| # | Gap | Current State | Target State |
-|---|-----|---------------|-------------|
-| G6 | `n_parallel` set to 1 | `context.parallel.enable({ n_parallel: 1 })` | `n_parallel: 0` (single-thread decode, -30% RAM) |
-| G7 | No model warm-up after load | Cold first inference | `warmUp()` API call after `initLlama` (verify availability first) |
-| G8 | `dry_penalty_last_n` static at 64 | Always 64 | Tier-adaptive: 32 (budget) / 48 (midRange) / 64 (premium) |
-| G9 | GPU backend not typed | `gpuType?: 'adreno' \| 'mali' \| ...` | Add `gpuBackend?: 'metal' \| 'opencl' \| 'vulkan' \| null` |
+| #   | Gap                               | Current State                                | Target State                                                      |
+| --- | --------------------------------- | -------------------------------------------- | ----------------------------------------------------------------- |
+| G6  | `n_parallel` set to 1             | `context.parallel.enable({ n_parallel: 1 })` | `n_parallel: 0` (single-thread decode, -30% RAM)                  |
+| G7  | No model warm-up after load       | Cold first inference                         | `warmUp()` API call after `initLlama` (verify availability first) |
+| G8  | `dry_penalty_last_n` static at 64 | Always 64                                    | Tier-adaptive: 32 (budget) / 48 (midRange) / 64 (premium)         |
+| G9  | GPU backend not typed             | `gpuType?: 'adreno' \| 'mali' \| ...`        | Add `gpuBackend?: 'metal' \| 'opencl' \| 'vulkan' \| null`        |
 
 ### Device Tier Boundaries (explicit rules)
 
@@ -169,11 +174,11 @@ optimized target state:
 
 ### Advanced Gaps (High Impact / High Effort — Deferred)
 
-| # | Gap | Rationale for Deferral |
-|---|-----|------------------------|
-| G10 | Speculative decoding | Requires second model file; out of scope for RAM optimization |
+| #   | Gap                              | Rationale for Deferral                                                          |
+| --- | -------------------------------- | ------------------------------------------------------------------------------- |
+| G10 | Speculative decoding             | Requires second model file; out of scope for RAM optimization                   |
 | G11 | Persistent KV cache across turns | API not in current llama.rn; requires Expo native wrapper (separate spec phase) |
-| G12 | Dynamic mmap pagination | Requires native binding extension; blocked on Expo module work |
+| G12 | Dynamic mmap pagination          | Requires native binding extension; blocked on Expo module work                  |
 
 ---
 
@@ -196,6 +201,7 @@ export interface DeviceInfo {
 ```
 
 `DeviceDetector.detect()` populates `performanceCores` via heuristic:
+
 - **iOS (Apple Silicon)**: `Math.ceil(cpuCores * 0.5)` — P/E split is ~50/50
 - **Android Snapdragon/Bionic**: `Math.ceil(cpuCores * 0.375)` — 3 of 8 cores typical P-cores
 - **Android Helio/unknown**: `Math.max(2, Math.ceil(cpuCores * 0.5))` — conservative fallback
@@ -236,11 +242,11 @@ getAdaptiveNPredict(modelSizeGB: number, availableRAMBytes: number): number {
 // shared/types/device.ts — extend RuntimeConfig
 export interface RuntimeConfig {
   // ... existing fields ...
-  n_predict?: number;  // Adaptive generation budget (replaces static 4096)
+  n_predict?: number; // Adaptive generation budget (replaces static 4096)
   n_parallel?: number; // 0 = single decode sequence (mobile optimal)
-  top_k?: number;      // Sampling: 40 reduces search space vs 50-100 default
-  top_p?: number;      // Sampling: 0.9 maintains output diversity
-  min_p?: number;      // Sampling: 0.05 filters improbable tokens aggressively
+  top_k?: number; // Sampling: 40 reduces search space vs 50-100 default
+  top_p?: number; // Sampling: 0.9 maintains output diversity
+  min_p?: number; // Sampling: 0.05 filters improbable tokens aggressively
 }
 ```
 
@@ -292,8 +298,12 @@ const completionParams = {
   jinja: true,
   enable_thinking: enableThinking,
   thinking_forced_open: enableThinking,
-  n_predict: options?.maxTokens
-    ?? this.configGenerator.getAdaptiveNPredict(modelSizeGB, pressure.availableRAM),
+  n_predict:
+    options?.maxTokens ??
+    this.configGenerator.getAdaptiveNPredict(
+      modelSizeGB,
+      pressure.availableRAM,
+    ),
   temperature: options?.temperature ?? 0.7,
   stop: STOP_WORDS,
   // G6: 0 = single-thread decode (-30% RAM, +10% t/s vs n_parallel=1)
@@ -364,9 +374,9 @@ Implements the KPI composite scoring from optmize-velocity.md:
 
 ```typescript
 export interface PerformanceScore {
-  speed: number;     // (tokensPerSecond / 30) * 100, capped at 100
-  memory: number;    // max(0, 100 - (utilizationPercent - 50) * 2)
-  latency: number;   // max(0, 100 - (firstTokenTime - 300) / 10)
+  speed: number; // (tokensPerSecond / 30) * 100, capped at 100
+  memory: number; // max(0, 100 - (utilizationPercent - 50) * 2)
+  latency: number; // max(0, 100 - (firstTokenTime - 300) / 10)
   stability: number; // 100 - (criticalLevel ? 50 : 0)
   composite: number; // 0.4*speed + 0.3*memory + 0.2*latency + 0.1*stability
 }
@@ -377,7 +387,10 @@ export function calculatePerformanceScore(
 ): PerformanceScore {
   const speed = Math.min(100, ((metrics.tokensPerSecond ?? 0) / 30) * 100);
   const memory = Math.max(0, 100 - (pressure.utilizationPercent - 50) * 2);
-  const latency = Math.max(0, 100 - ((metrics.firstTokenTime ?? 1500) - 300) / 10);
+  const latency = Math.max(
+    0,
+    100 - ((metrics.firstTokenTime ?? 1500) - 300) / 10,
+  );
   const stability = 100 - (pressure.criticalLevel ? 50 : 0);
   return {
     speed,
@@ -395,11 +408,11 @@ export function calculatePerformanceScore(
 
 The following entities in `data-model.md` require addendum entries:
 
-| Entity | New Fields |
-|--------|-----------|
-| `DeviceInfo` | `performanceCores: number`, `gpuBackend?: "metal" \| "opencl" \| "vulkan" \| null` |
-| `RuntimeConfig` | `n_predict?: number`, `n_parallel?: number`, `top_k?: number`, `top_p?: number`, `min_p?: number` |
-| `MemoryPressure` | `recommendedBatch: number` |
+| Entity           | New Fields                                                                                        |
+| ---------------- | ------------------------------------------------------------------------------------------------- |
+| `DeviceInfo`     | `performanceCores: number`, `gpuBackend?: "metal" \| "opencl" \| "vulkan" \| null`                |
+| `RuntimeConfig`  | `n_predict?: number`, `n_parallel?: number`, `top_k?: number`, `top_p?: number`, `min_p?: number` |
+| `MemoryPressure` | `recommendedBatch: number`                                                                        |
 
 ---
 
@@ -407,40 +420,40 @@ The following entities in `data-model.md` require addendum entries:
 
 All new methods covered with `bun:test`, using DI mock interfaces.
 
-| Unit | Tests Required |
-|------|----------------|
-| `DeviceDetector.detect()` | Returns `performanceCores` for ios/android/helio; `gpuBackend` for each gpuType |
-| `RuntimeConfigGenerator.generateThreadCount()` | Returns `performanceCores - 1`; minimum 1 enforced |
-| `RuntimeConfigGenerator.calculateOptimalBatch()` | RAM-bounded, ctx-bounded, floor/ceil edges |
-| `RuntimeConfigGenerator.getAdaptiveNPredict()` | ratio < 1 → 512, < 2 → 1024, >= 2 → 2048 |
-| `MemoryMonitor.evaluate()` | `recommendedBatch` computed correctly for each pressure level |
-| `AIRuntime.loadModel()` | `flash_attn: false` when `hasGPU=false`; warm-up called as side-effect |
-| `AIRuntime.streamCompletion()` | `n_parallel: 0` in completion config; adaptive n_predict used |
+| Unit                                             | Tests Required                                                                  |
+| ------------------------------------------------ | ------------------------------------------------------------------------------- |
+| `DeviceDetector.detect()`                        | Returns `performanceCores` for ios/android/helio; `gpuBackend` for each gpuType |
+| `RuntimeConfigGenerator.generateThreadCount()`   | Returns `performanceCores - 1`; minimum 1 enforced                              |
+| `RuntimeConfigGenerator.calculateOptimalBatch()` | RAM-bounded, ctx-bounded, floor/ceil edges                                      |
+| `RuntimeConfigGenerator.getAdaptiveNPredict()`   | ratio < 1 → 512, < 2 → 1024, >= 2 → 2048                                        |
+| `MemoryMonitor.evaluate()`                       | `recommendedBatch` computed correctly for each pressure level                   |
+| `AIRuntime.loadModel()`                          | `flash_attn: false` when `hasGPU=false`; warm-up called as side-effect          |
+| `AIRuntime.streamCompletion()`                   | `n_parallel: 0` in completion config; adaptive n_predict used                   |
 
 ---
 
 ## KPIs and Acceptance Criteria
 
-| Metric | Phase 1-A Target | Phase 2 Target | Acceptance Test |
-|--------|-----------------|----------------|-----------------|
-| Tokens/second (decode) | 15-20 t/s | 25-40 t/s | `metrics.tokensPerSecond` >= baseline + 20% |
-| Time-to-first-token | 400-700 ms | < 300 ms | `metrics.firstTokenTime` regression guard |
-| RAM peak during inference | 1.8-2.5 GB | < 1.5 GB | `MemoryMonitor.evaluate().utilizationPercent` |
-| Crash rate (4GB RAM) | — | < 1% | `MemoryMonitor.criticalLevel` event rate |
-| Warm-up TTFT gain | — | -50% first token | Compare cold vs. warm model TTFT |
+| Metric                    | Phase 1-A Target | Phase 2 Target   | Acceptance Test                               |
+| ------------------------- | ---------------- | ---------------- | --------------------------------------------- |
+| Tokens/second (decode)    | 15-20 t/s        | 25-40 t/s        | `metrics.tokensPerSecond` >= baseline + 20%   |
+| Time-to-first-token       | 400-700 ms       | < 300 ms         | `metrics.firstTokenTime` regression guard     |
+| RAM peak during inference | 1.8-2.5 GB       | < 1.5 GB         | `MemoryMonitor.evaluate().utilizationPercent` |
+| Crash rate (4GB RAM)      | —                | < 1%             | `MemoryMonitor.criticalLevel` event rate      |
+| Warm-up TTFT gain         | —                | -50% first token | Compare cold vs. warm model TTFT              |
 
 ---
 
 ## Risks and Mitigations
 
-| Risk | Likelihood | Mitigation |
-|------|-----------|-----------|
-| `performanceCores` heuristic wrong on exotic SoCs | Medium | Fallback to `Math.max(2, cpuCores / 2)`; add user override in settings |
-| `n_parallel: 0` not accepted by older llama.rn API | Low | Wrap in try/catch; fall back to `n_parallel: 1` |
-| `min_p: 0.05` causes repetitive outputs on some models | Low | A/B test before shipping; revert if perplexity degrades > 5% |
-| Warm-up adds ~300ms to model load time | Low | Fire as non-blocking `void` call; log timing to metrics |
-| `flash_attn` gating incorrectly disables on Metal | Low | Explicit unit test for `gpuBackend === "metal"` path |
-| `n_batch` over-reduction on extreme memory | Low | Floor of 64 enforced via `Math.max(64, ...)` in `calculateOptimalBatch` |
+| Risk                                                   | Likelihood | Mitigation                                                              |
+| ------------------------------------------------------ | ---------- | ----------------------------------------------------------------------- |
+| `performanceCores` heuristic wrong on exotic SoCs      | Medium     | Fallback to `Math.max(2, cpuCores / 2)`; add user override in settings  |
+| `n_parallel: 0` not accepted by older llama.rn API     | Low        | Wrap in try/catch; fall back to `n_parallel: 1`                         |
+| `min_p: 0.05` causes repetitive outputs on some models | Low        | A/B test before shipping; revert if perplexity degrades > 5%            |
+| Warm-up adds ~300ms to model load time                 | Low        | Fire as non-blocking `void` call; log timing to metrics                 |
+| `flash_attn` gating incorrectly disables on Metal      | Low        | Explicit unit test for `gpuBackend === "metal"` path                    |
+| `n_batch` over-reduction on extreme memory             | Low        | Floor of 64 enforced via `Math.max(64, ...)` in `calculateOptimalBatch` |
 
 ---
 
