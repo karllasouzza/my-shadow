@@ -39,20 +39,20 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
 
 **Purpose**: Project initialization and TypeScript type definitions
 
-- [ ] T001 Create device type definitions in shared/types/device.ts
+- [X] T001 Create device type definitions in shared/types/device.ts
   - Add DeviceInfo interface (RAM, CPU cores, GPU detection)
   - Add DeviceProfile interface (tier, label, config, expectations)
   - Add RuntimeConfig interface (n_ctx, n_batch, cache_type_k/v, etc.)
   - Add CacheMetadata and MemoryPressure interfaces
   - Document constraints for each field (n_ctx: 128-8192, etc.)
 
-- [ ] T002 [P] Create test utilities for device simulation in tests/utils/device-simulator.ts
+- [X] T002 [P] Create test utilities for device simulation in tests/utils/device-simulator.ts
   - Implement mockDeviceInfo() for budget 4GB tier
   - Implement mockDeviceInfo() for mid-range 6GB tier
   - Implement mockDeviceInfo() for premium 8GB+ tier
   - Create helpers for memory pressure simulation
 
-- [ ] T003 [P] Initialize Bun test configuration for native tests
+- [X] T003 [P] Initialize Bun test configuration for native tests
   - Configure test runner for iOS/Android compatibility
   - Add device capability mocks (RAM, CPU), use `bun:test`
   - Ensure ES modules work with React Native imports
@@ -65,7 +65,7 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
 
 **⚠️ CRITICAL**: Must complete before runtime integration
 
-- [ ] T004 Implement DeviceDetector service in shared/ai/device-detector.ts
+- [X] T004 Implement DeviceDetector service in shared/ai/device-detector.ts
   - Add `detect(): Promise<DeviceInfo>` method
   - Detect total and available RAM (use react-native-device-info)
   - Detect CPU cores via os.cpus() or native API
@@ -73,20 +73,20 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
   - Add detection timestamp and method metadata
   - Export DeviceDetector class
 
-- [ ] T005 [P] Implement device RAM detection (platform-specific) in shared/ai/device-detector.ts
+- [X] T005 [P] Implement device RAM detection (platform-specific) in shared/ai/device-detector.ts
   - iOS: Use native NSProcessInfo.processInfo.physicalMemory
   - Android: Use ActivityManager.MemoryInfo
   - Fallback to react-native-device-info if native unavailable
   - Ensure available RAM excludes OS + system processes
 
-- [ ] T006 [P] Implement GPU/VRAM detection (fallback strategy) in shared/ai/device-detector.ts
+- [X] T006 [P] Implement GPU/VRAM detection (fallback strategy) in shared/ai/device-detector.ts
   - Android Vulkan detection: Check vkGetPhysicalDeviceMemoryProperties() via native module
   - Android EGL fallback: Attempt eglQuerySurface() if Vulkan unavailable
   - Heuristic fallback: Use 30% of system RAM as estimated VRAM
   - iOS: GPU is unified memory; return system RAM as effective GPU memory
   - Store detection method in DeviceInfo.detectionMethod for debugging
 
-- [ ] T007 Implement RuntimeConfigGenerator service in shared/ai/runtime-config-generator.ts
+- [X] T007 Implement RuntimeConfigGenerator service in shared/ai/runtime-config-generator.ts
   - Add device profile definitions (budget, midRange, premium)
   - Implement `selectDeviceProfile(deviceInfo): DeviceProfile` method
   - Implement `generateRuntimeConfig(deviceInfo, modelPath): RuntimeConfig` method
@@ -95,7 +95,7 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
   - Adjust n_gpu_layers based on available VRAM
   - Return config with all required fields (n_ctx, n_batch, cache_type_k/v, use_mmap, use_mlock)
 
-- [ ] T008 [P] Create device profile definitions in shared/ai/device-profiles.ts
+- [X] T008 [P] Create device profile definitions in shared/ai/device-profiles.ts
   - Define `budgetProfile` (3-5GB): n_ctx=1024, n_batch=64, cache_type=q8_0, n_gpu_layers=0
   - Define `midRangeProfile` (5-7GB): n_ctx=2048, n_batch=128, cache_type=q8_0, n_gpu_layers=50
   - Define `premiumProfile` (7GB+): n_ctx=4096, n_batch=512, cache_type=f16, n_gpu_layers=99
@@ -103,7 +103,7 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
   - Export as map: `const deviceProfiles = { budget, midRange, premium }`
   - Add classification algorithm: `classifyDeviceTier(availableRAM): DeviceTier`
 
-- [ ] T009 Implement MemoryMonitor service in shared/ai/memory-monitor.ts
+- [X] T009 Implement MemoryMonitor service in shared/ai/memory-monitor.ts
   - Add `evaluate(): MemoryPressure` method (return current RAM state)
   - Calculate utilizationPercent (used/total \* 100)
   - Compute criticalLevel (true if > 85%)
@@ -111,7 +111,7 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
   - Add `canRunInference`: boolean (check if available RAM > n_batch \* ~100 bytes)
   - Return MemoryPressure with timestamp
 
-- [ ] T010 [P] Add lifecycle hooks for memory management in shared/ai/memory-monitor.ts
+- [X] T010 [P] Add lifecycle hooks for memory management in shared/ai/memory-monitor.ts
   - Implement `onAppBackground()` (unload model if pressure high)
   - Implement `onAppForeground()` (reload model if available)
   - Implement `onMemoryWarning()` callback (reduce context or fallback)
