@@ -245,18 +245,18 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
 
 **Purpose**: Ensure KV cache quantization maintains acceptable quality
 
-- [ ] T025 [P] Add inference quality test in tests/integration/inference-quality.test.ts
+- [X] T025 [P] Add inference quality test in tests/integration/inference-quality.test.ts
   - Run inference on budget config (q8_0 KV cache)
   - Compare output perplexity vs. baseline (f16)
   - Verify perplexity loss < 2% (accepted threshold)
   - Log comparison metrics
 
-- [ ] T026 [P] Add consistency test in tests/integration/inference-quality.test.ts
+- [X] T026 [P] Add consistency test in tests/integration/inference-quality.test.ts
   - Run same prompt 3x on budget tier
   - Verify outputs are consistent (same seeds)
   - Ensure quantization doesn't break determinism
 
-- [ ] T027 Add language quality spot-check test in tests/integration/inference-quality.test.ts
+- [X] T027 Add language quality spot-check test in tests/integration/inference-quality.test.ts
   - Generate 100-token reflection prompt on budget tier
   - Manual verification: Output is coherent, not corrupted
   - Check for obvious quantization artifacts (word repetition, nonsense sequences)
@@ -267,7 +267,7 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
 
 **Purpose**: Validate full workflow on low-RAM device simulation
 
-- [ ] T028 [P] Add E2E test for chat inference on budget device in tests/e2e/ai-inference-low-ram.test.ts
+- [X] T028 [P] Add E2E test for chat inference on budget device in tests/e2e/ai-inference-low-ram.test.ts
   - Simulate 4GB RAM device
   - Launch app (use Expo dev client or simulator)
   - Load model via existing ChatScreen flow
@@ -275,13 +275,13 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
   - Verify response arrives without app crash
   - Check memory usage during inference (peak < 3.5GB)
 
-- [ ] T029 [P] Add E2E test for context limit on budget device in tests/e2e/ai-inference-low-ram.test.ts
+- [X] T029 [P] Add E2E test for context limit on budget device in tests/e2e/ai-inference-low-ram.test.ts
   - Simulate 4GB RAM device with budget config (n_ctx=1024)
   - Send multiple messages to build up context
   - Verify inference still works at max context (~1K tokens)
   - App should degrade gracefully, not crash
 
-- [ ] T030 Add E2E test for memory pressure warning in tests/e2e/ai-inference-low-ram.test.ts
+- [X] T030 Add E2E test for memory pressure warning in tests/e2e/ai-inference-low-ram.test.ts
   - Simulate 4GB device with OS memory usage at 70%
   - Trigger inference
   - Verify MemoryMonitor detects pressure
@@ -293,20 +293,20 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
 
 **Purpose**: Measure and validate optimization gains against targets
 
-- [ ] T031 [P] Create benchmark suite in tests/performance/runtime-optimization-benchmark.ts
+- [X] T031 [P] Create benchmark suite in tests/performance/runtime-optimization-benchmark.ts
   - Measure model load time (cold start) on each device tier
   - Measure TTFT (time-to-first-token) for 100-token generation
   - Measure throughput (tokens/sec) sustained
   - Measure peak memory during inference
   - Compare before/after for each tier
 
-- [ ] T032 [P] Add memory usage benchmarks in tests/performance/runtime-optimization-benchmark.ts
+- [X] T032 [P] Add memory usage benchmarks in tests/performance/runtime-optimization-benchmark.ts
   - Measure RAM usage with use_mmap=true vs. false
   - Measure KV cache impact with f16 vs. q8_0 quantization
   - Measure impact of n_batch size (64 vs. 128 vs. 512)
   - Log comparative results to results.json
 
-- [ ] T033 Add crash rate statistical test in tests/performance/runtime-optimization-benchmark.ts
+- [X] T033 Add crash rate statistical test in tests/performance/runtime-optimization-benchmark.ts
   - Run 100 inference iterations on simulated 4GB device
   - Count successful completions vs. OOM failures
   - Target: < 1% crash rate (verify against current ~35%)
