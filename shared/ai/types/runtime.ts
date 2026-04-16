@@ -1,4 +1,8 @@
-import type { LlamaContext, TokenData } from "llama.rn";
+import type {
+  LlamaContext,
+  NativeCompletionResultTimings,
+  TokenData,
+} from "llama.rn";
 
 export interface LoadedModel {
   id: string;
@@ -16,12 +20,7 @@ export interface StreamCompletionOptions {
 export interface CompletionOutput {
   text: string;
   reasoning?: string;
-  timings: {
-    prompt_ms: number;
-    predicted_ms: number;
-    prompt_tokens: number;
-    predicted_tokens: number;
-  };
+  timings: NativeCompletionResultTimings;
 }
 
 export interface StreamCallbacks {

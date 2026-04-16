@@ -137,12 +137,20 @@ export function useChat() {
       await stream.generate(conversationId, messages, {
         modelId: currentModelId,
         enableThinking: thinkingEnabled,
-        onComplete: (text, reasoning) => {
+        onComplete: (text, reasoning, timings) => {
           DatabaseChat.clearStreamingMessage(conversationId);
-          conversation.addMessage(
-            conversationId,
-            createChatMessage("assistant", text, reasoning, currentModelId),
+          const assistantMessage = createChatMessage(
+            "assistant",
+            text,
+            reasoning,
+            currentModelId,
           );
+
+          if (timings) {
+            (assistantMessage as any).timings = timings;
+          }
+
+          conversation.addMessage(conversationId, assistantMessage);
         },
         onError: (code, partialText, partialReasoning) => {
           handleGenerationError(
@@ -184,12 +192,21 @@ export function useChat() {
     await stream.generate(conversationId, toRuntimeMessages(messages), {
       modelId: currentModelId,
       enableThinking: thinkingEnabled,
-      onComplete: (text, reasoning) => {
+      onComplete: (text, reasoning, timings) => {
         DatabaseChat.clearStreamingMessage(conversationId);
-        conversation.addMessage(
-          conversationId,
-          createChatMessage("assistant", text, reasoning, currentModelId),
+
+        const assistantMessage = createChatMessage(
+          "assistant",
+          text,
+          reasoning,
+          currentModelId,
         );
+
+        if (timings) {
+          (assistantMessage as any).timings = timings;
+        }
+
+        conversation.addMessage(conversationId, assistantMessage);
       },
       onError: (code, partialText, partialReasoning) => {
         handleGenerationError(

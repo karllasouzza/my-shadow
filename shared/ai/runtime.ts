@@ -1,6 +1,6 @@
 import type { DeviceInfo, RuntimeConfig } from "@/shared/types/device";
 import { createError, err, ok, Result } from "@/shared/utils/app-error";
-import { initLlama, loadLlamaModelInfo } from "llama.rn";
+import { initLlama, LlamaContext, loadLlamaModelInfo } from "llama.rn";
 import { findModelById } from "./catalog";
 import { DeviceDetector } from "./device-detector";
 import { MemoryMonitor } from "./memory-monitor";
@@ -18,7 +18,7 @@ let instance: AIRuntime | null = null;
 
 export class AIRuntime {
   private model: LoadedModel | null = null;
-  private context: any = null;
+  private context: LlamaContext | null = null;
   private stop: (() => Promise<void>) | null = null;
   private readonly deviceDetector = new DeviceDetector();
   private readonly configGenerator = new RuntimeConfigGenerator();
@@ -290,12 +290,7 @@ export class AIRuntime {
       return ok({
         text,
         reasoning: reasoning || undefined,
-        timings: {
-          prompt_ms: result.timings?.prompt_ms ?? 0,
-          predicted_ms: result.timings?.predicted_ms ?? 0,
-          prompt_tokens: result.timings?.prompt_tokens ?? 0,
-          predicted_tokens: result.timings?.predicted_tokens ?? 0,
-        },
+        timings: result.timings,
       });
     } catch (error) {
       if ((error as Error).name === "AbortError") {
