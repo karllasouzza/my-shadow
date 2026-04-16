@@ -5,16 +5,18 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Text } from "@/components/ui/text";
-import type { GenerationMetrics } from "@/shared/ai/metrics";
+import type { CompletionOutput } from "@/shared/ai/types/runtime";
 import React from "react";
 import { View } from "react-native";
 import { AIBubbleAction } from "./ai-bubble-action";
 import { AIBubbleMetrics } from "./ai-bubble-metrics";
 
+type RuntimeTimings = CompletionOutput["timings"];
+
 type FooterProps = {
   modelDisplayName?: string | null;
   timestamp?: string | undefined;
-  metrics?: GenerationMetrics | undefined;
+  timings?: RuntimeTimings | undefined;
   onRetry?: () => void;
   onCopy?: () => void;
 };
@@ -22,7 +24,7 @@ type FooterProps = {
 export function AIBubbleFooter({
   modelDisplayName,
   timestamp,
-  metrics,
+  timings,
   onRetry,
   onCopy,
 }: FooterProps) {
@@ -50,7 +52,7 @@ export function AIBubbleFooter({
 
         <AccordionContent className="!border-none">
           <View className="w-full flex-col items-start gap-4">
-            {metrics && <AIBubbleMetrics metrics={metrics} />}
+            {timings && <AIBubbleMetrics timings={timings} />}
           </View>
         </AccordionContent>
       </AccordionItem>

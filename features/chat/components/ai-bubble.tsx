@@ -3,16 +3,17 @@ import { StreamingIndicator } from "@/features/chat/components/streaming-indicat
 import { ThinkingSection } from "@/features/chat/components/thinking-section";
 import type { ChatMessage } from "@/features/chat/model/chat-message";
 import { getAllModels } from "@/shared/ai/catalog";
-import type { GenerationMetrics } from "@/shared/ai/metrics";
+import type { CompletionOutput } from "@/shared/ai/types/runtime";
+import * as Clipboard from "expo-clipboard";
 import React, { useMemo } from "react";
 import { View } from "react-native";
 import { MarkdownStream } from "react-native-markdown-stream";
-import * as Clipboard from "expo-clipboard";
 import { AIBubbleFooter } from "./ai-bubble-footer";
 
 interface AIBubbleProps {
   message: ChatMessage;
   isStreaming?: boolean;
+  isReasonEnabled?: boolean;
   onRetry?: () => void;
 }
 
@@ -20,11 +21,12 @@ export function AIBubble({
   message,
   isStreaming = false,
   onRetry,
+  isReasonEnabled,
 }: AIBubbleProps) {
   const { colorScheme } = useTheme();
 
   const hasReasoning =
-    !!message.reasoning_content || (isStreaming && !message.content);
+    !!message.reasoning_content || !!(isStreaming && isReasonEnabled);
   const hasContent = !!message.content || isStreaming;
 
   // Get model display name
@@ -33,9 +35,8 @@ export function AIBubble({
       message.modelId)
     : null;
 
-  // Get generation metrics if available
-  const metrics = (message as any).generationMetrics as
-    | GenerationMetrics
+  const timings = (message as any).timings as
+    | CompletionOutput["timings"]
     | undefined;
 
   // Theme-aware markdown colors
@@ -59,7 +60,6 @@ export function AIBubble({
     try {
       await Clipboard.setStringAsync(textToCopy);
     } catch (e) {
-      // Fallback to navigator.clipboard on web if expo-clipboard fails
       if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
         try {
           await navigator.clipboard.writeText(textToCopy);
@@ -74,7 +74,7 @@ export function AIBubble({
       {hasReasoning && (
         <ThinkingSection
           reasoning_content={message.reasoning_content ?? ""}
-          isStreaming={isStreaming && !message.content}
+          isStreaming={isStreaming}
         />
       )}
 
@@ -84,14 +84,12 @@ export function AIBubble({
           {message.content ? (
             <MarkdownStream
               codeCopyLabel="Copiar"
-              content={message.content}
-              revealMode={isStreaming ? "chunk" : undefined}
-              revealDelay={isStreaming ? 8 : 0}
+              source={isStreaming ? message.content : undefined}
+              content={!isStreaming ? message.content : undefined}
               textColor={markdownTextColor}
               mutedTextColor={markdownMutedColor}
               enableCodeCopy={!isStreaming}
               theme={theme}
-              autoStart={true}
             />
           ) : (
             isStreaming && <StreamingIndicator />
@@ -104,7 +102,7 @@ export function AIBubble({
         <AIBubbleFooter
           modelDisplayName={modelDisplayName}
           timestamp={message.timestamp}
-          metrics={metrics}
+          timings={timings}
           onRetry={onRetry}
           onCopy={handleCopyContent}
         />
