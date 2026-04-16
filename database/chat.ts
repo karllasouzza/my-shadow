@@ -24,7 +24,9 @@ import { Result, createError, err, ok } from "@/shared/utils/app-error";
 import { randomUUID } from "expo-crypto";
 import { createMMKV, type MMKV } from "react-native-mmkv";
 
+const CONVERSATION_KEY_PREFIX = "chat:";
 const INDEX_KEY = "chat:index";
+const STREAMING_KEY_SUFFIX = ":streaming";
 
 let storage: MMKV | null = null;
 
@@ -56,8 +58,10 @@ export function createConversation(modelId: string): ChatConversation {
 export function saveConversation(conversation: ChatConversation): Result<void> {
   try {
     const store = getStorage();
-    store.set(`chat:${conversation.id}`, JSON.stringify(conversation));
-    updateIndex(conversation);
+    store.set(conversationKey(conversation.id), JSON.stringify(conversation));
+    // Update index using the provided conversation object (avoid re-reading
+    // from MMKV which may not be synchronous in all environments).
+    upsertIndexEntry(store, conversation);
     return ok(undefined);
   } catch (error) {
     return err(
@@ -75,7 +79,7 @@ export function saveConversation(conversation: ChatConversation): Result<void> {
 export function loadConversation(id: string): Result<ChatConversation | null> {
   try {
     const store = getStorage();
-    const raw = store.getString(`chat:${id}`);
+    const raw = store.getString(conversationKey(id));
     if (!raw) return ok(null);
     const conv = JSON.parse(raw) as ChatConversation;
     return ok(conv);
@@ -95,9 +99,7 @@ export function loadConversation(id: string): Result<ChatConversation | null> {
 export function listConversations(): Result<ChatConversationIndex[]> {
   try {
     const store = getStorage();
-    const raw = store.getString(INDEX_KEY);
-    if (!raw) return ok([]);
-    const index: ChatConversationIndex[] = JSON.parse(raw);
+    const index = syncIndexWithPersistedConversations(store);
     index.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     return ok(index);
   } catch (error) {
@@ -138,7 +140,7 @@ export function renameConversation(
 export function deleteConversation(id: string): Result<void> {
   try {
     const store = getStorage();
-    store.set(`chat:${id}`, "");
+    store.set(conversationKey(id), "");
     removeFromIndex(id);
     return ok(undefined);
   } catch (error) {
@@ -197,46 +199,120 @@ export function appendAssistantMessage(
   return saveAndReturn(conv);
 }
 
-function updateIndex(conversation: ChatConversation): void {
-  const store = getStorage();
-  const raw = store.getString(INDEX_KEY);
-  let index: ChatConversationIndex[] = [];
-  if (raw) {
-    try {
-      index = JSON.parse(raw);
-    } catch {
-      index = [];
-    }
-  }
+function conversationKey(id: string): string {
+  return `${CONVERSATION_KEY_PREFIX}${id}`;
+}
 
-  const existingIdx = index.findIndex((e) => e.id === conversation.id);
-  const entry: ChatConversationIndex = {
+function readPersistedConversation(
+  store: MMKV,
+  id: string,
+): ChatConversation | null {
+  const raw = store.getString(conversationKey(id));
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as ChatConversation;
+    // Basic shape validation: ensure parsed object looks like a conversation
+    if (!parsed || typeof parsed !== "object") return null;
+    if (!parsed.id || !Array.isArray((parsed as any).messages)) return null;
+    return parsed;
+  } catch {
+    // If parsing fails, skip this key — it isn't a persisted conversation.
+    return null;
+  }
+}
+
+function readIndex(store: MMKV): ChatConversationIndex[] {
+  const raw = store.getString(INDEX_KEY);
+  if (!raw) return [];
+
+  try {
+    return JSON.parse(raw) as ChatConversationIndex[];
+  } catch {
+    return [];
+  }
+}
+
+function writeIndex(store: MMKV, index: ChatConversationIndex[]): void {
+  store.set(INDEX_KEY, JSON.stringify(index));
+}
+
+function buildIndexEntry(conversation: ChatConversation): ChatConversationIndex {
+  return {
     id: conversation.id,
     title: conversation.title,
     lastMessageSnippet: getLastMessageSnippet(conversation.messages),
     updatedAt: conversation.updatedAt,
   };
+}
+
+function upsertIndexEntry(store: MMKV, conversation: ChatConversation): void {
+  const index = readIndex(store);
+  const existingIdx = index.findIndex((entry) => entry.id === conversation.id);
+  const nextEntry = buildIndexEntry(conversation);
 
   if (existingIdx >= 0) {
-    index[existingIdx] = entry;
+    index[existingIdx] = nextEntry;
   } else {
-    index.push(entry);
+    index.push(nextEntry);
   }
 
-  store.set(INDEX_KEY, JSON.stringify(index));
+  writeIndex(store, index);
+}
+
+function listPersistedConversationIds(store: MMKV): string[] {
+  // MMKV JS bindings may not expose getAllKeys in all environments; be defensive
+  // and fall back to an empty list to avoid crashing the app.
+  const allKeys =
+    typeof (store as any).getAllKeys === "function" ? (store as any).getAllKeys() : [];
+
+  return allKeys
+    .filter(
+      (key: string) =>
+        key.startsWith(CONVERSATION_KEY_PREFIX) &&
+        key !== INDEX_KEY &&
+        !key.endsWith(STREAMING_KEY_SUFFIX),
+    )
+    .map((key: string) => key.slice(CONVERSATION_KEY_PREFIX.length));
+}
+
+function syncIndexWithPersistedConversations(store: MMKV): ChatConversationIndex[] {
+  const nextIndex = listPersistedConversationIds(store)
+    .map((conversationId) => readPersistedConversation(store, conversationId))
+    .filter((conversation): conversation is ChatConversation => conversation !== null)
+    .map(buildIndexEntry);
+
+  const currentIndex = readIndex(store);
+  if (!areIndexesEqual(currentIndex, nextIndex)) {
+    writeIndex(store, nextIndex);
+  }
+
+  return nextIndex;
+}
+
+function areIndexesEqual(
+  left: ChatConversationIndex[],
+  right: ChatConversationIndex[],
+): boolean {
+  if (left.length !== right.length) return false;
+
+  const sortedLeft = [...left].sort((a, b) => a.id.localeCompare(b.id));
+  const sortedRight = [...right].sort((a, b) => a.id.localeCompare(b.id));
+
+  return sortedLeft.every((entry, index) => {
+    const other = sortedRight[index];
+    return (
+      entry.id === other.id &&
+      entry.title === other.title &&
+      entry.updatedAt === other.updatedAt &&
+      entry.lastMessageSnippet === other.lastMessageSnippet
+    );
+  });
 }
 
 function removeFromIndex(id: string): void {
   const store = getStorage();
-  const raw = store.getString(INDEX_KEY);
-  if (!raw) return;
-  try {
-    let index: ChatConversationIndex[] = JSON.parse(raw);
-    index = index.filter((e) => e.id !== id);
-    store.set(INDEX_KEY, JSON.stringify(index));
-  } catch {
-    store.set(INDEX_KEY, "[]");
-  }
+  const index = readIndex(store).filter((entry) => entry.id !== id);
+  writeIndex(store, index);
 }
 
 function saveAndReturn(conv: ChatConversation): Result<ChatConversation> {
@@ -251,7 +327,7 @@ function saveAndReturn(conv: ChatConversation): Result<ChatConversation> {
 // --------------------------------------------------------------------------
 
 function streamingKey(convId: string) {
-  return `chat:${convId}:streaming`;
+  return `${conversationKey(convId)}${STREAMING_KEY_SUFFIX}`;
 }
 
 /** Upsert a streaming partial for a conversation (overwrites previous) */

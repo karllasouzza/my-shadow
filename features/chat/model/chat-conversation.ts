@@ -7,6 +7,8 @@
 
 import { ChatMessage } from "./chat-message";
 
+const HISTORY_PREVIEW_SUFFIX_PATTERN = /\s*\[(?:cancelado|erro na geração)\]\s*$/i;
+
 export interface ChatConversation {
   id: string;
   title: string;
@@ -52,15 +54,31 @@ export function validateTitle(title: string): {
  * - Collapses whitespace/newlines
  * - Truncates to `maxLength` characters and appends an ellipsis when needed
  */
+export function createLastMessageSnippet(
+  content: string | undefined,
+  maxLength = 100,
+): string {
+  if (!content) return "";
+
+  const singleLine = content
+    .replace(HISTORY_PREVIEW_SUFFIX_PATTERN, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!singleLine) return "";
+  if (singleLine.length <= maxLength) return singleLine;
+  return `${singleLine.slice(0, maxLength)}...`;
+}
+
+/**
+ * Create a safe, single-line snippet for the last persisted message content.
+ * Only the saved `content` field is eligible for history previews.
+ */
 export function getLastMessageSnippet(
   messages: ChatMessage[] | undefined,
   maxLength = 100,
 ): string {
   if (!messages || messages.length === 0) return "";
   const last = messages[messages.length - 1];
-  if (!last || !last.content) return "";
-
-  const singleLine = last.content.replace(/\s+/g, " ").trim();
-  if (singleLine.length <= maxLength) return singleLine;
-  return `${singleLine.slice(0, maxLength)}...`;
+  return createLastMessageSnippet(last?.content, maxLength);
 }

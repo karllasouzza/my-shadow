@@ -1,23 +1,14 @@
-/**
- * AI Bubble
- *
- * Mensagem da IA com markdown streaming em tempo real via llama.rn.
- * - ThinkingSection: colapsável, atualiza durante reasoning
- * - Output: MarkdownStream com atualização incremental
- */
-
-import { Button } from "@/components/ui/button";
-import { Icon } from "@/components/ui/icon";
 import { useTheme } from "@/context/themes";
 import { StreamingIndicator } from "@/features/chat/components/streaming-indicator";
 import { ThinkingSection } from "@/features/chat/components/thinking-section";
 import type { ChatMessage } from "@/features/chat/model/chat-message";
 import { getAllModels } from "@/shared/ai/catalog";
 import type { GenerationMetrics } from "@/shared/ai/metrics";
-import { RotateCcw } from "lucide-react-native";
 import React, { useMemo } from "react";
-import { Text, View } from "react-native";
+import { View } from "react-native";
 import { MarkdownStream } from "react-native-markdown-stream";
+import * as Clipboard from "expo-clipboard";
+import { AIBubbleFooter } from "./ai-bubble-footer";
 
 interface AIBubbleProps {
   message: ChatMessage;
@@ -62,6 +53,21 @@ export function AIBubble({
     [colorScheme, markdownTextColor, markdownMutedColor],
   );
 
+  const handleCopyContent = async () => {
+    const textToCopy = message.reasoning_content ?? message.content;
+    if (!textToCopy) return;
+    try {
+      await Clipboard.setStringAsync(textToCopy);
+    } catch (e) {
+      // Fallback to navigator.clipboard on web if expo-clipboard fails
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        try {
+          await navigator.clipboard.writeText(textToCopy);
+        } catch {}
+      }
+    }
+  };
+
   return (
     <View className="flex gap-2 self-start max-w-[100%] w-full my-6">
       {/* Thinking section */}
@@ -74,9 +80,10 @@ export function AIBubble({
 
       {/* Output principal */}
       {hasContent && (
-        <View className="py-3">
+        <View className="flex items-center justify-center my-3 mb-0">
           {message.content ? (
             <MarkdownStream
+              codeCopyLabel="Copiar"
               content={message.content}
               revealMode={isStreaming ? "chunk" : undefined}
               revealDelay={isStreaming ? 8 : 0}
@@ -94,50 +101,14 @@ export function AIBubble({
 
       {/* Footer with metadata and regenerate button */}
       {!isStreaming && (
-        <View className="flex-row items-center gap-2 mt-2">
-          <View className="flex-row items-center gap-1.5 flex-1 flex-wrap">
-            {modelDisplayName && (
-              <Text className="text-muted-foreground/55 text-xs">
-                {modelDisplayName}
-              </Text>
-            )}
-            {modelDisplayName && message.timestamp && (
-              <Text className="text-muted-foreground/55 text-xs">•</Text>
-            )}
-            {message.timestamp && (
-              <Text className="text-muted-foreground/55 text-xs">
-                {formatTime(message.timestamp)}
-              </Text>
-            )}
-            {metrics && (
-              <>
-                <Text className="text-muted-foreground/55 text-xs">•</Text>
-                <Text className="text-muted-foreground/55 text-xs">
-                  {metrics.tttf}ms | {metrics.tokensPerSecond.toFixed(2)} tok/s
-                </Text>
-              </>
-            )}
-          </View>
-
-          {onRetry && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onPress={onRetry}
-              className="h-6 px-2"
-            >
-              <Icon as={RotateCcw} className="size-3 text-muted-foreground" />
-            </Button>
-          )}
-        </View>
+        <AIBubbleFooter
+          modelDisplayName={modelDisplayName}
+          timestamp={message.timestamp}
+          metrics={metrics}
+          onRetry={onRetry}
+          onCopy={handleCopyContent}
+        />
       )}
     </View>
   );
-}
-
-function formatTime(timestamp: string): string {
-  return new Date(timestamp).toLocaleTimeString("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }

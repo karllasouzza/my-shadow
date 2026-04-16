@@ -1,0 +1,9 @@
+[test]
+# Preload setup file to initialize mocks and environment before running Bun tests
+preload = ["./tests/setup.ts"]
+
+# Enable coverage reporting and set defaults
+coverage = true
+coverageDir = "./coverage"
+timeout = 5000
+bail = false

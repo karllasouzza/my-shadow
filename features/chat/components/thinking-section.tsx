@@ -63,7 +63,7 @@ export const ThinkingSection = observer(function ThinkingSection({
   const isPlaceholder = isStreaming && !reasoning_content;
 
   return (
-    <View className="w-full border border-border rounded-2xl bg-background mb-1 overflow-hidden">
+    <View className="w-full max-w-[93%] pb-2 border border-border rounded-2xl bg-background overflow-hidden">
       {/* Header */}
       <Button
         onPress={toggleExpanded}
@@ -75,7 +75,7 @@ export const ThinkingSection = observer(function ThinkingSection({
       >
         <Text
           className={cn(
-            "text-foreground/80 text-xs font-semibold uppercase tracking-wide",
+            "text-foreground/55 text-xs font-semibold uppercase tracking-wide",
             isPlaceholder && "animate-pulse",
           )}
         >
@@ -94,13 +94,16 @@ export const ThinkingSection = observer(function ThinkingSection({
 
       {/* Content */}
       {expanded ? (
-        <View className="px-3 pb-3 max-h-96">
-          <Text className="text-muted-foreground text-sm leading-5" selectable>
+        <View className="px-3 max-h-96">
+          <Text
+            className="text-muted-foreground/55 text-sm leading-5"
+            selectable
+          >
             {displayText}
           </Text>
         </View>
       ) : (
-        <View className="px-3 pb-3 h-20 overflow-hidden">
+        <View className="px-3 h-20 overflow-hidden">
           <ScrollView
             ref={scrollViewRef}
             className="flex-1"
@@ -108,7 +111,7 @@ export const ThinkingSection = observer(function ThinkingSection({
             scrollEnabled={false}
           >
             <Text
-              className="text-muted-foreground text-sm leading-5"
+              className="text-muted-foreground/55 text-sm leading-5"
               selectable={false}
             >
               {displayText}

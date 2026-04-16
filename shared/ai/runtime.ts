@@ -1,3 +1,4 @@
+import type { RuntimeConfig } from "@/shared/types/device";
 import { createError, err, ok, Result } from "@/shared/utils/app-error";
 // @ts-ignore
 import type {
@@ -7,7 +8,11 @@ import type {
 } from "llama.rn";
 import { initLlama, loadLlamaModelInfo } from "llama.rn";
 import { findModelById } from "./catalog";
+import { DeviceDetector } from "./device-detector";
+import { MemoryMonitor } from "./memory-monitor";
 import { calculateMetrics, GenerationMetrics } from "./metrics";
+import { isLikelyOOMError } from "./oom-detection";
+import { RuntimeConfigGenerator } from "./runtime-config-generator";
 import type { ChatMessage } from "./types/chat";
 import type {
   CompletionOutput,
@@ -27,27 +32,50 @@ const STOP_WORDS = [
   "<|end_of_turn|>",
 ];
 
+const INSUFFICIENT_RAM_GB = 1.5;
+
 export class AIRuntime {
   private model: LoadedModel | null = null;
   private context: LlamaContext | null = null;
   private stop: (() => Promise<void>) | null = null;
+  private readonly deviceDetector = new DeviceDetector();
+  private readonly configGenerator = new RuntimeConfigGenerator();
+  private readonly memoryMonitor = new MemoryMonitor();
+  private lastModelPath: string | null = null;
+  private lastRuntimeConfig: RuntimeConfig | null = null;
 
-  async loadModel(modelId: string, path: string): Promise<Result<LoadedModel>> {
+  // ── Startup ──────────────────────────────────────────────────────────────
+
+  async initializeAdaptiveRuntime(): Promise<void> {
+    const pressure = await this.memoryMonitor.evaluate();
+    if (pressure.availableRAM / 1024 ** 3 < INSUFFICIENT_RAM_GB) {
+      console.warn("[AIRuntime] Insufficient RAM for local inference");
+    }
+  }
+
+  // ── Model loading: detect → classify → generate → load ───────────────────
+
+  async loadModel(
+    modelId: string,
+    path: string,
+    optionalOverrideConfig?: Partial<RuntimeConfig>,
+  ): Promise<Result<LoadedModel>> {
     try {
       await this.unloadModel();
       await loadLlamaModelInfo(path);
 
+      const runtimeConfig = await this.buildAdaptiveConfig(
+        path,
+        optionalOverrideConfig,
+      );
       this.context = await initLlama({
-        model: path,
-        n_ctx: 4096,
-        n_threads: 4,
-        n_batch: 512,
-        n_gpu_layers: 99,
-        use_mlock: true,
+        ...runtimeConfig,
         flash_attn_type: "on",
         flash_attn: true,
       });
 
+      this.lastModelPath = path;
+      this.lastRuntimeConfig = runtimeConfig;
       this.model = { id: modelId, isLoaded: true };
       return ok(this.model);
     } catch (error) {
@@ -115,8 +143,18 @@ export class AIRuntime {
           const r = data.reasoning_content ?? "";
           if (!t && !r) return;
 
-          if (firstTokenTime === null) firstTokenTime = performance.now(); // <-- aqui
+          if (firstTokenTime === null) firstTokenTime = performance.now();
+
+          // Count tokens from the regular token stream
           if (t) tokenCount++;
+
+          // Heuristic: estimate tokens coming from reasoning_content by splitting on whitespace
+          if (r) {
+            const reasoningTokenCount = r.trim()
+              ? r.trim().split(/\s+/).filter(Boolean).length
+              : 0;
+            tokenCount += reasoningTokenCount;
+          }
 
           text += t;
           reasoning += r;
@@ -151,6 +189,49 @@ export class AIRuntime {
       if ((error as Error).name === "AbortError") {
         return err(createError("ABORTED", "Geração cancelada."));
       }
+
+      // Only attempt the automatic degraded-config reload when the failure
+      // appears to be an out-of-memory condition coming from llama.rn.
+      // Otherwise return the original error to avoid masking non-OOM failures.
+      const isOOM = isLikelyOOMError(error);
+      const pressure = await this.memoryMonitor.evaluate().catch(() => null);
+
+      if (
+        isOOM &&
+        pressure?.criticalLevel &&
+        this.lastModelPath &&
+        this.lastRuntimeConfig &&
+        this.model
+      ) {
+        const modelId = this.model.id;
+        const path = this.lastModelPath;
+        const degradedConfig: Partial<RuntimeConfig> = {
+          n_ctx: Math.floor(this.lastRuntimeConfig.n_ctx / 2),
+        };
+
+        console.warn(
+          `[AIRuntime] OOM detected and memory critical (${pressure.utilizationPercent}%). Reloading with degraded config (n_ctx=${degradedConfig.n_ctx}).`,
+        );
+
+        const reloadResult = await this.loadModel(
+          modelId,
+          path,
+          degradedConfig,
+        );
+        if (reloadResult.success) {
+          return this.streamCompletion(messages, options);
+        }
+
+        const safeCtx = pressure.recommendedMaxContext;
+        return err(
+          createError(
+            "LOCAL_GENERATION_UNAVAILABLE",
+            `Memória insuficiente. Tente novamente com contexto < ${safeCtx} tokens.`,
+          ),
+        );
+      }
+
+      // If it was not an OOM (or memory isn't critical), preserve the original error.
       return err(
         createError(
           "LOCAL_GENERATION_UNAVAILABLE",
@@ -221,6 +302,35 @@ export class AIRuntime {
         reasoning_content,
       } as RNLlamaOAICompatibleMessage;
     });
+  }
+
+  // ── Adaptive config pipeline ──────────────────────────────────────────────
+
+  private async buildAdaptiveConfig(
+    modelPath: string,
+    overrides?: Partial<RuntimeConfig>,
+  ): Promise<RuntimeConfig> {
+    // Step 1: detect device capabilities (RAM, CPU, GPU)
+    const deviceInfo = await this.deviceDetector.detect();
+
+    // Step 2: classify device tier and generate optimised config
+    const profile = this.configGenerator.selectDeviceProfile(deviceInfo);
+    console.log("[AIRuntime] Selected tier:", profile.tier);
+
+    // Step 3: merge with any caller-supplied overrides
+    const runtimeConfig = this.configGenerator.generateRuntimeConfig(
+      deviceInfo,
+      modelPath,
+      overrides,
+    );
+
+    // Step 4: wire memory monitor to the resolved config
+    this.memoryMonitor.configure({
+      n_batch: runtimeConfig.n_batch,
+      n_ctx: runtimeConfig.n_ctx,
+    });
+
+    return runtimeConfig;
   }
 }
 

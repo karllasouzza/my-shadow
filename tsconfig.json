@@ -49,12 +49,7 @@
     "resolveJsonModule": true,
 
     // Skip type checking declaration files (speed)
-    "skipLibCheck": true,
-
-    // Allow unused locals/params in test files (test scaffolding)
-    // Handled via overrides below
-    "noUnusedLocals": true,
-    "noUnusedParameters": true
+    "skipLibCheck": true
   },
   "include": [
     "**/*.ts",
