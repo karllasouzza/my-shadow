@@ -1,14 +1,16 @@
-import type {
-    CacheType,
-    DeviceInfo,
-    RuntimeConfig,
-} from "@/shared/types/device";
+import type { DeviceInfo, RuntimeConfig } from "@/shared/types/device";
+import {
+  BATCH_SIZE_BOUNDS,
+  CONTEXT_WINDOW_BOUNDS,
+  MAX_MOBILE_BATCH_SIZE,
+  MIN_BATCH_SIZE,
+  THREAD_COUNT_BOUNDS,
+  UI_THREAD_RESERVATION,
+} from "@/shared/ai/constants";
 import { selectDeviceProfile } from "./device-profiles";
 
-const VALID_CACHE_TYPES: CacheType[] = ["f16", "q8_0", "q4_0"];
-
 export function validateCacheType(value: string): value is CacheType {
-  return (VALID_CACHE_TYPES as string[]).includes(value);
+  return (VALID_CACHE_TYPES as readonly string[]).includes(value);
 }
 
 export function validateRuntimeConfig(
@@ -18,23 +20,23 @@ export function validateRuntimeConfig(
 
   if (
     config.n_ctx !== undefined &&
-    (config.n_ctx < 128 || config.n_ctx > 8192)
+    (config.n_ctx < CONTEXT_WINDOW_BOUNDS.min || config.n_ctx > CONTEXT_WINDOW_BOUNDS.max)
   ) {
-    errors.push(`n_ctx must be 128–8192, got ${config.n_ctx}`);
+    errors.push(`n_ctx must be ${CONTEXT_WINDOW_BOUNDS.min}–${CONTEXT_WINDOW_BOUNDS.max}, got ${config.n_ctx}`);
   }
 
   if (
     config.n_batch !== undefined &&
-    (config.n_batch < 32 || config.n_batch > 2048)
+    (config.n_batch < BATCH_SIZE_BOUNDS.min || config.n_batch > BATCH_SIZE_BOUNDS.max)
   ) {
-    errors.push(`n_batch must be 32–2048, got ${config.n_batch}`);
+    errors.push(`n_batch must be ${BATCH_SIZE_BOUNDS.min}–${BATCH_SIZE_BOUNDS.max}, got ${config.n_batch}`);
   }
 
   if (
     config.n_threads !== undefined &&
-    (config.n_threads < 1 || config.n_threads > 16)
+    (config.n_threads < THREAD_COUNT_BOUNDS.min || config.n_threads > THREAD_COUNT_BOUNDS.max)
   ) {
-    errors.push(`n_threads must be 1–16, got ${config.n_threads}`);
+    errors.push(`n_threads must be ${THREAD_COUNT_BOUNDS.min}–${THREAD_COUNT_BOUNDS.max}, got ${config.n_threads}`);
   }
 
   if (
@@ -61,7 +63,7 @@ export function validateRuntimeConfig(
 export class RuntimeConfigGenerator {
   /** Reserve one core for the UI thread; use only performance cores. */
   generateThreadCount(deviceInfo: DeviceInfo): number {
-    return Math.max(1, deviceInfo.performanceCores - 1);
+    return Math.max(1, deviceInfo.performanceCores - UI_THREAD_RESERVATION);
   }
 
   /**
@@ -71,7 +73,7 @@ export class RuntimeConfigGenerator {
   calculateOptimalBatch(n_ctx: number, availableRAMBytes: number): number {
     const maxByRAM = Math.floor((availableRAMBytes * 0.3) / 1024);
     const maxByContext = Math.floor(n_ctx / 2);
-    return Math.min(512, Math.max(64, Math.min(maxByContext, maxByRAM)));
+    return Math.min(MAX_MOBILE_BATCH_SIZE, Math.max(MIN_BATCH_SIZE, Math.min(maxByContext, maxByRAM)));
   }
 
   /**

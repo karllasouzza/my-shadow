@@ -1,5 +1,11 @@
 import type { DeviceInfo, RuntimeConfig } from "@/shared/types/device";
 import { createError, err, ok, Result } from "@/shared/utils/app-error";
+import {
+  ASYNC_OPERATION_TIMEOUT_MS,
+  DEFAULT_STOP_SEQUENCES,
+  MINIMUM_RAM_FOR_INFERENCE_GB,
+  WARMUP_TIMEOUT_MS,
+} from "@/shared/ai/constants";
 // @ts-ignore
 import type {
   LlamaContext,
@@ -22,17 +28,7 @@ import type {
 
 let instance: AIRuntime | null = null;
 
-const STOP_WORDS = [
-  "</s>",
-  "<|end|>",
-  "<|eot_id|>",
-  "<|end_of_text|>",
-  "<|EOT|>",
-  "<|END_OF_TURN_TOKEN|>",
-  "<|end_of_turn|>",
-];
-
-const INSUFFICIENT_RAM_GB = 1.5;
+const STOP_WORDS = [...DEFAULT_STOP_SEQUENCES];
 
 export class AIRuntime {
   private model: LoadedModel | null = null;
@@ -49,7 +45,7 @@ export class AIRuntime {
 
   async initializeAdaptiveRuntime(): Promise<void> {
     const pressure = await this.memoryMonitor.evaluate();
-    if (pressure.availableRAM / 1024 ** 3 < INSUFFICIENT_RAM_GB) {
+    if (pressure.availableRAM / 1024 ** 3 < MINIMUM_RAM_FOR_INFERENCE_GB) {
       console.warn("[AIRuntime] Insufficient RAM for local inference");
     }
   }
@@ -163,12 +159,12 @@ export class AIRuntime {
           // Count tokens from the regular token stream
           if (t) tokenCount++;
 
-          // Heuristic: estimate tokens coming from reasoning_content by splitting on whitespace
+          // Heuristic: estimate tokens from reasoning_content by character ratio
+          // Average token ≈ 4 characters in English/Portuguese
+          // This is more accurate than whitespace splitting for mixed languages
           if (r) {
-            const reasoningTokenCount = r.trim()
-              ? r.trim().split(/\s+/).filter(Boolean).length
-              : 0;
-            tokenCount += reasoningTokenCount;
+            const estimatedReasoningTokens = Math.ceil(r.length / 4);
+            tokenCount += estimatedReasoningTokens;
           }
 
           text += t;
@@ -349,28 +345,47 @@ export class AIRuntime {
   /** Fire a minimal 1-token generation to pre-warm GPU/KV caches. Non-blocking. */
   private async warmUp(): Promise<void> {
     if (!this.context) return;
-    try {
-      const { stop, promise } = await this.context.parallel.completion(
-        {
-          messages: [{ role: "user", content: "." }],
-          n_predict: 1,
-          stop: STOP_WORDS,
-        },
-        () => {},
-      );
-      await stop();
-      await promise.catch(() => {});
-      console.log(
-        "[AIRuntime] Model warm-up complete (first TTFT optimization applied)",
-      );
-    } catch {
-      // Non-fatal: warm-up is best-effort
-    }
+    
+    // Wrap warm-up in timeout to prevent indefinite hangs
+    const warmupPromise = (async () => {
+      try {
+        const { stop, promise } = await this.context!.parallel.completion(
+          {
+            messages: [{ role: "user", content: "." }],
+            n_predict: 1,
+            stop: STOP_WORDS,
+          },
+          () => {},
+        );
+        await stop();
+        await promise.catch(() => {});
+        console.log(
+          "[AIRuntime] Model warm-up complete (first TTFT optimization applied)",
+        );
+      } catch {
+        // Non-fatal: warm-up is best-effort
+      }
+    })();
+    
+    // Timeout after WARMUP_TIMEOUT_MS to prevent blocking
+    const timeoutPromise = new Promise<void>((resolve) => {
+      setTimeout(resolve, WARMUP_TIMEOUT_MS);
+    });
+    
+    await Promise.race([warmupPromise, timeoutPromise]);
   }
 }
 
 export function getAIRuntime(): AIRuntime {
   return (instance ??= new AIRuntime());
+}
+
+/**
+ * Resets the singleton instance. Primarily for testing purposes.
+ * This enables clean test isolation by allowing recreation of the runtime.
+ */
+export function resetAIRuntimeInstance(): void {
+  instance = null;
 }
 
 export type { GenerationMetrics };

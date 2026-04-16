@@ -4,13 +4,14 @@ import type {
   GpuBackend,
   GpuType,
 } from "@/shared/types/device";
+import {
+  GPU_VRAM_FRACTION,
+  MIN_GPU_VRAM_MB,
+  OS_OVERHEAD_GB,
+} from "@/shared/ai/constants";
 
 /** Bytes → GB conversion factor */
 const BYTES_TO_GB = 1024 ** 3;
-/** Conservative OS overhead reservation in GB */
-const OS_OVERHEAD_GB = 0.8;
-/** Heuristic: estimated GPU VRAM as fraction of total RAM (Android) */
-const GPU_VRAM_FRACTION = 0.3;
 
 export interface IDeviceInfoProvider {
   getTotalMemory(): Promise<number>;
@@ -216,7 +217,7 @@ export class DeviceDetector {
     );
 
     return {
-      hasGPU: heuristicVRAMMB > 512,
+      hasGPU: heuristicVRAMMB > MIN_GPU_VRAM_MB,
       gpuMemoryMB: heuristicVRAMMB,
       gpuType: "adreno",
       gpuDetectionMethod: "heuristic",

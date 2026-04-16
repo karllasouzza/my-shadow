@@ -1,10 +1,11 @@
 import type { MemoryPressure, RuntimeConfig } from "@/shared/types/device";
-
-const BYTES_TO_GB = 1024 ** 3;
-const CRITICAL_UTILIZATION_THRESHOLD = 85;
-const KV_CACHE_BYTES_PER_TOKEN_BUDGET = 50;
-const KV_CACHE_BYTES_PER_TOKEN_OTHER = 70;
-const SAFE_MEMORY_FRACTION = 0.5;
+import {
+  BYTES_TO_GB,
+  CRITICAL_UTILIZATION_THRESHOLD,
+  KV_CACHE_BYTES_PER_TOKEN_BUDGET,
+  KV_CACHE_BYTES_PER_TOKEN_OTHER,
+  SAFE_MEMORY_FRACTION,
+} from "@/shared/ai/constants";
 
 type MemoryWarningCallback = (pressure: MemoryPressure) => void;
 
@@ -37,6 +38,8 @@ export class MemoryMonitor {
   private reloadModelFn: (() => Promise<void>) | null = null;
   private appStateSubscription: { remove(): void } | null = null;
   private readonly memoryProvider: IMemoryInfoProvider;
+  // Store bound handler to prevent memory leaks from duplicate listeners
+  private boundAppStateHandler: ((state: string) => void) | null = null;
 
   constructor(memoryProvider?: IMemoryInfoProvider) {
     this.memoryProvider = memoryProvider ?? new DefaultMemoryInfoProvider();
@@ -125,15 +128,22 @@ export class MemoryMonitor {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { AppState } =
       require("react-native") as typeof import("react-native");
+    
+    // Prevent duplicate subscriptions by removing existing one first
+    this.detachAppLifecycle();
+    
+    // Store bound handler reference to enable proper cleanup
+    this.boundAppStateHandler = this.handleAppStateChange.bind(this);
     this.appStateSubscription = AppState.addEventListener(
       "change",
-      this.handleAppStateChange.bind(this),
+      this.boundAppStateHandler,
     );
   }
 
   detachAppLifecycle(): void {
     this.appStateSubscription?.remove();
     this.appStateSubscription = null;
+    this.boundAppStateHandler = null;
   }
 
   private handleAppStateChange(state: string): void {

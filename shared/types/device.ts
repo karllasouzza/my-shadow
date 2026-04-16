@@ -12,6 +12,12 @@ export type GpuType = "adreno" | "mali" | "metal" | "vulkan" | "unknown";
 
 export type CacheType = "f16" | "q8_0" | "q4_0";
 
+/**
+ * Valid cache types for KV cache quantization.
+ * Exported from centralized constants for validation consistency.
+ */
+export { VALID_CACHE_TYPES } from "@/shared/ai/constants";
+
 export type GpuBackend = "metal" | "opencl" | "vulkan" | null;
 
 export interface DeviceInfo {

@@ -10,8 +10,8 @@ export const MODEL_CATALOG: Model[] = [
     huggingFaceId: "mradermacher/periquito-3B-i1-GGUF",
     downloadLink:
       "https://huggingface.co/mradermacher/periquito-3B-i1-GGUF/resolve/main/periquito-3B.i1-Q4_K_M.gguf",
-    fileSizeBytes: 2.69 * 1024 * 1024,
-    estimatedRamBytes: 3300 * 1024 * 1024,
+    fileSizeBytes: Math.floor(2.69 * 1024 * 1024),
+    estimatedRamBytes: Math.floor(3300 * 1024 * 1024),
     bytes: "3B",
     tags: ["equilibrado", "português", "ram-moderada"],
   },
@@ -23,8 +23,8 @@ export const MODEL_CATALOG: Model[] = [
     huggingFaceId: "lucianosb/sabia-7b-GGUF",
     downloadLink:
       "https://huggingface.co/lucianosb/sabia-7b-GGUF/resolve/main/sabia7b-q4_0.gguf",
-    fileSizeBytes: 3830 * 1024 * 1024,
-    estimatedRamBytes: 6500 * 1024 * 1024,
+    fileSizeBytes: Math.floor(3830 * 1024 * 1024),
+    estimatedRamBytes: Math.floor(6500 * 1024 * 1024),
     bytes: "7B",
     tags: ["português", "alta-qualidade"],
   },
@@ -39,8 +39,8 @@ export const MODEL_CATALOG: Model[] = [
       "noxinc/phi-3-portuguese-tom-cat-4k-instruct-Q4_K_M-GGUF-PTBR",
     downloadLink:
       "https://huggingface.co/noxinc/phi-3-portuguese-tom-cat-4k-instruct-Q4_K_M-GGUF-PTBR/resolve/main/phi-3-portuguese-tom-cat-4k-instruct.Q4_K_M.gguf",
-    fileSizeBytes: 2300 * 1024 * 1024,
-    estimatedRamBytes: 4200 * 1024 * 1024,
+    fileSizeBytes: Math.floor(2300 * 1024 * 1024),
+    estimatedRamBytes: Math.floor(4200 * 1024 * 1024),
     bytes: "3.8B",
     tags: ["alta-qualidade", "português", "instrutor", "ram-moderada"],
     supportsReasoning: true,
@@ -53,8 +53,8 @@ export const MODEL_CATALOG: Model[] = [
     description:
       "Modelo leve e rápido, ideal para dispositivos com pouca RAM (< 4GB).",
     huggingFaceId: "Qwen/Qwen2.5-0.5B-Instruct-GGUF",
-    fileSizeBytes: 491 * 1024 * 1024,
-    estimatedRamBytes: 800 * 1024 * 1024,
+    fileSizeBytes: Math.floor(491 * 1024 * 1024),
+    estimatedRamBytes: Math.floor(800 * 1024 * 1024),
     downloadLink:
       "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf",
     bytes: "0.5B",
@@ -68,8 +68,8 @@ export const MODEL_CATALOG: Model[] = [
     huggingFaceId: "bartowski/Qwen2.5-1.5B-Instruct-GGUF",
     downloadLink:
       "https://huggingface.co/bartowski/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf",
-    fileSizeBytes: 986 * 1024 * 1024,
-    estimatedRamBytes: 1800 * 1024 * 1024,
+    fileSizeBytes: Math.floor(986 * 1024 * 1024),
+    estimatedRamBytes: Math.floor(1800 * 1024 * 1024),
     bytes: "1.5B",
     tags: ["equilibrado"],
   },
@@ -81,8 +81,8 @@ export const MODEL_CATALOG: Model[] = [
     huggingFaceId: "bartowski/Qwen2.5-3B-Instruct-GGUF",
     downloadLink:
       "https://huggingface.co/bartowski/Qwen2.5-3B-Instruct-GGUF/resolve/main/Qwen2.5-3B-Instruct-Q4_K_M.gguf",
-    fileSizeBytes: 1930 * 1024 * 1024,
-    estimatedRamBytes: 3500 * 1024 * 1024,
+    fileSizeBytes: Math.floor(1930 * 1024 * 1024),
+    estimatedRamBytes: Math.floor(3500 * 1024 * 1024),
     bytes: "3B",
     tags: ["alta-qualidade"],
   },
@@ -96,8 +96,8 @@ export const MODEL_CATALOG: Model[] = [
     huggingFaceId: "bartowski/Qwen_Qwen3-0.6B-GGUF",
     downloadLink:
       "https://huggingface.co/bartowski/Qwen_Qwen3-0.6B-GGUF/resolve/main/Qwen_Qwen3-0.6B-Q4_K_M.gguf",
-    fileSizeBytes: 483 * 1024 * 1024,
-    estimatedRamBytes: 900 * 1024 * 1024,
+    fileSizeBytes: Math.floor(483 * 1024 * 1024),
+    estimatedRamBytes: Math.floor(900 * 1024 * 1024),
     bytes: "0.6B",
     tags: ["ultra-leve"],
     supportsReasoning: true,
@@ -110,8 +110,8 @@ export const MODEL_CATALOG: Model[] = [
     huggingFaceId: "bartowski/Qwen_Qwen3-1.7B-GGUF",
     downloadLink:
       "https://huggingface.co/bartowski/Qwen_Qwen3-1.7B-GGUF/resolve/main/Qwen_Qwen3-1.7B-Q4_K_M.gguf",
-    fileSizeBytes: 1280 * 1024 * 1024,
-    estimatedRamBytes: 2200 * 1024 * 1024,
+    fileSizeBytes: Math.floor(1280 * 1024 * 1024),
+    estimatedRamBytes: Math.floor(2200 * 1024 * 1024),
     bytes: "1.7B",
     tags: ["equilibrado"],
     supportsReasoning: true,
@@ -124,8 +124,8 @@ export const MODEL_CATALOG: Model[] = [
     huggingFaceId: "bartowski/Qwen_Qwen3-4B-GGUF",
     downloadLink:
       "https://huggingface.co/bartowski/Qwen_Qwen3-4B-GGUF/resolve/main/Qwen_Qwen3-4B-Q4_0.gguf",
-    fileSizeBytes: 2500 * 1024 * 1024,
-    estimatedRamBytes: 4500 * 1024 * 1024,
+    fileSizeBytes: Math.floor(2500 * 1024 * 1024),
+    estimatedRamBytes: Math.floor(4500 * 1024 * 1024),
     bytes: "4B",
     tags: ["alta-qualidade"],
     supportsReasoning: true,
@@ -139,8 +139,8 @@ export const MODEL_CATALOG: Model[] = [
     huggingFaceId: "tensorblock/gemma-2b-it-GGUF",
     downloadLink:
       "https://huggingface.co/tensorblock/gemma-2b-it-GGUF/resolve/main/gemma-2b-it-Q3_K_M.gguf",
-    fileSizeBytes: 1380 * 1024 * 1024,
-    estimatedRamBytes: 2600 * 1024 * 1024,
+    fileSizeBytes: Math.floor(1380 * 1024 * 1024),
+    estimatedRamBytes: Math.floor(2600 * 1024 * 1024),
     bytes: "2B",
     tags: ["equilibrado"],
   },
@@ -154,8 +154,8 @@ export const MODEL_CATALOG: Model[] = [
     huggingFaceId: "unsloth/gemma-3-1b-it-GGUF",
     downloadLink:
       "https://huggingface.co/unsloth/gemma-3-1b-it-GGUF/resolve/main/gemma-3-1b-it-Q4_K_M.gguf",
-    fileSizeBytes: 806 * 1024 * 1024,
-    estimatedRamBytes: 1600 * 1024 * 1024,
+    fileSizeBytes: Math.floor(806 * 1024 * 1024),
+    estimatedRamBytes: Math.floor(1600 * 1024 * 1024),
     bytes: "1B",
     tags: ["ultra-leve"],
     supportsReasoning: true,
@@ -168,8 +168,8 @@ export const MODEL_CATALOG: Model[] = [
     huggingFaceId: "unsloth/gemma-3-4b-it-GGUF",
     downloadLink:
       "https://huggingface.co/unsloth/gemma-3-4b-it-GGUF/resolve/main/gemma-3-4b-it-Q4_K_M.gguf",
-    fileSizeBytes: 2490 * 1024 * 1024,
-    estimatedRamBytes: 4500 * 1024 * 1024,
+    fileSizeBytes: Math.floor(2490 * 1024 * 1024),
+    estimatedRamBytes: Math.floor(4500 * 1024 * 1024),
     bytes: "4B",
     tags: ["alta-qualidade"],
     supportsReasoning: true,
@@ -184,8 +184,8 @@ export const MODEL_CATALOG: Model[] = [
     huggingFaceId: "lmstudio-community/DeepSeek-R1-Distill-Qwen-1.5B-GGUF",
     downloadLink:
       "https://huggingface.co/lmstudio-community/DeepSeek-R1-Distill-Qwen-1.5B-GGUF/resolve/main/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf",
-    fileSizeBytes: 1200 * 1024 * 1024,
-    estimatedRamBytes: 2400 * 1024 * 1024,
+    fileSizeBytes: Math.floor(1200 * 1024 * 1024),
+    estimatedRamBytes: Math.floor(2400 * 1024 * 1024),
     bytes: "1.5B",
     tags: ["equilibrado"],
     supportsReasoning: true,
@@ -198,8 +198,8 @@ export const MODEL_CATALOG: Model[] = [
     huggingFaceId: "bartowski/DeepSeek-R1-Distill-Qwen-7B-GGUF",
     downloadLink:
       "https://huggingface.co/bartowski/DeepSeek-R1-Distill-Qwen-7B-GGUF/resolve/main/DeepSeek-R1-Distill-Qwen-7B-Q4_K_M.gguf",
-    fileSizeBytes: 4680 * 1024 * 1024,
-    estimatedRamBytes: 8000 * 1024 * 1024,
+    fileSizeBytes: Math.floor(4680 * 1024 * 1024),
+    estimatedRamBytes: Math.floor(8000 * 1024 * 1024),
     bytes: "7B",
     tags: ["alta-qualidade", "reasoning", "deepseek", "alta-ram"],
     supportsReasoning: true,
@@ -212,8 +212,8 @@ export const MODEL_CATALOG: Model[] = [
     huggingFaceId: "unsloth/DeepSeek-R1-Distill-Llama-8B-GGUF",
     downloadLink:
       "https://huggingface.co/unsloth/DeepSeek-R1-Distill-Llama-8B-GGUF/resolve/main/DeepSeek-R1-Distill-Llama-8B-Q4_K_M.gguf",
-    fileSizeBytes: 4920 * 1024 * 1024,
-    estimatedRamBytes: 7500 * 1024 * 1024,
+    fileSizeBytes: Math.floor(4920 * 1024 * 1024),
+    estimatedRamBytes: Math.floor(7500 * 1024 * 1024),
     bytes: "8B",
     tags: ["alta-qualidade"],
     supportsReasoning: true,
@@ -226,11 +226,11 @@ export const MODEL_CATALOG: Model[] = [
     description:
       "Modelo leve da Meta, rápido e eficiente para conversação e sumarização. Ideal para dispositivos com pouca RAM (< 4GB).",
     huggingFaceId:
-      "bartowski/Llama-3.2-1B-Instruct-GGUF/Llama-3.2-1B-Instruct-Q4_K_M.gguf",
+      "bartowski/Llama-3.2-1B-Instruct-GGUF",
     downloadLink:
       "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf",
-    fileSizeBytes: 808 * 1024 * 1024,
-    estimatedRamBytes: 1200 * 1024 * 1024,
+    fileSizeBytes: Math.floor(808 * 1024 * 1024),
+    estimatedRamBytes: Math.floor(1200 * 1024 * 1024),
     bytes: "1B",
     tags: ["ultra-leve"],
     supportsReasoning: true,
@@ -243,8 +243,8 @@ export const MODEL_CATALOG: Model[] = [
     huggingFaceId: "lmstudio-community/Llama-3.2-3B-Instruct-GGUF",
     downloadLink:
       "https://huggingface.co/lmstudio-community/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-Q4_K_M.gguf",
-    fileSizeBytes: 2020 * 1024 * 1024,
-    estimatedRamBytes: 4040 * 1024 * 1024,
+    fileSizeBytes: Math.floor(2020 * 1024 * 1024),
+    estimatedRamBytes: Math.floor(4040 * 1024 * 1024),
     bytes: "3B",
     tags: ["alta-qualidade"],
     supportsReasoning: true,
@@ -259,8 +259,8 @@ export const MODEL_CATALOG: Model[] = [
     huggingFaceId: "bartowski/Phi-3-mini-4k-instruct-GGUF",
     downloadLink:
       "https://huggingface.co/bartowski/Phi-3-mini-4k-instruct-GGUF/resolve/main/Phi-3-mini-4k-instruct-Q4_K_M.gguf",
-    fileSizeBytes: 2390 * 1024 * 1024,
-    estimatedRamBytes: 4800 * 1024 * 1024,
+    fileSizeBytes: Math.floor(2390 * 1024 * 1024),
+    estimatedRamBytes: Math.floor(4800 * 1024 * 1024),
     bytes: "3.8B",
     tags: ["alta-qualidade"],
     supportsReasoning: true,
@@ -273,8 +273,8 @@ export const MODEL_CATALOG: Model[] = [
     huggingFaceId: "bartowski/Phi-3.5-mini-instruct_Uncensored-GGUF",
     downloadLink:
       "https://huggingface.co/bartowski/Phi-3.5-mini-instruct_Uncensored-GGUF/resolve/main/Phi-3.5-mini-instruct_Uncensored-Q4_K_M.gguf",
-    fileSizeBytes: 2390 * 1024 * 1024,
-    estimatedRamBytes: 4800 * 1024 * 1024,
+    fileSizeBytes: Math.floor(2390 * 1024 * 1024),
+    estimatedRamBytes: Math.floor(4800 * 1024 * 1024),
     bytes: "3.8B",
     tags: ["alta-qualidade"],
     supportsReasoning: true,
@@ -287,15 +287,15 @@ export const MODEL_CATALOG: Model[] = [
     description:
       "Modelo extremamente leve e rápido, perfeito para dispositivos com pouca RAM (< 4GB) ou para testes rápidos.",
     huggingFaceId:
-      "TinyLlama/TinyLlama-1.1B-Chat-v0.6/blob/main/ggml-model-q4_0.gguf",
+      "TinyLlama/TinyLlama-1.1B-Chat-v0.6",
     downloadLink:
       "https://huggingface.co/TinyLlama/TinyLlama-1.1B-Chat-v0.6/resolve/main/ggml-model-q4_0.gguf",
-    fileSizeBytes: 637 * 1024 * 1024,
-    estimatedRamBytes: 1000 * 1024 * 1024,
+    fileSizeBytes: Math.floor(637 * 1024 * 1024),
+    estimatedRamBytes: Math.floor(1000 * 1024 * 1024),
     bytes: "1.1B",
     tags: ["ultra-leve"],
   },
-];
+] as const;
 
 /**
  * Gets the full list of available models in the catalog.
