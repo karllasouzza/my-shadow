@@ -1,13 +1,13 @@
 import {
-    RuntimeConfigGenerator,
-    validateCacheType,
-    validateRuntimeConfig,
+  RuntimeConfigGenerator,
+  validateCacheType,
+  validateRuntimeConfig,
 } from "@/shared/ai/runtime-config-generator";
 import {
-    mockBudgetDevice,
-    mockDeviceInfo,
-    mockMidRangeDevice,
-    mockPremiumDevice,
+  mockBudgetDevice,
+  mockDeviceInfo,
+  mockMidRangeDevice,
+  mockPremiumDevice,
 } from "@/tests/utils/device-simulator";
 import { describe, expect, test } from "bun:test";
 
@@ -268,24 +268,37 @@ describe("RuntimeConfigGenerator sampling defaults", () => {
   });
 
   test("all profiles set n_parallel to 0", () => {
-    for (const device of [mockBudgetDevice(), mockMidRangeDevice(), mockPremiumDevice()]) {
+    for (const device of [
+      mockBudgetDevice(),
+      mockMidRangeDevice(),
+      mockPremiumDevice(),
+    ]) {
       const config = generator.generateRuntimeConfig(device, MODEL_PATH);
       expect(config.n_parallel).toBe(0);
     }
   });
 
   test("budget tier dry_penalty_last_n is 32", () => {
-    const config = generator.generateRuntimeConfig(mockBudgetDevice(), MODEL_PATH);
+    const config = generator.generateRuntimeConfig(
+      mockBudgetDevice(),
+      MODEL_PATH,
+    );
     expect(config.dry_penalty_last_n).toBe(32);
   });
 
   test("mid-range tier dry_penalty_last_n is 48", () => {
-    const config = generator.generateRuntimeConfig(mockMidRangeDevice(), MODEL_PATH);
+    const config = generator.generateRuntimeConfig(
+      mockMidRangeDevice(),
+      MODEL_PATH,
+    );
     expect(config.dry_penalty_last_n).toBe(48);
   });
 
   test("premium tier dry_penalty_last_n is 64", () => {
-    const config = generator.generateRuntimeConfig(mockPremiumDevice(), MODEL_PATH);
+    const config = generator.generateRuntimeConfig(
+      mockPremiumDevice(),
+      MODEL_PATH,
+    );
     expect(config.dry_penalty_last_n).toBe(64);
   });
 });
@@ -333,13 +346,19 @@ describe("RuntimeConfigGenerator.validateCacheConfig", () => {
   });
 
   test("budget tier gets q8_0 for both K and V", () => {
-    const config = generator.generateRuntimeConfig(mockBudgetDevice(), MODEL_PATH);
+    const config = generator.generateRuntimeConfig(
+      mockBudgetDevice(),
+      MODEL_PATH,
+    );
     expect(config.cache_type_k).toBe("q8_0");
     expect(config.cache_type_v).toBe("q8_0");
   });
 
   test("premium tier gets f16 for both K and V", () => {
-    const config = generator.generateRuntimeConfig(mockPremiumDevice(), MODEL_PATH);
+    const config = generator.generateRuntimeConfig(
+      mockPremiumDevice(),
+      MODEL_PATH,
+    );
     expect(config.cache_type_k).toBe("f16");
     expect(config.cache_type_v).toBe("f16");
   });

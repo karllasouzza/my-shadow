@@ -108,7 +108,10 @@ export function simulateMemoryPressure(percent: number): MemoryPressure {
       4096,
       Math.floor((availableRAM * 0.5) / 70),
     ),
-    recommendedBatch: Math.min(512, Math.max(64, Math.floor((availableRAM * 0.3) / 1024))),
+    recommendedBatch: Math.min(
+      512,
+      Math.max(64, Math.floor((availableRAM * 0.3) / 1024)),
+    ),
     sampledAt: Date.now(),
   };
 }

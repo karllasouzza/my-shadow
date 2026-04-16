@@ -136,7 +136,8 @@ export class RuntimeConfigGenerator {
   }
 
   validateCacheConfig(cache_type_k: string, cache_type_v: string): boolean {
-    const valid = validateCacheType(cache_type_k) && validateCacheType(cache_type_v);
+    const valid =
+      validateCacheType(cache_type_k) && validateCacheType(cache_type_v);
     if (cache_type_k === "q4_0" || cache_type_v === "q4_0") {
       console.warn(
         "[RuntimeConfigGenerator] Q4_0 KV cache causes ±8-15% quality loss; recommend for 4GB devices only",

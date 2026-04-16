@@ -164,14 +164,22 @@ describe("RuntimeConfig: JSON Schema validation", () => {
     });
 
     test("all tiers set n_parallel to 0", () => {
-      for (const factory of [mockBudgetDevice, mockMidRangeDevice, mockPremiumDevice]) {
+      for (const factory of [
+        mockBudgetDevice,
+        mockMidRangeDevice,
+        mockPremiumDevice,
+      ]) {
         const { config } = generateAndValidate(factory);
         expect(config.n_parallel).toBe(0);
       }
     });
 
     test("all tiers include sampling params (min_p, top_k, top_p)", () => {
-      for (const factory of [mockBudgetDevice, mockMidRangeDevice, mockPremiumDevice]) {
+      for (const factory of [
+        mockBudgetDevice,
+        mockMidRangeDevice,
+        mockPremiumDevice,
+      ]) {
         const { config } = generateAndValidate(factory);
         expect(config.min_p).toBe(0.05);
         expect(config.top_k).toBe(40);
@@ -180,7 +188,11 @@ describe("RuntimeConfig: JSON Schema validation", () => {
     });
 
     test("adaptive fields pass schema validation for all tiers", () => {
-      for (const factory of [mockBudgetDevice, mockMidRangeDevice, mockPremiumDevice]) {
+      for (const factory of [
+        mockBudgetDevice,
+        mockMidRangeDevice,
+        mockPremiumDevice,
+      ]) {
         const { valid, errors } = generateAndValidate(factory);
         expect(errors.map((e) => `${e.dataPath} ${e.message}`)).toEqual([]);
         expect(valid).toBe(true);

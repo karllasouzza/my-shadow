@@ -1,4 +1,9 @@
-import type { CpuBrand, DeviceInfo, GpuBackend, GpuType } from "@/shared/types/device";
+import type {
+  CpuBrand,
+  DeviceInfo,
+  GpuBackend,
+  GpuType,
+} from "@/shared/types/device";
 
 /** Bytes → GB conversion factor */
 const BYTES_TO_GB = 1024 ** 3;

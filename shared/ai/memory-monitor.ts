@@ -83,7 +83,10 @@ export class MemoryMonitor {
       criticalLevel,
       canRunInference,
       recommendedMaxContext: Math.min(safeTokens, maxCtx),
-      recommendedBatch: Math.min(512, Math.max(64, Math.floor((availableRAM * 0.3) / 1024))),
+      recommendedBatch: Math.min(
+        512,
+        Math.max(64, Math.floor((availableRAM * 0.3) / 1024)),
+      ),
       sampledAt: Date.now(),
     };
 

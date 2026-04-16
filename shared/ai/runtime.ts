@@ -144,7 +144,8 @@ export class AIRuntime {
           jinja: true,
           enable_thinking: enableThinking,
           thinking_forced_open: enableThinking,
-          n_predict: options?.maxTokens ?? this.lastRuntimeConfig?.n_predict ?? 2048,
+          n_predict:
+            options?.maxTokens ?? this.lastRuntimeConfig?.n_predict ?? 2048,
           temperature: options?.temperature ?? 0.7,
           stop: STOP_WORDS,
           top_k: this.lastRuntimeConfig?.top_k ?? 40,

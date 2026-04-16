@@ -13,14 +13,17 @@ import "../global.css";
 export default function RootLayout() {
   useEffect(() => {
     const detector = new DeviceDetector();
-    detector.detect().then((info) => {
-      const profile = selectDeviceProfile(info);
-      console.log(
-        `[Device] ${info.totalRAM.toFixed(1)}GB RAM, ${profile.tier} tier, ${info.gpuBackend ?? "CPU-only"}`,
-      );
-    }).catch(() => {
-      // Device detection is non-blocking; log failures silently
-    });
+    detector
+      .detect()
+      .then((info) => {
+        const profile = selectDeviceProfile(info);
+        console.log(
+          `[Device] ${info.totalRAM.toFixed(1)}GB RAM, ${profile.tier} tier, ${info.gpuBackend ?? "CPU-only"}`,
+        );
+      })
+      .catch(() => {
+        // Device detection is non-blocking; log failures silently
+      });
   }, []);
 
   return (
