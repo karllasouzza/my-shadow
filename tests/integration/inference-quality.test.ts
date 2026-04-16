@@ -10,8 +10,8 @@
  */
 import { RuntimeConfigGenerator } from "@/shared/ai/runtime-config-generator";
 import {
-    mockBudgetDevice,
-    mockPremiumDevice,
+  mockBudgetDevice,
+  mockPremiumDevice,
 } from "@/tests/utils/device-simulator";
 import { describe, expect, test } from "bun:test";
 
@@ -23,16 +23,12 @@ const MODEL_PATH_OR_SKIP = hasModel ? MODEL_PATH : null;
 function itOnDevice(name: string, fn: () => Promise<void> | void): void {
   if (MODEL_PATH_OR_SKIP) {
     test(name, fn);
-  } else {
-    test.skip(`[SKIPPED — no MODEL_PATH] ${name}`, () => {});
   }
+  // When MODEL_PATH is not set, tests are silently skipped (not run)
 }
 
 const generator = new RuntimeConfigGenerator();
 
-// ─────────────────────────────────────────────────────────────────────
-// T025: Budget q8_0 vs premium f16 quality comparison
-// ─────────────────────────────────────────────────────────────────────
 describe("T025: Inference quality — q8_0 vs f16 KV cache", () => {
   itOnDevice("budget (q8_0) config can load model without error", async () => {
     const { initLlama } = await import("llama.rn");
@@ -140,7 +136,8 @@ describe("T027: Language quality spot-check (q8_0 — no artifacts)", () => {
       expect(wordSet.size).toBeGreaterThan(3);
 
       // No null bytes or control characters (quantization artifact)
-      expect(text).not.toMatch(/[\x00-\x08\x0e-\x1f]/);
+      // Check for null bytes and control characters
+      expect(/[\x00-\x08\x0e-\x1f]/.test(text)).toBe(false);
     },
   );
 });

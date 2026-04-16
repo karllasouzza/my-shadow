@@ -1,4 +1,5 @@
 import { RuntimeConfigGenerator } from "@/shared/ai/runtime-config-generator";
+import type { RuntimeConfig } from "@/shared/device/types";
 import {
     mockBudgetDevice,
     mockMidRangeDevice,
@@ -141,10 +142,10 @@ describe("RuntimeConfig: JSON Schema validation", () => {
     });
 
     test("rejects missing required field (model)", () => {
-      const config = generator.generateRuntimeConfig(
+      const config: Partial<RuntimeConfig> = generator.generateRuntimeConfig(
         mockBudgetDevice(),
         MODEL_PATH,
-      ) as Partial<typeof config>;
+      );
       const { model: _, ...noModel } = config;
       const valid = validate(noModel);
       expect(valid).toBe(false);

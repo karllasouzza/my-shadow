@@ -1,4 +1,4 @@
-import type { DeviceInfo, MemoryPressure } from "@/shared/types/device";
+import type { DeviceInfo, MemoryPressure } from "@/shared/device/types";
 
 /** Default CPU cores for test device simulations */
 const DEFAULT_CPU_CORES = 8;
@@ -20,11 +20,6 @@ export function mockDeviceInfo(
     osVersion: "12.0",
     deviceModel: "Pixel 4a",
     detectedAt: Date.now(),
-    detectionMethod: {
-      ram: "react-native-device-info",
-      gpu: "heuristic",
-      cpuCores: "native",
-    },
     ...overrides,
   };
 }

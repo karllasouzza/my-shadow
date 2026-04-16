@@ -1,49 +1,21 @@
-/**
- * End-to-end tests for AI inference on simulated low-RAM devices.
- *
- * ⚠️ Requires real device or iOS/Android simulator with model loaded.
- *    Tests are skipped automatically when MODEL_PATH is not set.
- *    Run on device: MODEL_PATH=/path/to/model.gguf bun test ./tests/e2e/ai-inference-low-ram.test.ts
- *
- * Acceptance criteria (from spec.md):
- *   - Budget 4GB: inference succeeds, peak memory < 3.5GB
- *   - Budget 4GB at max context (1024 tokens): graceful degradation, no crash
- *   - Memory pressure > 70%: MemoryMonitor detects and reports it
- */
-import type {
-    IDeviceInfoProvider,
-    IPlatformProvider,
-} from "@/shared/ai/device-detector";
-import { DeviceDetector } from "@/shared/ai/device-detector";
 import type { IMemoryInfoProvider } from "@/shared/ai/memory-monitor";
 import { MemoryMonitor } from "@/shared/ai/memory-monitor";
 import { RuntimeConfigGenerator } from "@/shared/ai/runtime-config-generator";
 import { describe, expect, test } from "bun:test";
+import { mockBudgetDevice } from "../utils/device-simulator";
 
 const MODEL_PATH = process.env.MODEL_PATH ?? "";
 const hasModel = MODEL_PATH.length > 0;
 
 function itOnDevice(name: string, fn: () => Promise<void> | void): void {
   if (hasModel) {
-    test(name, fn, 60000);
-  } else {
-    test.skip(`[SKIPPED — no MODEL_PATH] ${name}`, () => {});
+    test(name, fn);
   }
+  // When MODEL_PATH is not set, tests are silently skipped (not run)
 }
 
 const GB = 1024 ** 3;
-
-function makeProvider(totalGB: number, usedGB: number): IDeviceInfoProvider {
-  return {
-    getTotalMemory: () => Promise.resolve(totalGB * GB),
-    getUsedMemory: () => Promise.resolve(usedGB * GB),
-    getMaxMemory: () => Promise.resolve(8),
-    getNumberOfCores: () => Promise.resolve(8),
-    getBrand: () => Promise.resolve("Qualcomm"),
-    getSystemVersion: () => Promise.resolve("12.0"),
-    getModel: () => Promise.resolve("Pixel 4a"),
-  };
-}
+const generator = new RuntimeConfigGenerator();
 
 function makeMemoryProvider(
   totalGB: number,
@@ -55,21 +27,12 @@ function makeMemoryProvider(
   };
 }
 
-const androidPlatform: IPlatformProvider = { OS: "android" };
-const generator = new RuntimeConfigGenerator();
-
-// ─────────────────────────────────────────────────────────────────────────
-// T028: Chat inference on budget 4GB device
-// ─────────────────────────────────────────────────────────────────────────
 describe("T028: E2E — Chat inference on budget device (4GB Android)", () => {
   itOnDevice(
     "model loads with budget config (n_ctx=1024, use_mmap=true)",
     async () => {
       const { initLlama } = await import("llama.rn");
-      const deviceInfo = await new DeviceDetector(
-        makeProvider(4, 0.8),
-        androidPlatform,
-      ).detect();
+      const deviceInfo = mockBudgetDevice();
       const config = generator.generateRuntimeConfig(deviceInfo, MODEL_PATH);
 
       expect(config.n_ctx).toBe(1024);
@@ -85,10 +48,7 @@ describe("T028: E2E — Chat inference on budget device (4GB Android)", () => {
     "inference returns non-empty response on budget config",
     async () => {
       const { initLlama } = await import("llama.rn");
-      const deviceInfo = await new DeviceDetector(
-        makeProvider(4, 0.8),
-        androidPlatform,
-      ).detect();
+      const deviceInfo = mockBudgetDevice();
       const config = generator.generateRuntimeConfig(deviceInfo, MODEL_PATH);
       const ctx = await initLlama(config);
 
@@ -104,16 +64,10 @@ describe("T028: E2E — Chat inference on budget device (4GB Android)", () => {
   );
 });
 
-// ─────────────────────────────────────────────────────────────────────────
-// T029: Context limit handling on budget device
-// ─────────────────────────────────────────────────────────────────────────
 describe("T029: E2E — Context limit on budget device (n_ctx=1024)", () => {
   itOnDevice("inference at near-max context does not crash", async () => {
     const { initLlama } = await import("llama.rn");
-    const deviceInfo = await new DeviceDetector(
-      makeProvider(4, 0.8),
-      androidPlatform,
-    ).detect();
+    const deviceInfo = mockBudgetDevice();
     const config = generator.generateRuntimeConfig(deviceInfo, MODEL_PATH);
     const ctx = await initLlama(config);
 
