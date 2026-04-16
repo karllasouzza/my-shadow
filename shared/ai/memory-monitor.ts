@@ -1,6 +1,4 @@
 import type { MemoryPressure, RuntimeConfig } from "@/shared/types/device";
-import { AppState, AppStateStatus } from "react-native";
-import DeviceInfoLib from "react-native-device-info";
 
 const BYTES_TO_GB = 1024 ** 3;
 const CRITICAL_UTILIZATION_THRESHOLD = 85;
@@ -10,12 +8,29 @@ const SAFE_MEMORY_FRACTION = 0.5;
 
 type MemoryWarningCallback = (pressure: MemoryPressure) => void;
 
+export interface IMemoryInfoProvider {
+  getTotalMemory(): Promise<number>;
+  getUsedMemory(): Promise<number>;
+}
+
+class DefaultMemoryInfoProvider implements IMemoryInfoProvider {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  private get lib() { return (require("react-native-device-info") as { default: typeof import("react-native-device-info") }).default; }
+  getTotalMemory() { return this.lib.getTotalMemory(); }
+  getUsedMemory() { return this.lib.getUsedMemory(); }
+}
+
 export class MemoryMonitor {
   private currentConfig: Pick<RuntimeConfig, "n_batch" | "n_ctx"> | null = null;
   private onWarningCallback: MemoryWarningCallback | null = null;
   private unloadModelFn: (() => Promise<void>) | null = null;
   private reloadModelFn: (() => Promise<void>) | null = null;
-  private appStateSubscription: ReturnType<typeof AppState.addEventListener> | null = null;
+  private appStateSubscription: { remove(): void } | null = null;
+  private readonly memoryProvider: IMemoryInfoProvider;
+
+  constructor(memoryProvider?: IMemoryInfoProvider) {
+    this.memoryProvider = memoryProvider ?? new DefaultMemoryInfoProvider();
+  }
 
   configure(
     config: Pick<RuntimeConfig, "n_batch" | "n_ctx">,
@@ -90,6 +105,8 @@ export class MemoryMonitor {
   }
 
   attachAppLifecycle(): void {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { AppState } = require("react-native") as typeof import("react-native");
     this.appStateSubscription = AppState.addEventListener(
       "change",
       this.handleAppStateChange.bind(this),
@@ -101,7 +118,7 @@ export class MemoryMonitor {
     this.appStateSubscription = null;
   }
 
-  private handleAppStateChange(state: AppStateStatus): void {
+  private handleAppStateChange(state: string): void {
     if (state === "background" || state === "inactive") {
       this.onAppBackground();
     } else if (state === "active") {
@@ -112,8 +129,8 @@ export class MemoryMonitor {
   private async readRAWBytes(): Promise<[number, number]> {
     try {
       const [total, used] = await Promise.all([
-        DeviceInfoLib.getTotalMemory(),
-        DeviceInfoLib.getUsedMemory(),
+        this.memoryProvider.getTotalMemory(),
+        this.memoryProvider.getUsedMemory(),
       ]);
       return [total, used];
     } catch {

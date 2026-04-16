@@ -181,14 +181,14 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
 
 **Purpose**: Ensure runtime configs are valid and tested across device tiers
 
-- [ ] T017 [P] Add unit tests for DeviceDetector in tests/unit/device-detector.test.ts
+- [X] T017 [P] Add unit tests for DeviceDetector in tests/unit/device-detector.test.ts
   - Test RAM detection accuracy (mock native APIs)
   - Test CPU core detection
   - Test GPU detection fallback chain (Vulkan → EGL → Heuristic)
   - Test detection metadata recording (method, timestamp)
   - Ensure tests pass on simulated budget/mid/premium tiers
 
-- [ ] T018 [P] Add unit tests for RuntimeConfigGenerator in tests/unit/runtime-config-generator.test.ts
+- [X] T018 [P] Add unit tests for RuntimeConfigGenerator in tests/unit/runtime-config-generator.test.ts
   - Test `selectDeviceProfile()` returns correct tier for each RAM range
   - Test budget tier config (n_ctx=1024, n_batch=64, cache_type=q8_0)
   - Test mid-range tier config (n_ctx=2048, n_batch=128, cache_type=q8_0)
@@ -196,13 +196,13 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
   - Test config adjustment based on CPU cores (cap n_threads)
   - Test config adjustment based on VRAM (reduce n_gpu_layers if low VRAM)
 
-- [ ] T019 [P] Add unit tests for MemoryMonitor in tests/unit/memory-monitor.test.ts
+- [X] T019 [P] Add unit tests for MemoryMonitor in tests/unit/memory-monitor.test.ts
   - Test utilization percent calculation
   - Test critical level detection (>85% = critical)
   - Test `canRunInference()` returns true if available > batch threshold
   - Test `recommendedMaxContext` calculation
 
-- [ ] T020 [P] Add integration test for config validation in tests/integration/runtime-config-validation.test.ts
+- [X] T020 [P] Add integration test for config validation in tests/integration/runtime-config-validation.test.ts
   - Validate all configs against JSON Schema (contracts/runtime-config.schema.json)
   - Test each device profile config passes schema validation
   - Ensure config paths match actual model files
@@ -214,26 +214,26 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
 
 **Purpose**: Validate model loading works reliably on low-RAM devices
 
-- [ ] T021 [P] Add integration test for budget tier loading in tests/integration/ai-runtime-loading.test.ts
+- [X] T021 [P] Add integration test for budget tier loading in tests/integration/ai-runtime-loading.test.ts
   - Simulate 4GB RAM device (use device-simulator)
   - Load model with auto-generated budget config
   - Verify config has: n_ctx=1024, n_batch=64, use_mmap=true, use_mlock=false
   - Verify model loads without OOM
   - Verify memory usage stays < 3.5GB (peak)
 
-- [ ] T022 [P] Add integration test for mid-range tier loading in tests/integration/ai-runtime-loading.test.ts
+- [X] T022 [P] Add integration test for mid-range tier loading in tests/integration/ai-runtime-loading.test.ts
   - Simulate 6GB RAM device
   - Load model with auto-generated mid-range config
   - Verify config has: n_ctx=2048, n_batch=128, use_mmap=true
   - Verify memory usage stays < 5.2GB
 
-- [ ] T023 [P] Add integration test for premium tier loading in tests/integration/ai-runtime-loading.test.ts
+- [X] T023 [P] Add integration test for premium tier loading in tests/integration/ai-runtime-loading.test.ts
   - Simulate 8GB+ RAM device
   - Load model with auto-generated premium config
   - Verify config has: n_ctx=4096, n_batch=512, use_mmap=false, cache_type_k=f16
   - Verify memory usage optimal for high-RAM device
 
-- [ ] T024 Add fallback behavior test in tests/integration/ai-runtime-loading.test.ts
+- [X] T024 Add fallback behavior test in tests/integration/ai-runtime-loading.test.ts
   - Simulate OOM error during initial load
   - Verify AIRuntime triggers memory fallback
   - Verify config is auto-degraded (reduced n_ctx)
