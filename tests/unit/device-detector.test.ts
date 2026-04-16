@@ -71,7 +71,7 @@ describe("DeviceDetector", () => {
       expect(info.cpuCores).toBeLessThanOrEqual(16);
     });
 
-    test("cpuCores defaults to 4 on error", async () => {
+    test("cpuCores falls back to os.cpus in bun test environment on provider error", async () => {
       const detector = new DeviceDetector(
         makeProvider({
           getNumberOfCores: () => Promise.reject(new Error("fail")),
@@ -79,7 +79,8 @@ describe("DeviceDetector", () => {
         androidPlatform,
       );
       const info = await detector.detect();
-      expect(info.cpuCores).toBe(4);
+      expect(info.cpuCores).toBeGreaterThanOrEqual(1);
+      expect(info.cpuCores).toBeLessThanOrEqual(16);
     });
 
     test("platform is android when provider says android", async () => {
@@ -146,6 +147,81 @@ describe("DeviceDetector", () => {
       const detector = new DeviceDetector(makeProvider(), androidPlatform);
       const info = await detector.detect();
       expect(info.detectionMethod.ram).toBe("react-native-device-info");
+    });
+  });
+
+  describe("performanceCores", () => {
+    test("iOS uses 50% of cores", async () => {
+      const detector = new DeviceDetector(
+        makeProvider({ getNumberOfCores: () => Promise.resolve(6) }),
+        iosPlatform,
+      );
+      const info = await detector.detect();
+      expect(info.performanceCores).toBe(3);
+    });
+
+    test("Android Snapdragon uses 37.5% of cores", async () => {
+      const detector = new DeviceDetector(
+        makeProvider({
+          getNumberOfCores: () => Promise.resolve(8),
+          getBrand: () => Promise.resolve("Qualcomm"),
+        }),
+        androidPlatform,
+      );
+      const info = await detector.detect();
+      expect(info.performanceCores).toBe(3);
+    });
+
+    test("Android Helio/unknown uses 50% with floor of 2", async () => {
+      const detector = new DeviceDetector(
+        makeProvider({
+          getNumberOfCores: () => Promise.resolve(4),
+          getBrand: () => Promise.resolve("MediaTek"),
+        }),
+        androidPlatform,
+      );
+      const info = await detector.detect();
+      expect(info.performanceCores).toBe(2);
+    });
+
+    test("performance cores is at least 2 for unknown brand", async () => {
+      const detector = new DeviceDetector(
+        makeProvider({
+          getNumberOfCores: () => Promise.resolve(2),
+          getBrand: () => Promise.resolve("Unknown"),
+        }),
+        androidPlatform,
+      );
+      const info = await detector.detect();
+      expect(info.performanceCores).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  describe("gpuBackend", () => {
+    test("iOS returns metal", async () => {
+      const detector = new DeviceDetector(makeProvider(), iosPlatform);
+      const info = await detector.detect();
+      expect(info.gpuBackend).toBe("metal");
+    });
+
+    test("Android with Adreno GPU returns opencl", async () => {
+      const detector = new DeviceDetector(makeProvider(), androidPlatform);
+      const info = await detector.detect();
+      // Default Android mock uses adreno heuristic
+      expect(info.gpuBackend).toBe("opencl");
+    });
+
+    test("Android with low RAM still detects GPU backend via type", async () => {
+      const detector = new DeviceDetector(
+        makeProvider({
+          getTotalMemory: () => Promise.resolve(1 * 1024 * 1024 * 1024),
+        }),
+        androidPlatform,
+      );
+      const info = await detector.detect();
+      // Low RAM still sets gpuType to "adreno" (heuristic), so gpuBackend is still "opencl"
+      // hasGPU may be false, but gpuBackend maps purely from gpuType
+      expect(info.gpuBackend).toBe("opencl");
     });
   });
 });
