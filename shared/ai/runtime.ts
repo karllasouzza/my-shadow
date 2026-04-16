@@ -1,4 +1,5 @@
 import { createError, err, ok, Result } from "@/shared/utils/app-error";
+import type { RuntimeConfig } from "@/shared/types/device";
 // @ts-ignore
 import type {
   LlamaContext,
@@ -7,7 +8,10 @@ import type {
 } from "llama.rn";
 import { initLlama, loadLlamaModelInfo } from "llama.rn";
 import { findModelById } from "./catalog";
+import { DeviceDetector } from "./device-detector";
 import { calculateMetrics, GenerationMetrics } from "./metrics";
+import { MemoryMonitor } from "./memory-monitor";
+import { RuntimeConfigGenerator } from "./runtime-config-generator";
 import type { ChatMessage } from "./types/chat";
 import type {
   CompletionOutput,
@@ -27,27 +31,57 @@ const STOP_WORDS = [
   "<|end_of_turn|>",
 ];
 
+const INSUFFICIENT_RAM_GB = 1.5;
+
 export class AIRuntime {
   private model: LoadedModel | null = null;
   private context: LlamaContext | null = null;
   private stop: (() => Promise<void>) | null = null;
+  private readonly deviceDetector = new DeviceDetector();
+  private readonly configGenerator = new RuntimeConfigGenerator();
+  private readonly memoryMonitor = new MemoryMonitor();
+  private lastModelPath: string | null = null;
+  private lastRuntimeConfig: RuntimeConfig | null = null;
 
-  async loadModel(modelId: string, path: string): Promise<Result<LoadedModel>> {
+  async initializeAdaptiveRuntime(): Promise<void> {
+    const pressure = await this.memoryMonitor.evaluate();
+    if (pressure.availableRAM / (1024 ** 3) < INSUFFICIENT_RAM_GB) {
+      console.warn("[AIRuntime] Insufficient RAM for local inference");
+    }
+  }
+
+  async loadModel(
+    modelId: string,
+    path: string,
+    optionalOverrideConfig?: Partial<RuntimeConfig>,
+  ): Promise<Result<LoadedModel>> {
     try {
       await this.unloadModel();
       await loadLlamaModelInfo(path);
 
+      const deviceInfo = await this.deviceDetector.detect();
+      const runtimeConfig = this.configGenerator.generateRuntimeConfig(
+        deviceInfo,
+        path,
+        optionalOverrideConfig,
+      );
+
+      const profile = this.configGenerator.selectDeviceProfile(deviceInfo);
+      console.log("[AIRuntime] Selected tier:", profile.tier);
+
+      this.memoryMonitor.configure({
+        n_batch: runtimeConfig.n_batch,
+        n_ctx: runtimeConfig.n_ctx,
+      });
+
       this.context = await initLlama({
-        model: path,
-        n_ctx: 4096,
-        n_threads: 4,
-        n_batch: 512,
-        n_gpu_layers: 99,
-        use_mlock: true,
+        ...runtimeConfig,
         flash_attn_type: "on",
         flash_attn: true,
       });
 
+      this.lastModelPath = path;
+      this.lastRuntimeConfig = runtimeConfig;
       this.model = { id: modelId, isLoaded: true };
       return ok(this.model);
     } catch (error) {
@@ -159,6 +193,33 @@ export class AIRuntime {
       if ((error as Error).name === "AbortError") {
         return err(createError("ABORTED", "Geração cancelada."));
       }
+
+      const pressure = await this.memoryMonitor.evaluate().catch(() => null);
+      if (pressure?.criticalLevel && this.lastModelPath && this.lastRuntimeConfig && this.model) {
+        const modelId = this.model.id;
+        const path = this.lastModelPath;
+        const degradedConfig: Partial<RuntimeConfig> = {
+          n_ctx: Math.floor(this.lastRuntimeConfig.n_ctx / 2),
+        };
+
+        console.warn(
+          `[AIRuntime] Memory critical (${pressure.utilizationPercent}%). Reloading with degraded config (n_ctx=${degradedConfig.n_ctx}).`,
+        );
+
+        const reloadResult = await this.loadModel(modelId, path, degradedConfig);
+        if (reloadResult.success) {
+          return this.streamCompletion(messages, options);
+        }
+
+        const safeCtx = pressure.recommendedMaxContext;
+        return err(
+          createError(
+            "LOCAL_GENERATION_UNAVAILABLE",
+            `Memória insuficiente. Tente novamente com contexto < ${safeCtx} tokens.`,
+          ),
+        );
+      }
+
       return err(
         createError(
           "LOCAL_GENERATION_UNAVAILABLE",

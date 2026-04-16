@@ -125,14 +125,14 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
 
 **Purpose**: Implement or wrap KV cache quantization capabilities
 
-- [ ] T011 Upgrade `llama.rn` to latest version and verify cache quantization support (shared/ai/cache-quantization.ts)
+- [X] T011 Upgrade `llama.rn` to latest version and verify cache quantization support (shared/ai/cache-quantization.ts)
   - Upgrade `llama.rn` dependency in `package.json` to the latest compatible release
   - Verify whether the upgraded `llama.rn` exposes `cache_type_k` / `cache_type_v` parameters
   - If supported: Create wrapper that passes `cache_type_k`/`cache_type_v` to `initLlama()`
   - If NOT supported after upgrade: Implement an Expo native module wrapper (Phase 2) and document limitation
   - Add CI check that validates `initLlama` accepts cache quantization params
 
-- [ ] T012 Add cache quantization validation in shared/ai/runtime-config-generator.ts
+- [X] T012 Add cache quantization validation in shared/ai/runtime-config-generator.ts
   - Validate cache_type_k and cache_type_v are in enum (f16|q8_0|q4_0)
   - Ensure budget tier gets q8_0 default, premium tier gets f16 default
   - Add warning comment if q4_0 used (explains quality trade-off)
@@ -144,14 +144,14 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
 
 **Purpose**: Integrate device detection and adaptive config into existing AIRuntime
 
-- [ ] T013 Modify AIRuntime class in shared/ai/runtime.ts
+- [X] T013 Modify AIRuntime class in shared/ai/runtime.ts
   - Add private `deviceDetector: DeviceDetector` property
   - Add private `configGenerator: RuntimeConfigGenerator` property
   - Add private `memoryMonitor: MemoryMonitor` property
   - Modify constructor to initialize detectors (async initialization)
   - Do NOT break existing public API (loadModel, streamCompletion remain unchanged)
 
-- [ ] T014 [P] Update AIRuntime.loadModel() to use adaptive config in shared/ai/runtime.ts
+- [X] T014 [P] Update AIRuntime.loadModel() to use adaptive config in shared/ai/runtime.ts
   - Before: `loadModel(modelId, path)` — called llama.rn with hardcoded config
   - After: `loadModel(modelId, path, optionalOverrideConfig?)` — calls:
     1. `deviceDetector.detect()` to get DeviceInfo
@@ -161,7 +161,7 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
   - Backward compatible: If optionalOverrideConfig not provided, use auto-generated config
   - Log selected tier: `console.log('[AIRuntime] Selected tier:', profile.tier)`
 
-- [ ] T015 [P] Update AIRuntime.streamCompletion() for memory pressure fallback in shared/ai/runtime.ts
+- [X] T015 [P] Update AIRuntime.streamCompletion() for memory pressure fallback in shared/ai/runtime.ts
   - Before: If inference fails, return error
   - After: On failure (OOM), check `memoryMonitor.evaluate()`:
     1. If critical memory pressure (>85%), reduce n_ctx by 50%
@@ -170,7 +170,7 @@ This feature optimizes `llama.rn` runtime to support low-RAM devices (3-6GB) thr
     4. If still fails, return error with helpful message
   - Add fallback context suggestion: "Try again with context < X tokens"
 
-- [ ] T016 Add startup memory check in shared/ai/runtime.ts
+- [X] T016 Add startup memory check in shared/ai/runtime.ts
   - In constructor or app initialization, call `memoryMonitor.evaluate()`
   - If availableRAM < 1.5GB, log warning: "Insufficient RAM for local inference"
   - Store device profile in app state for UI display (optional)
