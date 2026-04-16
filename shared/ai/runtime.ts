@@ -189,8 +189,14 @@ export class AIRuntime {
         return err(createError("ABORTED", "Geração cancelada."));
       }
 
+      // Only attempt the automatic degraded-config reload when the failure
+      // appears to be an out-of-memory condition coming from llama.rn.
+      // Otherwise return the original error to avoid masking non-OOM failures.
+      const isOOM = this.isLikelyOOMError(error);
       const pressure = await this.memoryMonitor.evaluate().catch(() => null);
+
       if (
+        isOOM &&
         pressure?.criticalLevel &&
         this.lastModelPath &&
         this.lastRuntimeConfig &&
@@ -203,7 +209,7 @@ export class AIRuntime {
         };
 
         console.warn(
-          `[AIRuntime] Memory critical (${pressure.utilizationPercent}%). Reloading with degraded config (n_ctx=${degradedConfig.n_ctx}).`,
+          `[AIRuntime] OOM detected and memory critical (${pressure.utilizationPercent}%). Reloading with degraded config (n_ctx=${degradedConfig.n_ctx}).`,
         );
 
         const reloadResult = await this.loadModel(
@@ -224,6 +230,7 @@ export class AIRuntime {
         );
       }
 
+      // If it was not an OOM (or memory isn't critical), preserve the original error.
       return err(
         createError(
           "LOCAL_GENERATION_UNAVAILABLE",
@@ -275,6 +282,45 @@ export class AIRuntime {
     } catch {
       // ignore
     }
+  }
+
+  // Heuristic matcher for errors that likely indicate an out-of-memory
+  // condition coming from native/native-bound code (llama.rn).
+  private isLikelyOOMError(error: unknown): boolean {
+    if (!error) return false;
+    try {
+      const anyErr = error as any;
+      const name = (anyErr?.name ?? "").toString().toLowerCase();
+      const message = (anyErr?.message ?? "").toString().toLowerCase();
+      const code = (anyErr?.code ?? "").toString();
+      const errno = anyErr?.errno;
+
+      // Common native / C++ / runtime substrings that indicate OOM
+      const patterns = [
+        "out of memory",
+        "out_of_memory",
+        "outofmemory",
+        "oom",
+        "bad_alloc",
+        "std::bad_alloc",
+        "failed to allocate",
+        "allocation failed",
+        "cannot allocate memory",
+        "memory exhausted",
+        "enomem",
+      ];
+
+      for (const p of patterns) {
+        if (name.includes(p) || message.includes(p)) return true;
+      }
+
+      // Check well-known codes/errno
+      if (code === "ENOMEM" || code.toLowerCase() === "enomem") return true;
+      if (errno === "ENOMEM" || errno === -12) return true;
+    } catch {
+      // ignore parsing failures
+    }
+    return false;
   }
 
   private sanitizeMessagesForLLMContext(
