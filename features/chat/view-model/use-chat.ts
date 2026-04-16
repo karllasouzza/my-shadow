@@ -1,723 +1,317 @@
 import {
-  getThinkingEnabled,
-  setThinkingEnabled,
+    getThinkingEnabled,
+    setThinkingEnabled,
 } from "@/database/actions/chat/think-mode";
 import * as DatabaseChat from "@/database/chat";
-import { autoGenerateTitle } from "@/features/chat/model/chat-conversation";
 import {
-  createChatMessage,
-  validateChatMessage,
+    createChatMessage,
+    validateChatMessage,
 } from "@/features/chat/model/chat-message";
-import {
-  autoLoadLastModel,
-  getAvailableModels,
-  getSelectedModelId,
-  isModelDownloaded,
-  loadModel,
-  unloadModel,
-} from "@/shared/ai/model-loader";
 import { getAIRuntime } from "@/shared/ai/runtime";
-import { ChatMessage } from "@/shared/ai/types/chat";
-import type { AvailableModel } from "@/shared/ai/types/model-loader";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ChatMessage } from "@/shared/ai/types/chat";
+import { useCallback, useMemo, useState } from "react";
+import { useConversation } from "./hooks/useConversation";
+import { useModelManager } from "./hooks/useModelManager";
+import { useStreamingGeneration } from "./hooks/useStreamingGeneration";
 
-interface StreamingMessage extends ChatMessage {
-  _isStreaming: true;
-  _key: string;
+function toRuntimeMessages(messages: ChatMessage[]): ChatMessage[] {
+  return messages.map((message) => {
+    const runtimeMessage: ChatMessage = {
+      role:
+        message.role === "tool"
+          ? "assistant"
+          : (message.role as "system" | "user" | "assistant"),
+      content: message.content,
+    };
+
+    if (message.reasoning_content) {
+      runtimeMessage.reasoning_content = message.reasoning_content;
+    }
+
+    return runtimeMessage;
+  });
 }
 
 export function useChat() {
-  const [conversationId, setConversationId] = useState<string | null>(null);
-  const [conversationTitle, setConversationTitle] = useState("Nova conversa");
-  const [isModelReady, setIsModelReady] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [streamingMessage, setStreamingMessage] =
-    useState<StreamingMessage | null>(null);
-  const [showCancelOption, setShowCancelOption] = useState(false);
+  const conversation = useConversation();
+  const model = useModelManager();
+  const stream = useStreamingGeneration();
+
   const [thinkingEnabled, setThinkingEnabledState] = useState(() =>
     getThinkingEnabled(),
   );
-  const [isModelLoading, setIsModelLoading] = useState(false);
-  const [modelError, setModelError] = useState<string | null>(null);
-  const [currentLoadedModelId, setCurrentLoadedModelId] = useState<
-    string | null
-  >(null);
 
-  // Global conversation error (shown as overlay, not in chat)
-  const [conversationError, setConversationError] = useState<string | null>(
-    null,
-  );
+  const resolveCurrentModelId = useCallback(() => {
+    return (
+      model.selectedId ?? getAIRuntime().getCurrentModel()?.id ?? "unknown"
+    );
+  }, [model.selectedId]);
 
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const handleGenerationError = useCallback(
+    (
+      conversationId: string,
+      modelId: string,
+      errorCode: string,
+      partialContent?: string,
+      partialReasoning?: string,
+    ) => {
+      DatabaseChat.clearStreamingMessage(conversationId);
 
-  // Refs to avoid stale closures in async callbacks (stream updates, abort)
-  const streamingMessageRef = useRef<StreamingMessage | null>(null);
-  const streamingKeyRef = useRef<string>("");
-  // Throttle/queue for persisting streaming partials
-  const upsertTimerRef = useRef<number | null>(null);
-  const lastUpsertMsgRef = useRef<StreamingMessage | null>(null);
-  const UPLOAD_THROTTLE_MS = 500;
+      const hasPartial = !!partialContent?.trim() || !!partialReasoning?.trim();
 
-  const schedulePersistPartial = useCallback(
-    (convId: string, msg: StreamingMessage) => {
-      lastUpsertMsgRef.current = msg;
-      if (upsertTimerRef.current !== null) return;
-      upsertTimerRef.current = setTimeout(() => {
-        const toSave = lastUpsertMsgRef.current;
-        if (toSave) {
-          try {
-            DatabaseChat.upsertStreamingMessage(convId, toSave as any);
-          } catch (e) {
-            // best-effort
-            // eslint-disable-next-line no-console
-            console.warn("Failed to persist streaming partial", e);
-          }
+      if (errorCode === "ABORTED") {
+        if (hasPartial) {
+          conversation.addMessage(
+            conversationId,
+            createChatMessage(
+              "assistant",
+              `${partialContent ?? ""} [cancelado]`,
+              partialReasoning,
+              modelId,
+            ),
+          );
         }
-        upsertTimerRef.current = null;
-        lastUpsertMsgRef.current = null;
-      }, UPLOAD_THROTTLE_MS) as unknown as number;
-    },
-    [],
-  );
-
-  const flushPersistPartial = useCallback((convId?: string) => {
-    if (upsertTimerRef.current !== null) {
-      clearTimeout(upsertTimerRef.current as unknown as number);
-      upsertTimerRef.current = null;
-      const toSave = lastUpsertMsgRef.current;
-      if (toSave && convId) {
-        try {
-          DatabaseChat.upsertStreamingMessage(convId, toSave as any);
-        } catch (e) {
-          // ignore
-        }
-      }
-      lastUpsertMsgRef.current = null;
-    }
-  }, []);
-
-  // Ref to store last user message for retry functionality
-  const lastUserMessageRef = useRef<string>("");
-
-  // Unique key generator for LegendList — guarantees no duplicates
-  const keyCounterRef = useRef(0);
-  const makeKey = useCallback(() => {
-    return `msg-${Date.now()}-${++keyCounterRef.current}`;
-  }, []);
-
-  // Refresh available models when model state changes
-  const [modelsRefresh, setModelsRefresh] = useState(0);
-  const [availableModels, setAvailableModels] = useState<AvailableModel[]>([]);
-
-  const reloadAvailableModels = useCallback(async () => {
-    const models = await getAvailableModels();
-    setAvailableModels(models);
-    return models;
-  }, []);
-
-  useEffect(() => {
-    void reloadAvailableModels();
-  }, [modelsRefresh, reloadAvailableModels]);
-
-  /** Call this when screen gains focus to refresh model list */
-  const refreshModelsOnFocus = useCallback(() => {
-    setModelsRefresh((v) => v + 1);
-  }, []);
-
-  const selectedModelId = useMemo(
-    () => currentLoadedModelId ?? getSelectedModelId(),
-    [isModelReady, modelsRefresh, currentLoadedModelId],
-  );
-
-  const handleLoadModel = useCallback(
-    async (modelId: string) => {
-      setIsModelLoading(true);
-      setModelError(null);
-      const result = await loadModel(modelId);
-      setIsModelLoading(false);
-
-      if (!result.success) {
-        setModelError(result.error ?? "Falha ao carregar modelo.");
         return;
       }
 
-      setCurrentLoadedModelId(modelId);
-      setIsModelReady(true);
-      setModelsRefresh((v) => v + 1);
+      if (!hasPartial) {
+        conversation.updateLastUserError(conversationId, errorCode);
+        return;
+      }
+
+      conversation.addMessage(
+        conversationId,
+        createChatMessage(
+          "assistant",
+          `${partialContent ?? ""} [erro na geração]`,
+          partialReasoning,
+          modelId,
+        ),
+      );
     },
-    [reloadAvailableModels],
+    [conversation],
   );
-
-  const handleUnloadModel = useCallback(async () => {
-    setIsModelLoading(true);
-    const result = await unloadModel();
-    setIsModelLoading(false);
-
-    if (!result.success) {
-      setModelError(result.error ?? "Falha ao descarregar modelo.");
-      return;
-    }
-
-    setCurrentLoadedModelId(null);
-    setIsModelReady(false);
-    setModelError(null);
-    setModelsRefresh((v) => v + 1);
-  }, []);
-
-  /** Auto-load last used model on init */
-  const handleAutoLoadLastModel = useCallback(async () => {
-    const runtime = getAIRuntime();
-    if (runtime.isModelLoaded()) return;
-
-    setIsModelLoading(true);
-    const result = await autoLoadLastModel();
-    setIsModelLoading(false);
-    if (!result) return;
-
-    if (result.success) {
-      setModelsRefresh((v) => v + 1);
-      setModelError(null);
-      setIsModelReady(true);
-      setModelsRefresh((v) => v + 1);
-      return;
-    } else {
-      setModelError(result.error ?? "Falha ao carregar modelo.");
-    }
-  }, [reloadAvailableModels]);
-
-  // ==========================================================================
-  // Chat Actions
-  // ==========================================================================
 
   const initChat = useCallback(
     async (id: string | null) => {
-      setStreamingMessage(null);
-      setIsGenerating(false);
-      setShowCancelOption(false);
+      stream.clearStreamingState();
       setThinkingEnabledState(getThinkingEnabled());
-      setConversationError(null);
+      conversation.init(id);
 
-      // If no ID, just reset and return
-      if (!id) {
-        setConversationId(null);
-        setConversationTitle("Nova conversa");
-        return;
-      }
-
-      // Validate conversation exists in storage
-      const loadResult = DatabaseChat.loadConversation(id);
-      if (!loadResult.success || !loadResult.data) {
-        setConversationId(null);
-        setConversationTitle("Nova conversa");
-        setConversationError("Conversa não encontrada");
-        return;
-      }
-
-      // Conversation exists, set it
-      setConversationId(id);
-      setConversationTitle(loadResult.data.title || "Nova conversa");
-
-      // If there's a persisted streaming partial for this conversation, load it
-      try {
+      if (id) {
         const persisted = DatabaseChat.loadStreamingMessage(id);
         if (persisted.success && persisted.data) {
-          const pm = persisted.data as unknown as StreamingMessage;
-          pm._isStreaming = true;
-          pm._key = pm._key ?? makeKey();
-          streamingMessageRef.current = pm;
-          setStreamingMessage(pm);
+          stream.restorePersisted(persisted.data);
         }
-      } catch (e) {
-        // ignore — best-effort
       }
+
+      await model.sync();
     },
-    [availableModels],
-  );
-
-  /** Helper to add error message to conversation */
-  const attachErrorToUserMessage = useCallback(
-    (convId: string, userMessageIndex: number, errorCode?: string) => {
-      const result = DatabaseChat.loadConversation(convId);
-      if (!result.success || !result.data) return;
-
-      const msg = result.data.messages[userMessageIndex];
-      if (msg && msg.role === "user") {
-        msg.errorCode = errorCode;
-        result.data.updatedAt = new Date().toISOString();
-        DatabaseChat.saveConversation(result.data);
-      }
-    },
-    [],
-  );
-
-  const syncModelStatus = useCallback(async () => {
-    const runtime = getAIRuntime();
-    const loaded = runtime.isModelLoaded();
-    const model = runtime.getCurrentModel();
-
-    // If runtime says loaded but file was deleted, unload it
-    if (loaded && model) {
-      const isDownloaded = await isModelDownloaded(model.id);
-      if (!isDownloaded) {
-        await runtime.unloadModel();
-        setIsModelReady(false);
-        setModelError("Modelo removido do dispositivo.");
-        setModelsRefresh((v) => v + 1);
-        return;
-      }
-    }
-
-    setIsModelReady(loaded);
-    setModelsRefresh((v) => v + 1);
-  }, [availableModels]);
-
-  // Internal: generate response for a user message (by index in conversation)
-  // Handles streaming, error attachment, and success persistence
-  const _performGeneration = useCallback(
-    async (convId: string, userMessageIndex: number) => {
-      const loadResult = DatabaseChat.loadConversation(convId);
-      if (!loadResult.success || !loadResult.data) return;
-      const conv = loadResult.data;
-
-      // Clear any previous error on this user message
-      if (conv.messages[userMessageIndex]) {
-        conv.messages[userMessageIndex].errorCode = undefined;
-        DatabaseChat.saveConversation(conv);
-      }
-
-      const currentModelId = getAIRuntime().getCurrentModel()?.id ?? "unknown";
-      setIsGenerating(true);
-      const stableKey = makeKey();
-      streamingKeyRef.current = stableKey;
-
-      const initialMsg: StreamingMessage = {
-        role: "assistant",
-        content: "",
-        reasoning_content: "",
-        modelId: currentModelId,
-        timestamp: new Date().toISOString(),
-        _isStreaming: true,
-        _key: stableKey,
-      };
-
-      streamingMessageRef.current = initialMsg;
-      setStreamingMessage(initialMsg);
-      setShowCancelOption(false);
-      // Persist initial partial (best-effort)
-      try {
-        DatabaseChat.upsertStreamingMessage(convId, initialMsg as any);
-      } catch (e) {
-        // ignore
-      }
-
-      const controller = new AbortController();
-      abortControllerRef.current = controller;
-
-      const runtime = getAIRuntime();
-      const messages = conv.messages.map((m) => ({
-        role: m.role as "system" | "user" | "assistant",
-        content: m.content,
-      }));
-
-      const thinking = thinkingEnabled;
-      let fullResponse = "";
-      let localReasoning = "";
-      let rawAccumulated = "";
-
-      const streamResult = await runtime.streamCompletion(messages, {
-        enableThinking: thinking,
-        onStreamChunk: (data) => {
-          if (controller.signal.aborted) return;
-
-          const runtimeReasoning = (data as any).reasoning;
-
-          if (thinking) {
-            if (runtimeReasoning) {
-              rawAccumulated += data.token;
-              fullResponse = rawAccumulated;
-              localReasoning = String(runtimeReasoning).trim();
-            } else {
-              rawAccumulated += data.token;
-
-              const thinkStartMatch = rawAccumulated.match(
-                /<think>([\s\S]*?)<\/think>/,
-              );
-              if (thinkStartMatch) {
-                localReasoning = thinkStartMatch[1].trim();
-                fullResponse = rawAccumulated
-                  .replace(/<think>[\s\S]*?<\/think>/, "")
-                  .trim();
-              } else if (rawAccumulated.includes("<think>")) {
-                const partial = rawAccumulated.split("<think>")[1];
-                if (partial) localReasoning = partial;
-                fullResponse = "";
-              } else {
-                fullResponse = rawAccumulated;
-              }
-            }
-          } else {
-            if (data.token) fullResponse += data.token;
-          }
-
-          const updatedMsg: StreamingMessage = {
-            role: "assistant",
-            content: fullResponse,
-            reasoning_content: localReasoning || undefined,
-            modelId: currentModelId,
-            timestamp: new Date().toISOString(),
-            _isStreaming: true,
-            _key: streamingKeyRef.current,
-          };
-
-          streamingMessageRef.current = updatedMsg;
-          setStreamingMessage(updatedMsg);
-          setShowCancelOption(true);
-          // schedule a throttled upsert of the partial
-          try {
-            schedulePersistPartial(convId, updatedMsg);
-          } catch (e) {
-            // ignore
-          }
-        },
-        abortSignal: controller.signal,
-      });
-
-      setIsGenerating(false);
-      setShowCancelOption(false);
-
-      if (controller.signal.aborted) {
-        const partial = streamingMessageRef.current;
-        if (partial && (partial.reasoning_content || partial.content)) {
-          const conv2 = DatabaseChat.loadConversation(convId);
-          if (conv2.success && conv2.data) {
-            conv2.data.messages.push(
-              createChatMessage(
-                "assistant",
-                partial.content + " [cancelado]",
-                partial.reasoning_content,
-                currentModelId,
-              ),
-            );
-            conv2.data.updatedAt = new Date().toISOString();
-            DatabaseChat.saveConversation(conv2.data);
-          }
-        }
-        // flush and clear persisted partial
-        try {
-          flushPersistPartial(convId);
-          DatabaseChat.clearStreamingMessage(convId);
-        } catch (e) {
-          // ignore
-        }
-        streamingMessageRef.current = null;
-        setStreamingMessage(null);
-        abortControllerRef.current = null;
-        return;
-      }
-
-      if (!streamResult.success) {
-        const partial = streamingMessageRef.current;
-        streamingMessageRef.current = null;
-        setStreamingMessage(null);
-        abortControllerRef.current = null;
-
-        const errorCode = streamResult.error?.code ?? "GENERATION_FAILED";
-
-        if (!partial?.content?.trim() && !partial?.reasoning_content?.trim()) {
-          attachErrorToUserMessage(convId, userMessageIndex, errorCode);
-          return;
-        }
-
-        const conv3 = DatabaseChat.loadConversation(convId);
-        if (conv3.success && conv3.data) {
-          conv3.data.messages.push(
-            createChatMessage(
-              "assistant",
-              (partial.content ?? "") + " [erro na geração]",
-              partial.reasoning_content || undefined,
-              currentModelId,
-            ),
-          );
-          conv3.data.updatedAt = new Date().toISOString();
-          DatabaseChat.saveConversation(conv3.data);
-          // clear persisted partial
-          try {
-            flushPersistPartial(convId);
-            DatabaseChat.clearStreamingMessage(convId);
-          } catch (e) {
-            // ignore
-          }
-        }
-        return;
-      }
-
-      // Extract final values at top level for access in metrics update
-      const finalText =
-        streamResult.data?.text ??
-        streamingMessageRef.current?.content ??
-        fullResponse;
-      const finalThinking =
-        (streamResult.data?.reasoning ??
-          streamingMessageRef.current?.reasoning_content ??
-          localReasoning) ||
-        undefined;
-
-      const conv3 = DatabaseChat.loadConversation(convId);
-      if (conv3.success && conv3.data) {
-        const finalMsg = createChatMessage(
-          "assistant",
-          finalText,
-          finalThinking,
-          currentModelId,
-        );
-
-        // Attach generation metrics if available
-        if (streamResult.data?.metrics) {
-          (finalMsg as any).generationMetrics = streamResult.data.metrics;
-        }
-
-        conv3.data.messages.push(finalMsg);
-        conv3.data.updatedAt = new Date().toISOString();
-        DatabaseChat.saveConversation(conv3.data);
-        // flush any pending partial writes and clear persisted partial
-        try {
-          flushPersistPartial(convId);
-          DatabaseChat.clearStreamingMessage(convId);
-        } catch (e) {
-          // ignore
-        }
-      }
-
-      // Clear streaming message immediately so displayMessages reloads from DB
-      // The message now has metrics in persistent storage
-      setStreamingMessage(null);
-      streamingMessageRef.current = null;
-      abortControllerRef.current = null;
-    },
-    [thinkingEnabled, makeKey, attachErrorToUserMessage],
+    [conversation, model, stream],
   );
 
   const sendMessage = useCallback(
     async (content: string) => {
-      lastUserMessageRef.current = content;
-
       const validation = validateChatMessage(content);
-      if (!validation.isValid) {
-        return;
+      if (!validation.isValid || !model.isReady) return;
+
+      const currentModelId = resolveCurrentModelId();
+
+      let conversationId = conversation.id;
+      if (!conversationId) {
+        conversationId = conversation.create(currentModelId);
       }
 
-      if (!isModelReady) {
-        return;
-      }
+      const added = conversation.addMessage(
+        conversationId,
+        createChatMessage("user", content),
+      );
+      if (!added) return;
 
-      let convId = conversationId;
-      if (!convId) {
-        const modelId = getAIRuntime().getCurrentModel()?.id ?? "unknown";
-        const newConv = DatabaseChat.createConversation(modelId);
-        convId = newConv.id;
-        DatabaseChat.saveConversation(newConv);
-        setConversationId(convId);
-      }
+      conversation.updateLastUserError(conversationId, undefined);
 
-      const loadResult = DatabaseChat.loadConversation(convId);
-      if (!loadResult.success || !loadResult.data) {
-        return;
-      }
-      const conv = loadResult.data;
+      const messages = toRuntimeMessages(
+        conversation.getMessages(conversationId),
+      );
 
-      conv.messages.push(createChatMessage("user", content));
-      const userMessageIndex = conv.messages.length - 1;
-      conv.updatedAt = new Date().toISOString();
-
-      if (conv.messages.filter((m) => m.role === "user").length === 1) {
-        conv.title = autoGenerateTitle(content);
-        setConversationTitle(conv.title);
-      }
-
-      DatabaseChat.saveConversation(conv);
-
-      await _performGeneration(convId, userMessageIndex);
+      await stream.generate(conversationId, messages, {
+        modelId: currentModelId,
+        enableThinking: thinkingEnabled,
+        onComplete: (text, reasoning) => {
+          DatabaseChat.clearStreamingMessage(conversationId);
+          conversation.addMessage(
+            conversationId,
+            createChatMessage("assistant", text, reasoning, currentModelId),
+          );
+        },
+        onError: (code, partialText, partialReasoning) => {
+          handleGenerationError(
+            conversationId,
+            currentModelId,
+            code,
+            partialText,
+            partialReasoning,
+          );
+        },
+      });
     },
-    [conversationId, isModelReady, _performGeneration],
+    [
+      conversation,
+      handleGenerationError,
+      model.isReady,
+      resolveCurrentModelId,
+      stream,
+      thinkingEnabled,
+    ],
   );
 
-  /** Retry last user message by regenerating assistant response without duplicating user message */
   const retryLastUserMessage = useCallback(async () => {
-    if (!conversationId) return;
+    if (!conversation.id) return;
 
-    const result = DatabaseChat.loadConversation(conversationId);
-    if (!result.success || !result.data) return;
+    const conversationId = conversation.id;
+    conversation.removeLastAssistant(conversationId);
 
-    const messages = result.data.messages;
-    const lastUserIdx = messages.findLastIndex((m) => m.role === "user");
-    if (lastUserIdx < 0) return;
-
-    // Delete any assistant messages after the last user message
-    const lastAssistantAfterUserIdx = messages.findLastIndex(
-      (m, i) => m.role === "assistant" && i > lastUserIdx,
+    const messages = conversation.getMessages(conversationId);
+    const lastUserIndex = messages.findLastIndex(
+      (message) => message.role === "user",
     );
-    if (lastAssistantAfterUserIdx > lastUserIdx) {
-      result.data.messages.splice(lastAssistantAfterUserIdx, 1);
-      result.data.updatedAt = new Date().toISOString();
-      DatabaseChat.saveConversation(result.data);
-    }
+    if (lastUserIndex < 0) return;
 
-    // Regenerate (errorCode will be cleared by _performGeneration)
-    await _performGeneration(conversationId, lastUserIdx);
-  }, [conversationId, _performGeneration]);
+    conversation.updateLastUserError(conversationId, undefined);
+
+    const currentModelId = resolveCurrentModelId();
+
+    await stream.generate(conversationId, toRuntimeMessages(messages), {
+      modelId: currentModelId,
+      enableThinking: thinkingEnabled,
+      onComplete: (text, reasoning) => {
+        DatabaseChat.clearStreamingMessage(conversationId);
+        conversation.addMessage(
+          conversationId,
+          createChatMessage("assistant", text, reasoning, currentModelId),
+        );
+      },
+      onError: (code, partialText, partialReasoning) => {
+        handleGenerationError(
+          conversationId,
+          currentModelId,
+          code,
+          partialText,
+          partialReasoning,
+        );
+      },
+    });
+  }, [
+    conversation,
+    handleGenerationError,
+    resolveCurrentModelId,
+    stream,
+    thinkingEnabled,
+  ]);
 
   const cancelGeneration = useCallback(() => {
-    abortControllerRef.current?.abort();
-    abortControllerRef.current = null;
-    streamingMessageRef.current = null;
-    setIsGenerating(false);
-    setShowCancelOption(false);
-    setStreamingMessage(null);
-    try {
-      if (conversationId) {
-        flushPersistPartial(conversationId);
-        DatabaseChat.clearStreamingMessage(conversationId);
-      }
-    } catch (e) {
-      // ignore
+    stream.cancel();
+    if (conversation.id) {
+      stream.flushPersist(conversation.id);
+    } else {
+      stream.flushPersist();
     }
-  }, []);
+  }, [conversation.id, stream]);
 
   const toggleThinking = useCallback(() => {
     setThinkingEnabledState((prev) => {
-      const newVal = !prev;
-      setThinkingEnabled(newVal);
-      return newVal;
+      const next = !prev;
+      setThinkingEnabled(next);
+      return next;
     });
   }, []);
 
   const resetChatState = useCallback(() => {
-    abortControllerRef.current?.abort();
-    abortControllerRef.current = null;
-    setConversationId(null);
-    setConversationTitle("Nova conversa");
-    setIsGenerating(false);
-    setStreamingMessage(null);
-    setShowCancelOption(false);
-    try {
-      if (conversationId) {
-        flushPersistPartial(conversationId);
-        DatabaseChat.clearStreamingMessage(conversationId);
-      }
-    } catch (e) {
-      // ignore
+    stream.cancel();
+    if (conversation.id) {
+      stream.flushPersist(conversation.id);
+    } else {
+      stream.flushPersist();
     }
-  }, []);
-
-  // ==========================================================================
-  // Derived state
-  // ==========================================================================
-
-  // Centralize conversation loading and error handling to avoid duplicate DB calls
-  const getConversationData = useCallback((id: string | null) => {
-    if (!id) return null;
-    const result = DatabaseChat.loadConversation(id);
-    if (!result.success) {
-      // Log failure — keep UI resilient and return null
-      // Avoid throwing or setting state from render path
-      console.error("Failed to load conversation:", result.error);
-      return null;
-    }
-    return result.data;
-  }, []);
+    stream.clearStreamingState();
+    conversation.init(null);
+  }, [conversation, stream]);
 
   const displayMessages = useMemo(() => {
-    if (!conversationId) {
-      return streamingMessage ? [streamingMessage] : [];
-    }
+    const messages = conversation.id
+      ? conversation.getMessages(conversation.id)
+      : [];
+    return stream.streaming ? [...messages, stream.streaming] : messages;
+  }, [conversation, stream.streaming]);
 
-    const conv = getConversationData(conversationId);
-    const messages = conv?.messages ?? [];
-
-    return streamingMessage ? [...messages, streamingMessage] : messages;
-  }, [conversationId, streamingMessage, getConversationData]);
-
-  const hasContent = useMemo(() => {
-    if (!conversationId) return !!streamingMessage;
-
-    // Reuse already-computed displayMessages to avoid extra DB calls
-    const messages = displayMessages;
-    const msgCount = messages.length;
-
-    const hasStreaming =
-      !!streamingMessage &&
-      !!(streamingMessage.reasoning_content || streamingMessage.content);
-
-    return msgCount > 0 || hasStreaming;
-  }, [conversationId, streamingMessage, displayMessages]);
-
-  const activeModelName = useMemo(
-    () => currentLoadedModelId ?? getSelectedModelId(),
-    [isModelReady, modelsRefresh, currentLoadedModelId],
+  const hasContent = useMemo(
+    () => displayMessages.length > 0,
+    [displayMessages.length],
   );
+
+  const selectedModelId = model.selectedId;
+  const activeModelName = selectedModelId;
 
   return useMemo(
     () => ({
-      // State
-      conversationId,
-      conversationTitle,
-      isModelReady,
-      isGenerating,
-      streamingMessage,
-      modelError,
-      conversationError,
-      showCancelOption: showCancelOption && isGenerating,
+      conversationId: conversation.id,
+      conversationTitle: conversation.title,
+      isModelReady: model.isReady,
+      isGenerating: stream.isGenerating,
+      streamingMessage: stream.streaming,
+      modelError: model.error,
+      conversationError: conversation.error,
+      showCancelOption: stream.showCancel && stream.isGenerating,
       thinkingEnabled,
       displayMessages,
       hasContent,
       activeModelName,
       selectedModelId,
-      availableModels,
-      isModelLoading,
+      availableModels: model.available,
+      isModelLoading: model.isLoading,
 
-      // Chat Actions
       initChat,
-      syncModelStatus,
+      syncModelStatus: model.sync,
       sendMessage,
       cancelGeneration,
       toggleThinking,
       resetChatState,
       retryLastUserMessage,
-      clearConversationError: () => setConversationError(null),
+      clearConversationError: conversation.clearError,
 
-      // Model Actions
-      handleLoadModel,
-      handleUnloadModel,
-      handleAutoLoadLastModel,
-      refreshModelsOnFocus,
+      handleLoadModel: model.load,
+      handleUnloadModel: model.unload,
+      handleAutoLoadLastModel: model.autoLoad,
+      refreshModelsOnFocus: model.refresh,
     }),
     [
-      conversationId,
-      conversationTitle,
-      isModelReady,
-      isGenerating,
-      streamingMessage,
-      modelError,
-      conversationError,
-      showCancelOption,
+      conversation.id,
+      conversation.title,
+      conversation.error,
+      model.isReady,
+      model.error,
+      model.available,
+      model.isLoading,
+      model.sync,
+      model.load,
+      model.unload,
+      model.autoLoad,
+      model.refresh,
+      stream.isGenerating,
+      stream.streaming,
+      stream.showCancel,
       thinkingEnabled,
       displayMessages,
       hasContent,
       activeModelName,
       selectedModelId,
-      availableModels,
-      isModelLoading,
       initChat,
-      syncModelStatus,
       sendMessage,
       cancelGeneration,
       toggleThinking,
       resetChatState,
       retryLastUserMessage,
-      handleLoadModel,
-      handleUnloadModel,
-      handleAutoLoadLastModel,
-      refreshModelsOnFocus,
+      conversation.clearError,
     ],
   );
 }
