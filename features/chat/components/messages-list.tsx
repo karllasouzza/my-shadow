@@ -113,7 +113,10 @@ export const MessagesList = observer(function MessagesList({ chat }: Props) {
         renderItem={({ item }) => {
           const msg: any = item;
           return msg._isStreaming ? (
-            <StreamingBubble message={msg} />
+            <StreamingBubble
+              message={msg}
+              isReasonEnabled={chat.thinkingEnabled}
+            />
           ) : msg.role === "user" ? (
             <UserBubble
               message={msg}
@@ -123,6 +126,7 @@ export const MessagesList = observer(function MessagesList({ chat }: Props) {
             <AIBubble
               message={msg}
               onRetry={() => chat.retryLastUserMessage?.()}
+              isReasonEnabled={chat.thinkingEnabled}
             />
           );
         }}

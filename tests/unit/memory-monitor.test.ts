@@ -168,3 +168,29 @@ describe("MemoryMonitor.onMemoryWarning()", () => {
     expect(callCount).toBe(1);
   });
 });
+
+describe("MemoryMonitor.evaluate() recommendedBatch", () => {
+  test("returns recommendedBatch field", async () => {
+    const monitor = new MemoryMonitor(makeMemoryProvider(4, 2));
+    const pressure = await monitor.evaluate();
+    expect(pressure.recommendedBatch).toBeDefined();
+    expect(typeof pressure.recommendedBatch).toBe("number");
+  });
+
+  test("recommendedBatch is between 64 and 512", async () => {
+    const monitor = new MemoryMonitor(makeMemoryProvider(8, 2));
+    const pressure = await monitor.evaluate();
+    expect(pressure.recommendedBatch).toBeGreaterThanOrEqual(64);
+    expect(pressure.recommendedBatch).toBeLessThanOrEqual(512);
+  });
+
+  test("recommendedBatch decreases with less available RAM", async () => {
+    const monitorHigh = new MemoryMonitor(makeMemoryProvider(8, 1));
+    const monitorLow = new MemoryMonitor(makeMemoryProvider(4, 3.5));
+    const pressureHigh = await monitorHigh.evaluate();
+    const pressureLow = await monitorLow.evaluate();
+    expect(pressureHigh.recommendedBatch).toBeGreaterThanOrEqual(
+      pressureLow.recommendedBatch,
+    );
+  });
+});

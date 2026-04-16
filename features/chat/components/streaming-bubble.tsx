@@ -12,10 +12,14 @@ import React from "react";
 
 interface StreamingBubbleProps {
   message: ChatMessage;
+  isReasonEnabled?: boolean;
 }
 
 export const StreamingBubble = observer(function StreamingBubble({
   message,
+  isReasonEnabled = false,
 }: StreamingBubbleProps) {
-  return <AIBubble message={message} isStreaming />;
+  return (
+    <AIBubble message={message} isStreaming isReasonEnabled={isReasonEnabled} />
+  );
 });

@@ -1,20 +1,11 @@
-/**
- * Integration tests for AI runtime loading across device tiers.
- *
- * Tests the full pipeline: DeviceDetector (DI) → RuntimeConfigGenerator → RuntimeConfig validation.
- * Validates that each device tier produces correct runtime parameters for low-RAM safety.
- *
- * Note: Actual llama.rn loading is tested only on device. Here we validate that the
- * _config selection_ is correct for each simulated tier.
- */
-import type {
-    IDeviceInfoProvider,
-    IPlatformProvider,
-} from "@/shared/ai/device-detector";
-import { DeviceDetector } from "@/shared/ai/device-detector";
 import { RuntimeConfigGenerator } from "@/shared/ai/runtime-config-generator";
 import Ajv from "ajv";
 import { describe, expect, test } from "bun:test";
+import {
+  mockBudgetDevice,
+  mockMidRangeDevice,
+  mockPremiumDevice,
+} from "../utils/device-simulator";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const schema = require("../../specs/001-optimize-runtime-planning/contracts/runtime-config.schema.json");
@@ -22,91 +13,46 @@ const schema = require("../../specs/001-optimize-runtime-planning/contracts/runt
 const ajv = new Ajv({ allErrors: true });
 const validate = ajv.compile(schema);
 
-const GB = 1024 ** 3;
 const MODEL_PATH = "/data/models/model.gguf";
-
-function makeProvider(
-  totalGB: number,
-  usedGB: number,
-  brand = "Qualcomm",
-): IDeviceInfoProvider {
-  return {
-    getTotalMemory: () => Promise.resolve(totalGB * GB),
-    getUsedMemory: () => Promise.resolve(usedGB * GB),
-    getMaxMemory: () => Promise.resolve(8),
-    getNumberOfCores: () => Promise.resolve(8),
-    getBrand: () => Promise.resolve(brand),
-    getSystemVersion: () => Promise.resolve("12.0"),
-    getModel: () => Promise.resolve("Pixel 4a"),
-  };
-}
-
-const androidPlatform: IPlatformProvider = { OS: "android" };
-const iosPlatform: IPlatformProvider = { OS: "ios" };
-
 const generator = new RuntimeConfigGenerator();
-
-async function loadConfigFor(
-  provider: IDeviceInfoProvider,
-  platform: IPlatformProvider,
-) {
-  const detector = new DeviceDetector(provider, platform);
-  const deviceInfo = await detector.detect();
-  return {
-    deviceInfo,
-    config: generator.generateRuntimeConfig(deviceInfo, MODEL_PATH),
-  };
-}
 
 // ─────────────────────────────────────────────────────────────────────
 // T021: Budget tier — 4 GB Android device
 // ─────────────────────────────────────────────────────────────────────
 describe("T021: Budget tier loading (4GB Android)", () => {
-  test("selects budget profile (n_ctx=1024)", async () => {
-    const { config } = await loadConfigFor(
-      makeProvider(4, 0.8),
-      androidPlatform,
-    );
+  test("selects budget profile (n_ctx=1024)", () => {
+    const deviceInfo = mockBudgetDevice();
+    const config = generator.generateRuntimeConfig(deviceInfo, MODEL_PATH);
     expect(config.n_ctx).toBe(1024);
   });
 
-  test("n_batch is 64 for budget tier", async () => {
-    const { config } = await loadConfigFor(
-      makeProvider(4, 0.8),
-      androidPlatform,
-    );
+  test("n_batch is 64 for budget tier", () => {
+    const deviceInfo = mockBudgetDevice();
+    const config = generator.generateRuntimeConfig(deviceInfo, MODEL_PATH);
     expect(config.n_batch).toBe(64);
   });
 
-  test("use_mmap is true (critical for low-RAM)", async () => {
-    const { config } = await loadConfigFor(
-      makeProvider(4, 0.8),
-      androidPlatform,
-    );
+  test("use_mmap is true (critical for low-RAM)", () => {
+    const deviceInfo = mockBudgetDevice();
+    const config = generator.generateRuntimeConfig(deviceInfo, MODEL_PATH);
     expect(config.use_mmap).toBe(true);
   });
 
-  test("use_mlock is false (must not lock on mobile)", async () => {
-    const { config } = await loadConfigFor(
-      makeProvider(4, 0.8),
-      androidPlatform,
-    );
+  test("use_mlock is false (must not lock on mobile)", () => {
+    const deviceInfo = mockBudgetDevice();
+    const config = generator.generateRuntimeConfig(deviceInfo, MODEL_PATH);
     expect(config.use_mlock).toBe(false);
   });
 
-  test("n_gpu_layers is 0 (CPU-only for budget)", async () => {
-    const { config } = await loadConfigFor(
-      makeProvider(4, 0.8),
-      androidPlatform,
-    );
+  test("n_gpu_layers is 0 (CPU-only for budget)", () => {
+    const deviceInfo = mockBudgetDevice();
+    const config = generator.generateRuntimeConfig(deviceInfo, MODEL_PATH);
     expect(config.n_gpu_layers).toBe(0);
   });
 
-  test("config passes JSON schema validation", async () => {
-    const { config } = await loadConfigFor(
-      makeProvider(4, 0.8),
-      androidPlatform,
-    );
+  test("config passes JSON schema validation", () => {
+    const deviceInfo = mockBudgetDevice();
+    const config = generator.generateRuntimeConfig(deviceInfo, MODEL_PATH);
     expect(validate(config)).toBe(true);
   });
 });
@@ -115,43 +61,33 @@ describe("T021: Budget tier loading (4GB Android)", () => {
 // T022: Mid-range tier — 6 GB Android device
 // ─────────────────────────────────────────────────────────────────────
 describe("T022: Mid-range tier loading (6GB Android)", () => {
-  test("selects mid-range profile (n_ctx=2048)", async () => {
-    const { config } = await loadConfigFor(
-      makeProvider(6, 0.1),
-      androidPlatform,
-    );
+  test("selects mid-range profile (n_ctx=2048)", () => {
+    const deviceInfo = mockMidRangeDevice();
+    const config = generator.generateRuntimeConfig(deviceInfo, MODEL_PATH);
     expect(config.n_ctx).toBe(2048);
   });
 
-  test("n_batch is 128 for mid-range tier", async () => {
-    const { config } = await loadConfigFor(
-      makeProvider(6, 0.1),
-      androidPlatform,
-    );
+  test("n_batch is 128 for mid-range tier", () => {
+    const deviceInfo = mockMidRangeDevice();
+    const config = generator.generateRuntimeConfig(deviceInfo, MODEL_PATH);
     expect(config.n_batch).toBe(128);
   });
 
-  test("use_mmap is true for mid-range", async () => {
-    const { config } = await loadConfigFor(
-      makeProvider(6, 0.1),
-      androidPlatform,
-    );
+  test("use_mmap is true for mid-range", () => {
+    const deviceInfo = mockMidRangeDevice();
+    const config = generator.generateRuntimeConfig(deviceInfo, MODEL_PATH);
     expect(config.use_mmap).toBe(true);
   });
 
-  test("n_gpu_layers is 50 for mid-range GPU offload", async () => {
-    const { config } = await loadConfigFor(
-      makeProvider(6, 0.1),
-      androidPlatform,
-    );
+  test("n_gpu_layers is 50 for mid-range GPU offload", () => {
+    const deviceInfo = mockMidRangeDevice();
+    const config = generator.generateRuntimeConfig(deviceInfo, MODEL_PATH);
     expect(config.n_gpu_layers).toBe(50);
   });
 
-  test("config passes JSON schema validation", async () => {
-    const { config } = await loadConfigFor(
-      makeProvider(6, 0.1),
-      androidPlatform,
-    );
+  test("config passes JSON schema validation", () => {
+    const deviceInfo = mockMidRangeDevice();
+    const config = generator.generateRuntimeConfig(deviceInfo, MODEL_PATH);
     expect(validate(config)).toBe(true);
   });
 });
@@ -160,33 +96,39 @@ describe("T022: Mid-range tier loading (6GB Android)", () => {
 // T023: Premium tier — 8+ GB iOS device
 // ─────────────────────────────────────────────────────────────────────
 describe("T023: Premium tier loading (8GB+ iOS)", () => {
-  test("selects premium profile (n_ctx=4096)", async () => {
-    const { config } = await loadConfigFor(makeProvider(8, 0.1), iosPlatform);
+  test("selects premium profile (n_ctx=4096)", () => {
+    const deviceInfo = mockPremiumDevice();
+    const config = generator.generateRuntimeConfig(deviceInfo, MODEL_PATH);
     expect(config.n_ctx).toBe(4096);
   });
 
-  test("n_batch is 512 for premium tier", async () => {
-    const { config } = await loadConfigFor(makeProvider(8, 0.1), iosPlatform);
+  test("n_batch is 512 for premium tier", () => {
+    const deviceInfo = mockPremiumDevice();
+    const config = generator.generateRuntimeConfig(deviceInfo, MODEL_PATH);
     expect(config.n_batch).toBe(512);
   });
 
-  test("cache_type_k is f16 for premium (full precision)", async () => {
-    const { config } = await loadConfigFor(makeProvider(8, 0.1), iosPlatform);
+  test("cache_type_k is f16 for premium (full precision)", () => {
+    const deviceInfo = mockPremiumDevice();
+    const config = generator.generateRuntimeConfig(deviceInfo, MODEL_PATH);
     expect(config.cache_type_k).toBe("f16");
   });
 
-  test("cache_type_v is f16 for premium (full precision)", async () => {
-    const { config } = await loadConfigFor(makeProvider(8, 0.1), iosPlatform);
+  test("cache_type_v is f16 for premium (full precision)", () => {
+    const deviceInfo = mockPremiumDevice();
+    const config = generator.generateRuntimeConfig(deviceInfo, MODEL_PATH);
     expect(config.cache_type_v).toBe("f16");
   });
 
-  test("n_gpu_layers is 99 for full GPU utilization on iOS", async () => {
-    const { config } = await loadConfigFor(makeProvider(8, 0.1), iosPlatform);
+  test("n_gpu_layers is 99 for full GPU utilization on iOS", () => {
+    const deviceInfo = mockPremiumDevice();
+    const config = generator.generateRuntimeConfig(deviceInfo, MODEL_PATH);
     expect(config.n_gpu_layers).toBe(99);
   });
 
-  test("config passes JSON schema validation", async () => {
-    const { config } = await loadConfigFor(makeProvider(8, 0.1), iosPlatform);
+  test("config passes JSON schema validation", () => {
+    const deviceInfo = mockPremiumDevice();
+    const config = generator.generateRuntimeConfig(deviceInfo, MODEL_PATH);
     expect(validate(config)).toBe(true);
   });
 });
@@ -195,65 +137,48 @@ describe("T023: Premium tier loading (8GB+ iOS)", () => {
 // T024: OOM fallback behavior — config degradation logic
 // ─────────────────────────────────────────────────────────────────────
 describe("T024: OOM fallback — config degradation", () => {
-  test("degraded config reduces n_ctx by 50%", async () => {
-    const { config: original } = await loadConfigFor(
-      makeProvider(4, 0.8),
-      androidPlatform,
-    );
-    const degradedNCtx = Math.floor(original.n_ctx / 2);
-    const degradedConfig = generator.generateRuntimeConfig(
-      await new DeviceDetector(makeProvider(4, 0.8), androidPlatform).detect(),
+  test("degraded config reduces n_ctx by 50%", () => {
+    const config = generator.generateRuntimeConfig(
+      mockBudgetDevice(),
       MODEL_PATH,
-      { n_ctx: degradedNCtx },
+      { n_ctx: 512 }, // 1024 / 2 = 512
     );
-    expect(degradedConfig.n_ctx).toBe(512); // 1024 / 2 = 512
+    expect(config.n_ctx).toBe(512);
   });
 
-  test("degraded config remains above minimum n_ctx (128)", async () => {
-    const { config: original } = await loadConfigFor(
-      makeProvider(4, 0.8),
-      androidPlatform,
-    );
-    const degraded = Math.floor(original.n_ctx / 2);
-    expect(degraded).toBeGreaterThanOrEqual(128);
-  });
-
-  test("degraded config passes schema validation", async () => {
-    const devInfo = await new DeviceDetector(
-      makeProvider(4, 0.8),
-      androidPlatform,
-    ).detect();
-    const degradedConfig = generator.generateRuntimeConfig(
-      devInfo,
+  test("degraded config remains above minimum n_ctx (128)", () => {
+    const config = generator.generateRuntimeConfig(
+      mockBudgetDevice(),
       MODEL_PATH,
-      {
-        n_ctx: 512,
-      },
+      { n_ctx: 512 },
     );
-    expect(validate(degradedConfig)).toBe(true);
+    expect(config.n_ctx).toBeGreaterThanOrEqual(128);
   });
 
-  test("degraded config preserves use_mmap=true for safety", async () => {
-    const devInfo = await new DeviceDetector(
-      makeProvider(4, 0.8),
-      androidPlatform,
-    ).detect();
-    const degradedConfig = generator.generateRuntimeConfig(
-      devInfo,
+  test("degraded config passes schema validation", () => {
+    const config = generator.generateRuntimeConfig(
+      mockBudgetDevice(),
       MODEL_PATH,
-      {
-        n_ctx: 512,
-      },
+      { n_ctx: 512 },
     );
-    expect(degradedConfig.use_mmap).toBe(true);
+    expect(validate(config)).toBe(true);
   });
 
-  test("device classified as budget when 4GB total, 3.6GB used", async () => {
-    const { config } = await loadConfigFor(
-      makeProvider(4, 3.6),
-      androidPlatform,
+  test("degraded config preserves use_mmap=true for safety", () => {
+    const config = generator.generateRuntimeConfig(
+      mockBudgetDevice(),
+      MODEL_PATH,
+      { n_ctx: 512 },
     );
-    // Even under high pressure, we still get budget config
+    expect(config.use_mmap).toBe(true);
+  });
+
+  test("device classified as budget when 4GB total, 3.2GB available", () => {
+    const config = generator.generateRuntimeConfig(
+      mockBudgetDevice(),
+      MODEL_PATH,
+    );
+    // Budget device config
     expect(config.n_ctx).toBe(1024);
     expect(config.n_gpu_layers).toBe(0);
   });

@@ -6,14 +6,37 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { GenerationMetrics } from "@/shared/ai/metrics";
+import type { CompletionOutput } from "@/shared/ai/types/runtime";
 import { Clock, Hash, Play, Zap } from "lucide-react-native";
 import React from "react";
 import { View } from "react-native";
 
-type MetricsProps = { metrics: GenerationMetrics };
+type RuntimeTimings = CompletionOutput["timings"];
 
-export function AIBubbleMetrics({ metrics }: MetricsProps) {
+type MetricsProps = {
+  timings?: RuntimeTimings;
+};
+
+export function AIBubbleMetrics({ timings }: MetricsProps) {
+  if (!timings) {
+    return null;
+  }
+
+  const generatedTokens = timings.predicted_n;
+  const promptTokens = timings.prompt_n;
+  const cacheTokens = timings.cache_n;
+
+  const totalDurationMs = timings.prompt_ms + timings.predicted_ms;
+
+  const firstPhaseMs = timings.prompt_ms;
+
+  const tokensPerSecond =
+    timings.predicted_per_second > 0
+      ? timings.predicted_per_second
+      : timings.predicted_ms > 0
+        ? (timings.predicted_n / timings.predicted_ms) * 1000
+        : 0;
+
   return (
     <View className="w-full flex-row items-center gap-2 flex-wrap bg-muted/50 rounded-lg px-3 py-2">
       <Tooltip>
@@ -24,15 +47,46 @@ export function AIBubbleMetrics({ metrics }: MetricsProps) {
           >
             <Icon as={Hash} className="size-3.5 text-muted-foreground" />
             <Text className="text-muted-foreground text-xs">
-              {metrics.tokenCount} tok
+              {generatedTokens} tok
             </Text>
           </Badge>
         </TooltipTrigger>
         <TooltipContent side="top">
-          <Text>
-            Número estimado de tokens gerados pela resposta (contagem
-            heurística)
-          </Text>
+          <Text>Tokens de resposta gerados (predicted_n)</Text>
+        </TooltipContent>
+      </Tooltip>
+
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge
+            variant="outline"
+            className="flex-row items-center gap-1.5 py-1"
+          >
+            <Icon as={Hash} className="size-3.5 text-muted-foreground" />
+            <Text className="text-muted-foreground text-xs">
+              {cacheTokens} tok cache
+            </Text>
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent side="top">
+          <Text>Tokens atuais no KV cache (cache_n)</Text>
+        </TooltipContent>
+      </Tooltip>
+
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge
+            variant="outline"
+            className="flex-row items-center gap-1.5 py-1"
+          >
+            <Icon as={Hash} className="size-3.5 text-muted-foreground" />
+            <Text className="text-muted-foreground text-xs">
+              {promptTokens} tok prompt
+            </Text>
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent side="top">
+          <Text>Tokens de entrada processados no prompt (prompt_n)</Text>
         </TooltipContent>
       </Tooltip>
 
@@ -44,12 +98,12 @@ export function AIBubbleMetrics({ metrics }: MetricsProps) {
           >
             <Icon as={Clock} className="size-3.5 text-muted-foreground" />
             <Text className="text-muted-foreground text-xs">
-              {(metrics.totalDuration / 60000).toFixed(2)} min
+              {(totalDurationMs / 1000).toFixed(2)} s
             </Text>
           </Badge>
         </TooltipTrigger>
         <TooltipContent side="top">
-          <Text>Tempo total de geração da resposta (minutos)</Text>
+          <Text>Tempo total da geração (prompt + decode)</Text>
         </TooltipContent>
       </Tooltip>
 
@@ -61,12 +115,14 @@ export function AIBubbleMetrics({ metrics }: MetricsProps) {
           >
             <Icon as={Play} className="size-3.5 text-muted-foreground" />
             <Text className="text-muted-foreground text-xs">
-              {metrics.tttf} ms
+              {firstPhaseMs.toFixed(0)} ms
             </Text>
           </Badge>
         </TooltipTrigger>
         <TooltipContent side="top">
-          <Text>Tempo até o primeiro token (ms)</Text>
+          <Text>
+            Tempo de processamento do prompt (prompt_ms)
+          </Text>
         </TooltipContent>
       </Tooltip>
 
@@ -78,7 +134,7 @@ export function AIBubbleMetrics({ metrics }: MetricsProps) {
           >
             <Icon as={Zap} className="size-3.5 text-muted-foreground" />
             <Text className="text-muted-foreground text-xs">
-              {metrics.tokensPerSecond.toFixed(2)} tok/s
+              {tokensPerSecond.toFixed(2)} tok/s
             </Text>
           </Badge>
         </TooltipTrigger>

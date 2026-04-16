@@ -55,7 +55,7 @@ export function ScrollToBottomButton({
 
   return (
     <Animated.View
-      className="absolute bottom-0 left-0 right-0 items-center pointer-events-none"
+      className="absolute bottom-0 left-0 right-0 items-center"
       style={animatedStyle}
     >
       <Button
@@ -66,7 +66,7 @@ export function ScrollToBottomButton({
         accessibilityLabel="Rolar para baixo"
       >
         <Icon
-          as={require("lucide-react-native").ChevronsDown}
+          as={require("lucide-react-native").ChevronDown}
           className="size-5 text-foreground"
         />
       </Button>

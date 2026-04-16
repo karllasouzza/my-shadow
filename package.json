@@ -99,13 +99,10 @@
     "libsql": true
   },
   "devDependencies": {
-    "@testing-library/jest-native": "^5.4.3",
     "@testing-library/react-native": "^13.3.3",
-    "@types/jest": "29.5.14",
     "@types/react": "~19.2.10",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~55.0.0",
-    
     "react-native-builder-bob": "^0.41.0",
     "react-native-monorepo-config": "^0.3.3",
     "react-native-svg-transformer": "^1.5.3",

@@ -1,4 +1,4 @@
-import type { MemoryPressure, RuntimeConfig } from "@/shared/types/device";
+import type { MemoryPressure, RuntimeConfig } from "@/shared/device/types";
 
 const BYTES_TO_GB = 1024 ** 3;
 const CRITICAL_UTILIZATION_THRESHOLD = 85;
@@ -83,6 +83,10 @@ export class MemoryMonitor {
       criticalLevel,
       canRunInference,
       recommendedMaxContext: Math.min(safeTokens, maxCtx),
+      recommendedBatch: Math.min(
+        512,
+        Math.max(64, Math.floor((availableRAM * 0.3) / 1024)),
+      ),
       sampledAt: Date.now(),
     };
 

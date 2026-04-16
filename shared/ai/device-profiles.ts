@@ -2,7 +2,7 @@ import type {
     DeviceInfo,
     DeviceProfile,
     DeviceTier,
-} from "@/shared/types/device";
+} from "@/shared/device/types";
 
 const budgetProfile: DeviceProfile = {
   tier: "budget",
@@ -17,6 +17,11 @@ const budgetProfile: DeviceProfile = {
     use_mlock: false,
     cache_type_k: "q8_0",
     cache_type_v: "q8_0",
+    n_predict: 512,
+    n_parallel: 0,
+    top_k: 40,
+    top_p: 0.9,
+    min_p: 0.05,
     dry_penalty_last_n: 32,
   },
   expectations: {
@@ -45,6 +50,11 @@ const midRangeProfile: DeviceProfile = {
     use_mlock: false,
     cache_type_k: "q8_0",
     cache_type_v: "q8_0",
+    n_predict: 1024,
+    n_parallel: 0,
+    top_k: 40,
+    top_p: 0.9,
+    min_p: 0.05,
     dry_penalty_last_n: 48,
   },
   expectations: {
@@ -73,6 +83,11 @@ const premiumProfile: DeviceProfile = {
     use_mlock: false,
     cache_type_k: "f16",
     cache_type_v: "f16",
+    n_predict: 2048,
+    n_parallel: 0,
+    top_k: 40,
+    top_p: 0.9,
+    min_p: 0.05,
     dry_penalty_last_n: 64,
   },
   expectations: {
@@ -106,14 +121,14 @@ export function selectDeviceProfile(deviceInfo: DeviceInfo): DeviceProfile {
   const base = deviceProfiles[tier];
 
   const config = { ...base.config };
-  config.n_threads = Math.min(config.n_threads, deviceInfo.cpuCores);
+  config.n_threads = Math.min(config.n_threads ?? 4, deviceInfo.cpuCores);
 
   if (tier === "midRange" && !deviceInfo.hasGPU) {
     config.n_gpu_layers = 0;
   }
 
   if (deviceInfo.gpuMemoryMB !== undefined && deviceInfo.gpuMemoryMB < 1000) {
-    config.n_gpu_layers = Math.min(config.n_gpu_layers, 20);
+    config.n_gpu_layers = Math.min(config.n_gpu_layers ?? 50, 20);
   }
 
   return { ...base, config };

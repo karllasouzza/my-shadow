@@ -1,360 +1,462 @@
 # Implementation Plan: Optimize llama.rn Runtime for Low-RAM Devices
 
-**Branch**: `001-optimize-runtime-planning` | **Date**: 2026-04-15 | **Spec**: [spec.md](spec.md)
-**Input**: Feature specification from `/specs/001-optimize-runtime-planning/spec.md`
+**Branch**: `001-optimize-runtime-planning` | **Date**: 2026-04-16 | **Spec**: [spec.md](./spec.md)
+**Input**: [spec.md](./spec.md) + [research.md](./research.md) + [optmize-velocity.md](../../optmize-velocity.md)
 
-**Note**: This template is filled in by Phase 0-1 of the `/speckit.plan` command workflow.
+---
 
 ## Summary
 
-Optimize the `llama.rn` runtime to support low-RAM devices (3-6GB) by implementing:
+This plan implements adaptive llama.rn runtime configuration to reduce memory consumption by 40-50%
+and increase inference throughput by 20-50% on low-RAM mobile devices (3-6GB). The approach layers
+three phases: (1) critical low-effort wins targeting threads, batch, predict, and GPU layers; (2)
+memory-level improvements via KV cache persistence, sampling tuning, and warm-up; and (3) optional
+hardware-level acceleration via GPU backend detection and flash-attention gating.
 
-- Dynamic configuration based on device capabilities (RAM, CPU, GPU)
-- Memory-mapped model loading via `use_mmap: true`
-- KV cache quantization (q8_0) reducing memory ~50%
-- Intelligent batch sizing and thread management
-- Device capability detection and fallback strategies
+All Phase 0 research is **complete** (`research.md`). Phase 1 design artifacts are **complete**
+(`data-model.md`, `contracts/`, `quickstart.md`). This document governs implementation phases.
 
-**Technical Approach**: Adaptive runtime parameters + KV cache optimization + memory management
-**Expected Impact**: -50% RAM usage, support for 3GB+ devices, maintaining inference quality
+---
 
 ## Technical Context
 
-**Language/Version**: TypeScript (React Native / Expo Router)
-**Primary Dependencies**: `llama.rn` (llama.cpp bindings), `@react-native`, `expo-router`
-**Storage**: MMKV (existing encryption), local file system for models
-**Testing**: Bun test runner (80%+ coverage target on Services + Models)
-**Target Platform**: iOS 14+ and Android 8+ (native-only, no web)
-**Project Type**: Mobile application (Expo Router with local AI inference)
+**Language/Version**: TypeScript 5.x (strict mode, zero `any`) / React Native 0.76+ / Expo SDK 52  
+**llama.rn Version**: Check package.json for current version; minimum v0.10.1 required for cache quantization  
+**llama.rn Version**: Check package.json for current version; minimum v0.10.1 required for cache quantization
+**Primary Dependencies**: `llama.rn` (llama.cpp bindings), `react-native-device-info`, `expo-router`
+**Storage**: MMKV (AES-256 encrypted, local-only)
+**Testing**: Bun test runner (`bun:test`); constitution-mandated migration from Jest
+**Target Platform**: iOS 14+ / Android 8+ (native only — no web)
+**Project Type**: Mobile app (React Native + Expo Router, MVVM pattern)
 **Performance Goals**:
 
-- Model load latency: < 5 seconds (7B via mmap on 4GB device)
-- Inference latency p95: < 15 seconds per reflection (maintain baseline)
-- Tokens/second: +20-40% improvement or maintain
-- Model cold start (AI): < 5 seconds (7B via mmap on 4GB device)
-  **Constraints**:
-- RAM overhead during inference: ≤ 1.5-2x model size
-- Perplexity degradation: < 2% (KV cache q8_0)
-- Task accuracy loss: < 3% (model quantization Q4_K_M)
-- OOM crash rate: < 1% on 4GB RAM devices
-- Offline-capable (no external APIs)
-  **Scale/Scope**:
-- Addresses 3 priority device tiers (4GB, 6GB, 8GB+ RAM)
-- Backward compatible with existing models
-- Single runtime, multi-platform (iOS + Android unified config)
+- Tokens/second: +20-50% over baseline (~8-12 t/s → 15-40 t/s)
+- Time-to-first-token: < 300ms (Phase 2 target); currently 800-1500ms
+- Crash rate on 4GB RAM: < 1%
+- **Note**: Constitution mandates app cold start < 2s globally; this feature optimizes model load time (< 5s) which is a component of cold start but not the only factor GB (Phase 2 target); currently 2.5-4 GB
+- Crash rate on 4GB RAM: < 1%
+- **Note**: Constitution mandates app cold start < 2s globally; this feature optimizes model load time (< 5s) which is a component of cold start but not the only factor
+
+**Constraints**:
+
+- No network calls; local-only processing (privacy requirement)
+- All user-facing text in pt-BR
+- MVVM: services must not be called directly from components
+- Android-focused optimization (iOS support secondary); baseline device configurations Android-first
+- `react-native` cannot be imported in test files (use DI interfaces)
+- No `div`/HTML elements; native-only components (`@rn-primitives`)
+- Android-focused optimization (iOS support secondary); baseline device configurations Android-first
+
+---
 
 ## Constitution Check
 
-_GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
+_GATE: Must pass before implementation. All gates evaluated against constitution v1.2.0._
 
-Gates determined based on constitution file (`.specify/memory/constitution.md`):
+| Gate                        | Rule                                                                           | Status         | Notes                                                                               |
+| --------------------------- | ------------------------------------------------------------------------------ | -------------- | ----------------------------------------------------------------------------------- |
+| **MVVM Integrity**          | ViewModels must delegate to Services; no direct native API calls in components | PASS           | `DeviceDetector`, `RuntimeConfigGenerator`, `MemoryMonitor` are injectable services |
+| **Test-Driven (Bun)**       | Tests import from `"bun:test"`, >= 80% coverage on Services                    | PASS           | Constitution clarification (2026-04-15): migrate to Bun                             |
+| **Simplicity**              | Micro-components; single-responsibility                                        | PASS           | Each service has exactly one concern                                                |
+| **pt-BR Consistency**       | Commits & docs in English; user strings in pt-BR                               | PASS           | No user-facing strings in these services                                            |
+| **Local-First Performance** | Inference p95 < 15s; memory < 2GB on 4GB devices                               | PASS           | Plan directly targets these budgets                                                 |
+| **Absolute Privacy**        | No external API calls                                                          | PASS           | All optimization is in-process                                                      |
+| **Styling**                 | NativeWind className only                                                      | NOT APPLICABLE | Runtime optimization has no UI                                                      |
 
-- **Feature-Based MVVM Integrity** ✅ PASS  
-  Changes isolated to Services layer (AIRuntime class). ViewModels delegate to optimized runtime without logic changes. No architectural deviation.
+No violations. Implementation may proceed.
 
-- **Test-Driven Reliability** ⚠️ REQUIRES ATTENTION  
-  Will implement Unit tests for `AIRuntime.detectDeviceCapabilities()`, `getOptimizedContextConfig()`. Integration tests for model loading across device tiers. Target 80%+ coverage on Services. NOTE: Requires verification that Bun test runner supports React Native testing harness.
-
-- **Introspective UX & pt-BR Consistency** ✅ PASS  
-  No user-facing changes. Optimization is transparent to UI. AI inference output quality maintained.
-
-- **Local-First Performance Budgets** ✅ CRITICAL SUCCESS METRIC  
-  This optimization targets the AI model cold start budget (<5s) and contributes to app cold-start goals. Model-level target: < 5 seconds (7B via mmap on 4GB device).
-
-- **Absolute Privacy & Local Autonomy** ✅ PASS  
-  Device detection uses only local system APIs. No external calls. Data handling unchanged.
-
-- **Simplicity & Micro-components** ⚠️ REQUIRES ATTENTION  
-  Current `AIRuntime` class may exceed single responsibility. Plan includes refactoring: `DeviceDetector` service, `RuntimeConfigGenerator` service, `MemoryMonitor` service. Components kept small during Phase 1 design.
+---
 
 ## Project Structure
 
 ### Documentation (this feature)
 
-```text
+```
 specs/001-optimize-runtime-planning/
-├── plan.md                  # This file (Planning workflow output)
-├── spec.md                  # Feature specification
-├── research.md              # Phase 0 research findings (resolves NEEDS CLARIFICATION)
-├── data-model.md            # Phase 1 device profiles and config schema
+├── plan.md              ← This file
+├── research.md          ← Phase 0 complete (all 5 questions resolved)
+├── data-model.md        ← Phase 1 complete (DeviceInfo, DeviceProfile, RuntimeConfig, etc.)
+├── quickstart.md        ← Phase 1 complete (integration guide)
 ├── contracts/
-│   └── runtime-config.schema.json    # Device detection + config API contract
-└── quickstart.md            # Phase 1 integration guide for developers
+│   └── runtime-config.schema.json  ← Phase 1 complete
+└── tasks.md             ← Generated by /speckit.tasks (NOT part of this plan)
 ```
 
-### Source Code Changes (repository root)
+### Source Code (affected paths)
 
-```text
+```
 shared/
-├── ai/                                           # AI runtime module
-│   ├── runtime.ts                    # [MODIFY] AIRuntime base class
-│   ├── device-detector.ts            # [NEW] Device capability detection
-│   ├── runtime-config-generator.ts   # [NEW] Dynamic config generation
-│   └── memory-monitor.ts             # [NEW] Memory pressure monitoring
-│
-├── types/
-│   └── device.ts                     # [NEW] DeviceInfo, MemoryTier types
-│
-└── utils/
-    └── device-info.ts                # [NEW] Platform-specific detection helpers
+└── ai/
+    ├── device-detector.ts          ← Extend: add performanceCores, gpuBackend fields
+    ├── device-profiles.ts          ← Extend: add n_predict, n_parallel, sampling defaults
+    ├── runtime-config-generator.ts ← Extend: adaptive n_predict, calculateOptimalBatch, threads
+    ├── memory-monitor.ts           ← Extend: proactive recommendations (recommendedBatch)
+    ├── runtime.ts                  ← Extend: warm-up, n_parallel=0, flash_attn gating
+    ├── metrics.ts                  ← Extend: PerformanceScore calculation
+    └── types/
+        └── (via shared/types/device.ts)
 
-database/
-├── models/
-│   └── runtime-metrics.ts            # [NEW] Store perf metrics
+shared/types/
+└── device.ts                       ← Extend: DeviceInfo (performanceCores, gpuBackend)
+                                              RuntimeConfig (n_predict, n_parallel, top_k/p, min_p)
+                                              MemoryPressure (recommendedBatch)
 
-tests/
-├── unit/
-│   ├── device-detector.test.ts       # [NEW] Unit tests
-│   ├── runtime-config-generator.test.ts
-│   └── memory-monitor.test.ts
-│
-├── integration/
-│   ├── ai-runtime-loading.test.ts    # [NEW] Model load across device tiers
-│   └── inference-quality.test.ts     # [NEW] Perplexity/quality validation
-│
-└── e2e/
-    └── ai-inference-low-ram.test.ts  # [NEW] Low-RAM device simulation
-
-lib/
-├── device-profiles.ts                # [NEW] Reference device specs (4GB/6GB/8GB)
-└── performance-budgets.ts            # [NEW] Goal tracking
-```
-
-**Structure Decision**:
-Single mobile app (Expo Router) with modular service architecture. No new projects created. Features isolated to `shared/ai/` module and expanded test suite. Configuration-driven optimization minimizes code churn in existing features.
-
-**Key Refactorings**:
-
-- Extract device detection from `AIRuntime` → `DeviceDetector` service
-- Extract config generation → `RuntimeConfigGenerator` service
-- Add `MemoryMonitor` for lifecycle hooks (app background/foreground)
-- Existing `AIRuntime` orchestrates new services without logic changes
-
-## Complexity Tracking
-
-| Refactoring            | Why Needed                                                                             | Simpler Alternative Rejected Because                               |
-| ---------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| Services → micro-logic | MVVM requires delegated runtime config logic outside AIRuntime                         | Monolithic AIRuntime class violates Constitution                   |
-| DeviceDetector service | Platform-specific detection is reusable across features (metrics, fallbacks, UI hints) | Helper functions insufficient for dependency injection and testing |
-| Memory monitor service | Lifecycle management required for background unload/reload                             | Direct hook in component would coupling to app shell               |
-
-**Justification**: Constitution 6 (Simplicity & Micro-components) requires single-responsibility separation. Each service has one purpose: detect capabilities, generate config, or monitor memory. Refactoring enables testability and reuse.
-
----
-
-## Phase 0: Research & Clarification
-
-### Open Questions Requiring Research
-
-1. **llama.rn Version Compatibility**  
-   _NEEDS CLARIFICATION_: Does the current llama.rn version support `cache_type_k` and `cache_type_v` parameters?
-2. **GPU VRAM Detection**  
-   _NEEDS CLARIFICATION_: How reliable is VRAM detection on Android (EGL/Vulkan)? What fallback strategy if detection fails?
-3. **Acceptable Quality Degradation**  
-   _NEEDS CLARIFICATION_: Is 2% perplexity loss acceptable? Industry baseline is 0.5-1%. What's the PM/UX threshold?
-4. **Minimum Target Device**  
-   _NEEDS CLARIFICATION_: What device specs define the floor? (e.g., iPhone 11, Pixel 4a with 4GB RAM)
-5. **Model Cache Invalidation**  
-   _NEEDS CLARIFICATION_: Strategy for users with pre-cached models when runtime config changes? Force reload or gradual migration?
-
-### Research Tasks (Phase 0 Dispatcher)
-
-**Research 1: llama.rn Capability & Version Check**
-
-- Action: Check llama.rn npm package docs and source (llama-cpp-rs bindings)
-- Look for: `cache_type_k`, `cache_type_v`, version requirements
-- Resolve: Q1 (Version Compatibility)
-
-**Research 2: KV Cache Quantization Best Practices**
-
-- Action: Review llama.cpp PR/issues for KV cache quantization (k8_0, k4_0)
-- Look for: Benchmark results, perplexity degradation across models
-- Resolve: Q3 (Quality Degradation threshold)
-
-**Research 3: Device Detection Patterns (React Native)**
-
-- Action: Audit React Native + Expo device APIs
-- Look for: RAM detection (react-native-device-info), CPU detection, VRAM detection (native modules)
-- Resolve: Q2 (GPU Detection), establish detection library choices
-
-**Research 4: Mobile AI Inference Benchmarks**
-
-- Action: Collect reference benchmarks from Ollama, LM Studio, on-device AI research
-- Look for: 4GB/6GB/8GB RAM real-device latency baselines, quality loss docs
-- Resolve: Q3 (Quality threshold), Q4 (target device specs)
-
-**Research 5: Cache Invalidation Strategy (Mobile App Patterns)**
-
-- Action: Review app upgrade patterns, model versioning in similar apps (e.g., Ollama mobile, AI Transcription apps)
-- Look for: Graceful model upgrade, cache busting, version numbering
-- Resolve: Q5 (Cache Invalidation)
-
-### Output: research.md
-
-✅ **COMPLETE** - Consolidated findings into decisions with rationale and alternatives.
-
-**Key Decisions Documented**:
-
-1. Build Expo native wrapper for KV cache quantization (llama.rn v0.10.0 limitation)
-2. 3-tier VRAM detection (Vulkan → EGL → Heuristic)
-3. Q8_0 KV cache default (±2-5% perplexity loss acceptable)
-4. Device profiles: 3-tier (budget/mid/premium)
-5. SHA256-based cache invalidation with triple-layer TTL
-
----
-
-## Phase 1: Design & Contracts (✅ COMPLETE)
-
-### 1. data-model.md - Entity Definitions
-
-**Generated**: Core TypeScript type definitions
-
-- `DeviceInfo` — Device capabilities detected at runtime (RAM, CPU, GPU)
-- `DeviceProfile` — Three-tier classification (budget/mid-range/premium)
-- `RuntimeConfig` — Adaptive llama.rn parameters derived from device tier
-- `CacheMetadata` — SHA256-based cache invalidation tracking
-- `MemoryPressure` — Real-time memory state for fallback triggers
-
-**Device Profiles Defined**:
-
-- **Budget** (4GB): 1K context, 64 batch, Q8_0 KV cache, 35% crash risk
-- **Mid-Range** (6GB): 2K context, 128 batch, Q8_0 KV cache, 12% crash risk
-- **Premium** (8GB+): 4K context, 512 batch, F16 KV cache, 3% crash risk
-
-### 2. contracts/runtime-config.schema.json - API Contract
-
-**Generated**: JSON Schema for validation
-
-- RuntimeConfig interface formalized as JSON Schema (draft-07)
-- Field constraints: n_ctx (128-8192), n_batch (32-2048), cache_type (f16|q8_0|q4_0)
-- Three example configurations (budget, mid, premium)
-- Validation rules for all parameters
-
-### 3. quickstart.md - Integration Guide
-
-**Generated**: Developer integration guide
-
-**Coverage**:
-
-- Architecture overview (services: DeviceDetector → RuntimeConfigGenerator → MemoryMonitor)
-- No-change scenario (transparent optimization)
-- Advanced customization (override profile, memory monitoring)
-- Testing patterns (unit, integration, E2E)
-- Common patterns (fallback on OOM, UI device info)
-- Troubleshooting FAQ
-- Performance expectations table
-- Migration checklist
-
----
-
-### Phase 1 Completion Status
-
-✅ **Data Model**: Complete (5 core entities + algorithm pseudo-code)
-✅ **Device Profiles**: Complete (3-tier classification with benchmarks)
-✅ **Contracts**: Complete (JSON Schema + examples)
-✅ **Integration Guide**: Complete (15-minute quickstart, patterns, tests)
-✅ **Agent Context**: Updated (TypeScript, llama.rn, Expo framework registered)
-
-**All gates passed**:
-
-- Constitution rules: ✅ MVVM integrity, test-driven approach, pt-BR consistency
-- Technical feasibility: ✅ No blockers (Expo native wrapper deferred to Phase 2)
-- Design clarity: ✅ Device profiles and config generation algorithm clear
-
----
-
-## Deliverables Generated
-
-### Documentation Artifacts
-
-```
-specs/001-optimize-runtime-planning/
-├── spec.md                           ✅ Feature specification
-├── plan.md                           ✅ This file (Implementation plan)
-├── research.md                       ✅ Phase 0 research (COMPLETE)
-├── data-model.md                     ✅ Phase 1 entities & profiles (COMPLETE)
-├── contracts/
-│   └── runtime-config.schema.json    ✅ JSON Schema contract (COMPLETE)
-└── quickstart.md                     ✅ Integration guide (COMPLETE)
-```
-
-### Source Code References (To Be Implemented)
-
-```
-shared/ai/
-├── runtime.ts                        (MODIFY) Add DeviceDetector integration
-├── device-detector.ts                (NEW) Detect RAM, CPU, GPU capabilities
-├── runtime-config-generator.ts       (NEW) Map DeviceInfo → RuntimeConfig
-├── memory-monitor.ts                 (NEW) Monitor OS memory pressure
-├── device-profiles.ts                (NEW) Tier definitions (budget/mid/premium)
-
-tests/
-├── unit/
-│   ├── device-detector.test.ts       (NEW)
-│   └── runtime-config-generator.test.ts (NEW)
-├── integration/
-│   ├── ai-runtime-loading.test.ts    (NEW)
-│   └── inference-quality.test.ts     (NEW)
-└── e2e/
-    └── ai-inference-low-ram.test.ts  (NEW)
+tests/unit/shared/ai/
+├── device-detector.test.ts         ← Extend: test performanceCores, gpuBackend detection
+├── runtime-config-generator.test.ts ← Add: adaptive n_predict, calculateOptimalBatch
+└── memory-monitor.test.ts          ← Add: recommendedBatch output
 ```
 
 ---
 
-## Next Step: Phase 2 (Tasks Generation)
+## Phase 0 Research — Status: COMPLETE
 
-To generate implementation tasks, run:
+All five NEEDS CLARIFICATION items resolved in [research.md](./research.md):
 
-```bash
-# From project root:
-cd /home/karllasouzza/Projects/me/my-shadow
-./.specify/scripts/bash/run speckit.tasks
+| Question                         | Resolution                                                                |
+| -------------------------------- | ------------------------------------------------------------------------- |
+| llama.rn KV cache quantization   | Build Expo native wrapper; `cache_type_k/v` confirmed in llama.cpp v2501+ |
+| GPU VRAM detection Android       | Vulkan → EGL → Heuristic (30% of system RAM) fallback chain               |
+| Perplexity degradation threshold | Q8_0: +/-2-5% (accepted); Q4_0: +/-8-15% (extreme cases only)             |
+| Mobile device baselines          | 4GB: 35% crash risk; 6GB: 12%; 8GB+: 3%                                   |
+| Cache invalidation strategy      | SHA256-based versioning (model hash + config hash + system prompt hash)   |
+
+---
+
+## Phase 1 Design — Status: COMPLETE
+
+Artifacts generated in prior session (2026-04-15):
+
+- **data-model.md**: `DeviceInfo`, `DeviceProfile`, `RuntimeConfig`, `CacheMetadata`, `MemoryPressure` entities; three-tier classification (budget/midRange/premium); configuration generation flow.
+- **contracts/runtime-config.schema.json**: JSON Schema for all `RuntimeConfig` parameters with validation constraints.
+- **quickstart.md**: Developer integration guide covering default flow and advanced customization.
+
+---
+
+## Gap Analysis: optmize-velocity.md Appointments vs Current Codebase
+
+Based on the velocity plan, the following gaps exist between the current `shared/ai/` and the
+optimized target state:
+
+### Critical Gaps (High Impact / Low Effort)
+
+| #   | Gap                                                 | Current State     | Target State                                |
+| --- | --------------------------------------------------- | ----------------- | ------------------------------------------- |
+| G1  | `n_threads` uses total cores, not performance cores | `cpuCores` count  | `performanceCores - 1` (reserve UI thread)  |
+| G2  | `n_batch` is fixed per tier                         | 64/128/512 static | `min(512, max(128, min(n_ctx/2, RAM*0.3)))` |
+
+**Device Tier Boundaries**:
+
+- **Budget**: `availableRAM < 5` GB
+- **Mid-Range**: `availableRAM >= 5 AND availableRAM < 7` GB
+- **Premium**: `availableRAM >= 7` GB| G3 | `n_predict` hardcoded to 4096 | `options?.maxTokens ?? 4096` | Adaptive: 512/1024/2048 by RAM ratio |
+  | G4 | `flash_attn` always enabled | `flash_attn_type: "on", flash_attn: true` | Only on GPU-capable devices; off on CPU-only |
+  | G5 | No sampling parameter tuning | Default llama.rn params | `top_k: 40`, `top_p: 0.9`, `min_p: 0.05` |
+  **Device Tier Boundaries**:
+- **Budget**: `availableRAM < 5` GB
+- **Mid-Range**: `availableRAM >= 5 AND availableRAM < 7` GB
+- **Premium**: `availableRAM >= 7` GB
+
+### Important Gaps (Medium Impact)
+
+| #   | Gap                               | Current State                                | Target State                                                      |
+| --- | --------------------------------- | -------------------------------------------- | ----------------------------------------------------------------- |
+| G6  | `n_parallel` set to 1             | `context.parallel.enable({ n_parallel: 1 })` | `n_parallel: 0` (single-thread decode, -30% RAM)                  |
+| G7  | No model warm-up after load       | Cold first inference                         | `warmUp()` API call after `initLlama` (verify availability first) |
+| G8  | `dry_penalty_last_n` static at 64 | Always 64                                    | Tier-adaptive: 32 (budget) / 48 (midRange) / 64 (premium)         |
+| G9  | GPU backend not typed             | `gpuType?: 'adreno' \| 'mali' \| ...`        | Add `gpuBackend?: 'metal' \| 'opencl' \| 'vulkan' \| null`        |
+
+### Device Tier Boundaries (explicit rules)
+
+- **Budget**: `availableRAM < 5` GB (3-4.99 GB)
+- **Mid-Range**: `availableRAM >= 5 AND availableRAM < 7` GB (5-6.99 GB)
+- **Premium**: `availableRAM >= 7` GB (7+ GB)
+
+### Advanced Gaps (High Impact / High Effort — Deferred)
+
+| #   | Gap                              | Rationale for Deferral                                                          |
+| --- | -------------------------------- | ------------------------------------------------------------------------------- |
+| G10 | Speculative decoding             | Requires second model file; out of scope for RAM optimization                   |
+| G11 | Persistent KV cache across turns | API not in current llama.rn; requires Expo native wrapper (separate spec phase) |
+| G12 | Dynamic mmap pagination          | Requires native binding extension; blocked on Expo module work                  |
+
+---
+
+## Implementation Design
+
+### Phase 1-A: Thread, Batch & Predict Optimization (Closes G1, G2, G3, G5)
+
+**Files**: `device-detector.ts`, `runtime-config-generator.ts`, `shared/types/device.ts`
+
+#### 1-A.1 Extend `DeviceInfo` with `performanceCores`
+
+Add field to `shared/types/device.ts`:
+
+```typescript
+export interface DeviceInfo {
+  // ... existing fields ...
+  performanceCores: number; // High-frequency P-cores; used for n_threads config
+  gpuBackend?: "metal" | "opencl" | "vulkan" | null;
+}
 ```
 
-This will:
+`DeviceDetector.detect()` populates `performanceCores` via heuristic:
 
-1. Parse plan.md and data-model.md
-2. Generate ordered task list (tasks.md)
-3. Identify dependencies and blockers
-4. Estimate effort per task
+- **iOS (Apple Silicon)**: `Math.ceil(cpuCores * 0.5)` — P/E split is ~50/50
+- **Android Snapdragon/Bionic**: `Math.ceil(cpuCores * 0.375)` — 3 of 8 cores typical P-cores
+- **Android Helio/unknown**: `Math.max(2, Math.ceil(cpuCores * 0.5))` — conservative fallback
 
-**Expected Output**: `/specs/001-optimize-runtime-planning/tasks.md`
+#### 1-A.2 Add Adaptive Methods to `RuntimeConfigGenerator`
+
+```typescript
+/** Reserve one core for the UI thread; use only performance cores. */
+generateThreadCount(deviceInfo: DeviceInfo): number {
+  return Math.max(1, deviceInfo.performanceCores - 1);
+}
+
+/**
+ * n_batch bounded by: context size/2, 30% of available RAM, and mobile ceiling 512.
+ * Reference: https://notes.suhaib.in/docs/tech/latest/cracking-the-code-of-llamacpp-...
+ */
+calculateOptimalBatch(n_ctx: number, availableRAMBytes: number): number {
+  const maxByRAM = Math.floor((availableRAMBytes * 0.3) / 1024);
+  return Math.min(512, Math.max(128, Math.min(Math.floor(n_ctx / 2), maxByRAM)));
+}
+
+/**
+ * n_predict = max tokens to generate. Sized by ratio of available RAM to model footprint.
+ * Safety factor: 2x model size for KV cache + activations overhead.
+ */
+getAdaptiveNPredict(modelSizeGB: number, availableRAMBytes: number): number {
+  const availableGB = availableRAMBytes / 1024 ** 3;
+  const ratio = availableGB / (modelSizeGB * 2);
+  if (ratio < 1) return 512;
+  if (ratio < 2) return 1024;
+  return 2048; // Mobile max — avoids 4096 runaway allocation
+}
+```
+
+#### 1-A.3 Extend `RuntimeConfig` with New Fields
+
+```typescript
+// shared/types/device.ts — extend RuntimeConfig
+export interface RuntimeConfig {
+  // ... existing fields ...
+  n_predict?: number; // Adaptive generation budget (replaces static 4096)
+  n_parallel?: number; // 0 = single decode sequence (mobile optimal)
+  top_k?: number; // Sampling: 40 reduces search space vs 50-100 default
+  top_p?: number; // Sampling: 0.9 maintains output diversity
+  min_p?: number; // Sampling: 0.05 filters improbable tokens aggressively
+}
+```
 
 ---
 
-## Summary: What Was Delivered
+### Phase 1-B: Flash Attention + GPU Backend Gating (Closes G4, G9)
 
-### Phase 0: Research ✅ Complete
+**Files**: `device-detector.ts`, `runtime.ts`
 
-- 5 critical questions answered with confidence 7-9/10
-- Clear decisions on technology, quality thresholds, device baselines
-- Alternatives evaluated; trade-offs documented
+#### 1-B.1 Detect `gpuBackend` in `DeviceDetector`
 
-### Phase 1: Design ✅ Complete
+```typescript
+// device-detector.ts — add after GPU type detection
+private detectGpuBackend(platform: "ios" | "android", gpuType?: GpuType): DeviceInfo["gpuBackend"] {
+  if (platform === "ios") return "metal";
+  if (gpuType === "adreno") return "opencl"; // Qualcomm Adreno → OpenCL preferred
+  if (gpuType === "mali") return "vulkan";   // ARM Mali → Vulkan
+  return null; // CPU-only fallback
+}
+```
 
-- 5 core TypeScript entities defined
-- 3-tier device profiling with real-world benchmarks
-- Configuration generation algorithm (code samples)
-- JSON Schema for validation and tooling
-- 15-minute integration guide with patterns and tests
+#### 1-B.2 Gate `flash_attn` on GPU Confirmation
 
-### Constitution Gates ✅ Passed
-
-- MVVM integrity maintained (services layer)
-- Test-driven structure prepared (unit/integration/E2E)
-- pt-BR consistency enforced in UI guide
-- Simplicity & micro-components enforced in refactoring
-
-### Ready for Implementation ✅
-
-- Clear architecture with service dependencies
-- Device profiles with measurable expectations
-- Testing patterns defined (unit/integration/E2E)
-- Integration guide with code examples
-- Performance metrics to validate success
+```typescript
+// runtime.ts — loadModel() fix
+this.context = await initLlama({
+  ...runtimeConfig,
+  // flash_attn causes silent quality degradation on CPU-only devices
+  flash_attn: deviceInfo.hasGPU && deviceInfo.gpuBackend !== null,
+  flash_attn_type: deviceInfo.gpuBackend === "metal" ? "on" : "auto",
+});
+```
 
 ---
 
-**Branch**: `001-optimize-runtime-planning`  
-**Status**: ✅ Planning Phase Complete — Ready for Implementation  
-**Next Command**: `/speckit.tasks` to generate implementation task list
+### Phase 2-A: Adaptive streamCompletion Parameters (Closes G5, G6, G8)
+
+**File**: `runtime.ts`
+
+Replace the static completion config with adaptive values from live memory pressure:
+
+```typescript
+// runtime.ts — streamCompletion() update (inside the try block)
+const pressure = await this.memoryMonitor.evaluate();
+const modelSizeGB = await this.getModelSizeGB(); // from catalog or file stat
+
+const completionParams = {
+  messages: messagesForContext,
+  jinja: true,
+  enable_thinking: enableThinking,
+  thinking_forced_open: enableThinking,
+  n_predict:
+    options?.maxTokens ??
+    this.configGenerator.getAdaptiveNPredict(
+      modelSizeGB,
+      pressure.availableRAM,
+    ),
+  temperature: options?.temperature ?? 0.7,
+  stop: STOP_WORDS,
+  // G6: 0 = single-thread decode (-30% RAM, +10% t/s vs n_parallel=1)
+  // Note: passed via context.parallel.enable() call before completion
+  // G5: tighter sampling for speed without quality loss
+  top_k: 40,
+  top_p: 0.9,
+  min_p: 0.05,
+  // G8: tier-adaptive penalty window
+  dry_penalty_last_n: this.lastRuntimeConfig?.dry_penalty_last_n ?? 64,
+  // G2: RAM-aware batch size
+  n_batch: pressure.recommendedBatch,
+};
+
+// G6: Change n_parallel from 1 to 0
+await this.context.parallel.enable({ n_parallel: 0 });
+```
+
+---
+
+### Phase 2-B: Model Warm-Up (Closes G7)
+
+**File**: `runtime.ts`
+
+Fire a minimal 1-token generation immediately after `initLlama` to pre-warm caches:
+
+```typescript
+// runtime.ts — add private warmUp()
+private async warmUp(): Promise<void> {
+  if (!this.context) return;
+  try {
+    const { stop, promise } = await this.context.parallel.completion(
+      { messages: [{ role: "user", content: "." }], n_predict: 1, stop: STOP_WORDS },
+      () => {},
+    );
+    await stop();
+    await promise.catch(() => {}); // Intentional: result discarded
+  } catch {
+    // Non-fatal: warm-up is best-effort
+  }
+}
+
+// In loadModel(), after initLlama() succeeds:
+void this.warmUp(); // Non-blocking: does not delay model-ready signal
+```
+
+---
+
+### Phase 2-C: MemoryPressure Extension (supports G2)
+
+Extend `MemoryPressure` to expose a pre-computed batch recommendation:
+
+```typescript
+// shared/types/device.ts — extend MemoryPressure
+export interface MemoryPressure {
+  // ... existing fields ...
+  recommendedBatch: number; // Safe n_batch for current available RAM
+}
+```
+
+`MemoryMonitor.evaluate()` computes: `Math.min(512, Math.max(64, Math.floor((availableRAM * 0.3) / 1024)))`
+
+---
+
+## Performance Score Formula (metrics.ts)
+
+Implements the KPI composite scoring from optmize-velocity.md:
+
+```typescript
+export interface PerformanceScore {
+  speed: number; // (tokensPerSecond / 30) * 100, capped at 100
+  memory: number; // max(0, 100 - (utilizationPercent - 50) * 2)
+  latency: number; // max(0, 100 - (firstTokenTime - 300) / 10)
+  stability: number; // 100 - (criticalLevel ? 50 : 0)
+  composite: number; // 0.4*speed + 0.3*memory + 0.2*latency + 0.1*stability
+}
+
+export function calculatePerformanceScore(
+  metrics: GenerationMetrics,
+  pressure: MemoryPressure,
+): PerformanceScore {
+  const speed = Math.min(100, ((metrics.tokensPerSecond ?? 0) / 30) * 100);
+  const memory = Math.max(0, 100 - (pressure.utilizationPercent - 50) * 2);
+  const latency = Math.max(
+    0,
+    100 - ((metrics.firstTokenTime ?? 1500) - 300) / 10,
+  );
+  const stability = 100 - (pressure.criticalLevel ? 50 : 0);
+  return {
+    speed,
+    memory,
+    latency,
+    stability,
+    composite: speed * 0.4 + memory * 0.3 + latency * 0.2 + stability * 0.1,
+  };
+}
+```
+
+---
+
+## data-model.md Extension Requirements
+
+The following entities in `data-model.md` require addendum entries:
+
+| Entity           | New Fields                                                                                        |
+| ---------------- | ------------------------------------------------------------------------------------------------- |
+| `DeviceInfo`     | `performanceCores: number`, `gpuBackend?: "metal" \| "opencl" \| "vulkan" \| null`                |
+| `RuntimeConfig`  | `n_predict?: number`, `n_parallel?: number`, `top_k?: number`, `top_p?: number`, `min_p?: number` |
+| `MemoryPressure` | `recommendedBatch: number`                                                                        |
+
+---
+
+## Test Coverage Plan
+
+All new methods covered with `bun:test`, using DI mock interfaces.
+
+| Unit                                             | Tests Required                                                                  |
+| ------------------------------------------------ | ------------------------------------------------------------------------------- |
+| `DeviceDetector.detect()`                        | Returns `performanceCores` for ios/android/helio; `gpuBackend` for each gpuType |
+| `RuntimeConfigGenerator.generateThreadCount()`   | Returns `performanceCores - 1`; minimum 1 enforced                              |
+| `RuntimeConfigGenerator.calculateOptimalBatch()` | RAM-bounded, ctx-bounded, floor/ceil edges                                      |
+| `RuntimeConfigGenerator.getAdaptiveNPredict()`   | ratio < 1 → 512, < 2 → 1024, >= 2 → 2048                                        |
+| `MemoryMonitor.evaluate()`                       | `recommendedBatch` computed correctly for each pressure level                   |
+| `AIRuntime.loadModel()`                          | `flash_attn: false` when `hasGPU=false`; warm-up called as side-effect          |
+| `AIRuntime.streamCompletion()`                   | `n_parallel: 0` in completion config; adaptive n_predict used                   |
+
+---
+
+## KPIs and Acceptance Criteria
+
+| Metric                    | Phase 1-A Target | Phase 2 Target   | Acceptance Test                               |
+| ------------------------- | ---------------- | ---------------- | --------------------------------------------- |
+| Tokens/second (decode)    | 15-20 t/s        | 25-40 t/s        | `metrics.tokensPerSecond` >= baseline + 20%   |
+| Time-to-first-token       | 400-700 ms       | < 300 ms         | `metrics.firstTokenTime` regression guard     |
+| RAM peak during inference | 1.8-2.5 GB       | < 1.5 GB         | `MemoryMonitor.evaluate().utilizationPercent` |
+| Crash rate (4GB RAM)      | —                | < 1%             | `MemoryMonitor.criticalLevel` event rate      |
+| Warm-up TTFT gain         | —                | -50% first token | Compare cold vs. warm model TTFT              |
+
+---
+
+## Risks and Mitigations
+
+| Risk                                                   | Likelihood | Mitigation                                                              |
+| ------------------------------------------------------ | ---------- | ----------------------------------------------------------------------- |
+| `performanceCores` heuristic wrong on exotic SoCs      | Medium     | Fallback to `Math.max(2, cpuCores / 2)`; add user override in settings  |
+| `n_parallel: 0` not accepted by older llama.rn API     | Low        | Wrap in try/catch; fall back to `n_parallel: 1`                         |
+| `min_p: 0.05` causes repetitive outputs on some models | Low        | A/B test before shipping; revert if perplexity degrades > 5%            |
+| Warm-up adds ~300ms to model load time                 | Low        | Fire as non-blocking `void` call; log timing to metrics                 |
+| `flash_attn` gating incorrectly disables on Metal      | Low        | Explicit unit test for `gpuBackend === "metal"` path                    |
+| `n_batch` over-reduction on extreme memory             | Low        | Floor of 64 enforced via `Math.max(64, ...)` in `calculateOptimalBatch` |
+
+---
+
+## Next Step
+
+Run `/speckit.tasks` to generate `tasks.md` with dependency-ordered, assignable implementation tasks.

@@ -1,4 +1,5 @@
 import { RuntimeConfigGenerator } from "@/shared/ai/runtime-config-generator";
+import type { RuntimeConfig } from "@/shared/device/types";
 import {
     mockBudgetDevice,
     mockMidRangeDevice,
@@ -141,13 +142,62 @@ describe("RuntimeConfig: JSON Schema validation", () => {
     });
 
     test("rejects missing required field (model)", () => {
-      const config = generator.generateRuntimeConfig(
+      const config: Partial<RuntimeConfig> = generator.generateRuntimeConfig(
         mockBudgetDevice(),
         MODEL_PATH,
-      ) as Partial<typeof config>;
+      );
       const { model: _, ...noModel } = config;
       const valid = validate(noModel);
       expect(valid).toBe(false);
+    });
+  });
+
+  describe("Adaptive field validation", () => {
+    test("budget config includes n_predict", () => {
+      const { config } = generateAndValidate(mockBudgetDevice);
+      expect(config.n_predict).toBeDefined();
+      expect(config.n_predict).toBe(512);
+    });
+
+    test("premium config includes n_predict=2048", () => {
+      const { config } = generateAndValidate(mockPremiumDevice);
+      expect(config.n_predict).toBe(2048);
+    });
+
+    test("all tiers set n_parallel to 0", () => {
+      for (const factory of [
+        mockBudgetDevice,
+        mockMidRangeDevice,
+        mockPremiumDevice,
+      ]) {
+        const { config } = generateAndValidate(factory);
+        expect(config.n_parallel).toBe(0);
+      }
+    });
+
+    test("all tiers include sampling params (min_p, top_k, top_p)", () => {
+      for (const factory of [
+        mockBudgetDevice,
+        mockMidRangeDevice,
+        mockPremiumDevice,
+      ]) {
+        const { config } = generateAndValidate(factory);
+        expect(config.min_p).toBe(0.05);
+        expect(config.top_k).toBe(40);
+        expect(config.top_p).toBe(0.9);
+      }
+    });
+
+    test("adaptive fields pass schema validation for all tiers", () => {
+      for (const factory of [
+        mockBudgetDevice,
+        mockMidRangeDevice,
+        mockPremiumDevice,
+      ]) {
+        const { valid, errors } = generateAndValidate(factory);
+        expect(errors.map((e) => `${e.dataPath} ${e.message}`)).toEqual([]);
+        expect(valid).toBe(true);
+      }
     });
   });
 });
