@@ -16,6 +16,7 @@ function makeProvider(
     getTotalMemory: () => Promise.resolve(FOUR_GB),
     getUsedMemory: () => Promise.resolve(TWO_GB),
     getMaxMemory: () => Promise.resolve(8),
+    getNumberOfCores: () => Promise.resolve(8),
     getBrand: () => Promise.resolve("Qualcomm"),
     getSystemVersion: () => Promise.resolve("12.0"),
     getModel: () => Promise.resolve("Pixel 4a"),
@@ -63,7 +64,7 @@ describe("DeviceDetector", () => {
 
     test("cpuCores is capped at 16", async () => {
       const detector = new DeviceDetector(
-        makeProvider({ getMaxMemory: () => Promise.resolve(32) }),
+        makeProvider({ getNumberOfCores: () => Promise.resolve(32) }),
         androidPlatform,
       );
       const info = await detector.detect();
@@ -72,7 +73,7 @@ describe("DeviceDetector", () => {
 
     test("cpuCores defaults to 4 on error", async () => {
       const detector = new DeviceDetector(
-        makeProvider({ getMaxMemory: () => Promise.reject(new Error("fail")) }),
+        makeProvider({ getNumberOfCores: () => Promise.reject(new Error("fail")) }),
         androidPlatform,
       );
       const info = await detector.detect();

@@ -22,6 +22,7 @@ const deviceInfoMock = {
     getTotalMemory: () => Promise.resolve(4 * 1024 * 1024 * 1024),
     getUsedMemory: () => Promise.resolve(2.2 * 1024 * 1024 * 1024),
     getMaxMemory: () => Promise.resolve(8),
+    getNumberOfCores: () => Promise.resolve(8),
     getBrand: () => Promise.resolve("Qualcomm"),
     getSystemVersion: () => Promise.resolve("12.0"),
     getModel: () => Promise.resolve("Pixel 4a"),

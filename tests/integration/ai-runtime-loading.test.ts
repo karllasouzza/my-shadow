@@ -34,6 +34,7 @@ function makeProvider(
     getTotalMemory: () => Promise.resolve(totalGB * GB),
     getUsedMemory: () => Promise.resolve(usedGB * GB),
     getMaxMemory: () => Promise.resolve(8),
+    getNumberOfCores: () => Promise.resolve(8),
     getBrand: () => Promise.resolve(brand),
     getSystemVersion: () => Promise.resolve("12.0"),
     getModel: () => Promise.resolve("Pixel 4a"),

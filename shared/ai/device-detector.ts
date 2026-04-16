@@ -136,7 +136,10 @@ export class DeviceDetector {
     }
   }
 
-  private async detectCpuCores(): Promise<{ count: number; method: "os.cpus" | "native" }> {
+  private async detectCpuCores(): Promise<{
+    count: number;
+    method: "os.cpus" | "native";
+  }> {
     // Prefer a native/core-count source exposed via the device info provider
     try {
       const count = await this.deviceInfo.getNumberOfCores();

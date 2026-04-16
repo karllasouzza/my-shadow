@@ -38,6 +38,7 @@ function makeProvider(totalGB: number, usedGB: number): IDeviceInfoProvider {
     getTotalMemory: () => Promise.resolve(totalGB * GB),
     getUsedMemory: () => Promise.resolve(usedGB * GB),
     getMaxMemory: () => Promise.resolve(8),
+    getNumberOfCores: () => Promise.resolve(8),
     getBrand: () => Promise.resolve("Qualcomm"),
     getSystemVersion: () => Promise.resolve("12.0"),
     getModel: () => Promise.resolve("Pixel 4a"),

@@ -10,8 +10,8 @@ import { initLlama, loadLlamaModelInfo } from "llama.rn";
 import { findModelById } from "./catalog";
 import { DeviceDetector } from "./device-detector";
 import { MemoryMonitor } from "./memory-monitor";
-import { isLikelyOOMError } from "./oom-detection";
 import { calculateMetrics, GenerationMetrics } from "./metrics";
+import { isLikelyOOMError } from "./oom-detection";
 import { RuntimeConfigGenerator } from "./runtime-config-generator";
 import type { ChatMessage } from "./types/chat";
 import type {
@@ -285,44 +285,7 @@ export class AIRuntime {
     }
   }
 
-  // Heuristic matcher for errors that likely indicate an out-of-memory
-  // condition coming from native/native-bound code (llama.rn).
-  private isLikelyOOMError(error: unknown): boolean {
-    if (!error) return false;
-    try {
-      const anyErr = error as any;
-      const name = (anyErr?.name ?? "").toString().toLowerCase();
-      const message = (anyErr?.message ?? "").toString().toLowerCase();
-      const code = (anyErr?.code ?? "").toString();
-      const errno = anyErr?.errno;
-
-      // Common native / C++ / runtime substrings that indicate OOM
-      const patterns = [
-        "out of memory",
-        "out_of_memory",
-        "outofmemory",
-        "oom",
-        "bad_alloc",
-        "std::bad_alloc",
-        "failed to allocate",
-        "allocation failed",
-        "cannot allocate memory",
-        "memory exhausted",
-        "enomem",
-      ];
-
-      for (const p of patterns) {
-        if (name.includes(p) || message.includes(p)) return true;
-      }
-
-      // Check well-known codes/errno
-      if (code === "ENOMEM" || code.toLowerCase() === "enomem") return true;
-      if (errno === "ENOMEM" || errno === -12) return true;
-    } catch {
-      // ignore parsing failures
-    }
-    return false;
-  }
+  
 
   private sanitizeMessagesForLLMContext(
     messages: ChatMessage[],
