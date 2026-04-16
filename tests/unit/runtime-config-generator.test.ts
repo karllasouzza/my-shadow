@@ -1,5 +1,15 @@
-import { validateCacheType, validateRuntimeConfig, RuntimeConfigGenerator } from "@/shared/ai/runtime-config-generator";
-import { mockBudgetDevice, mockMidRangeDevice, mockPremiumDevice, mockDeviceInfo } from "@/tests/utils/device-simulator";
+import {
+    RuntimeConfigGenerator,
+    validateCacheType,
+    validateRuntimeConfig,
+} from "@/shared/ai/runtime-config-generator";
+import {
+    mockBudgetDevice,
+    mockDeviceInfo,
+    mockMidRangeDevice,
+    mockPremiumDevice,
+} from "@/tests/utils/device-simulator";
+import { describe, expect, test } from "bun:test";
 
 const MODEL_PATH = "/models/model.gguf";
 
@@ -7,13 +17,18 @@ describe("validateCacheType", () => {
   test("accepts f16", () => expect(validateCacheType("f16")).toBe(true));
   test("accepts q8_0", () => expect(validateCacheType("q8_0")).toBe(true));
   test("accepts q4_0", () => expect(validateCacheType("q4_0")).toBe(true));
-  test("rejects unknown value", () => expect(validateCacheType("bf16")).toBe(false));
+  test("rejects unknown value", () =>
+    expect(validateCacheType("bf16")).toBe(false));
   test("rejects empty string", () => expect(validateCacheType("")).toBe(false));
 });
 
 describe("validateRuntimeConfig", () => {
   test("returns empty array for valid config", () => {
-    const errors = validateRuntimeConfig({ n_ctx: 2048, n_batch: 128, n_threads: 6 });
+    const errors = validateRuntimeConfig({
+      n_ctx: 2048,
+      n_batch: 128,
+      n_threads: 6,
+    });
     expect(errors).toHaveLength(0);
   });
 
@@ -57,38 +72,59 @@ describe("RuntimeConfigGenerator.generateRuntimeConfig", () => {
   const generator = new RuntimeConfigGenerator();
 
   test("returns config with model path set", () => {
-    const config = generator.generateRuntimeConfig(mockBudgetDevice(), MODEL_PATH);
+    const config = generator.generateRuntimeConfig(
+      mockBudgetDevice(),
+      MODEL_PATH,
+    );
     expect(config.model).toBe(MODEL_PATH);
   });
 
   test("budget device gets n_ctx=1024", () => {
-    const config = generator.generateRuntimeConfig(mockBudgetDevice(), MODEL_PATH);
+    const config = generator.generateRuntimeConfig(
+      mockBudgetDevice(),
+      MODEL_PATH,
+    );
     expect(config.n_ctx).toBe(1024);
   });
 
   test("budget device uses CPU only (n_gpu_layers=0)", () => {
-    const config = generator.generateRuntimeConfig(mockBudgetDevice(), MODEL_PATH);
+    const config = generator.generateRuntimeConfig(
+      mockBudgetDevice(),
+      MODEL_PATH,
+    );
     expect(config.n_gpu_layers).toBe(0);
   });
 
   test("budget device uses q8_0 KV cache", () => {
-    const config = generator.generateRuntimeConfig(mockBudgetDevice(), MODEL_PATH);
+    const config = generator.generateRuntimeConfig(
+      mockBudgetDevice(),
+      MODEL_PATH,
+    );
     expect(config.cache_type_k).toBe("q8_0");
     expect(config.cache_type_v).toBe("q8_0");
   });
 
   test("mid-range device gets n_ctx=2048", () => {
-    const config = generator.generateRuntimeConfig(mockMidRangeDevice(), MODEL_PATH);
+    const config = generator.generateRuntimeConfig(
+      mockMidRangeDevice(),
+      MODEL_PATH,
+    );
     expect(config.n_ctx).toBe(2048);
   });
 
   test("premium device gets n_ctx=4096", () => {
-    const config = generator.generateRuntimeConfig(mockPremiumDevice(), MODEL_PATH);
+    const config = generator.generateRuntimeConfig(
+      mockPremiumDevice(),
+      MODEL_PATH,
+    );
     expect(config.n_ctx).toBe(4096);
   });
 
   test("premium device uses f16 KV cache", () => {
-    const config = generator.generateRuntimeConfig(mockPremiumDevice(), MODEL_PATH);
+    const config = generator.generateRuntimeConfig(
+      mockPremiumDevice(),
+      MODEL_PATH,
+    );
     expect(config.cache_type_k).toBe("f16");
     expect(config.cache_type_v).toBe("f16");
   });
@@ -100,28 +136,42 @@ describe("RuntimeConfigGenerator.generateRuntimeConfig", () => {
   });
 
   test("overrides take precedence over profile defaults", () => {
-    const config = generator.generateRuntimeConfig(mockBudgetDevice(), MODEL_PATH, {
-      n_ctx: 512,
-      temperature: 0.1,
-    });
+    const config = generator.generateRuntimeConfig(
+      mockBudgetDevice(),
+      MODEL_PATH,
+      {
+        n_ctx: 512,
+        temperature: 0.1,
+      },
+    );
     expect(config.n_ctx).toBe(512);
     expect(config.temperature).toBe(0.1);
   });
 
   test("overrides do not change model path", () => {
-    const config = generator.generateRuntimeConfig(mockBudgetDevice(), MODEL_PATH, {
-      model: "/wrong/path.gguf",
-    });
+    const config = generator.generateRuntimeConfig(
+      mockBudgetDevice(),
+      MODEL_PATH,
+      {
+        model: "/wrong/path.gguf",
+      },
+    );
     expect(config.model).toBe(MODEL_PATH);
   });
 
   test("use_mmap is true (required for low-RAM devices)", () => {
-    const config = generator.generateRuntimeConfig(mockBudgetDevice(), MODEL_PATH);
+    const config = generator.generateRuntimeConfig(
+      mockBudgetDevice(),
+      MODEL_PATH,
+    );
     expect(config.use_mmap).toBe(true);
   });
 
   test("use_mlock is false (never lock on mobile)", () => {
-    const config = generator.generateRuntimeConfig(mockBudgetDevice(), MODEL_PATH);
+    const config = generator.generateRuntimeConfig(
+      mockBudgetDevice(),
+      MODEL_PATH,
+    );
     expect(config.use_mlock).toBe(false);
   });
 });

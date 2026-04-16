@@ -1,5 +1,6 @@
 import type { IMemoryInfoProvider } from "@/shared/ai/memory-monitor";
 import { MemoryMonitor } from "@/shared/ai/memory-monitor";
+import { describe, expect, test } from "bun:test";
 
 const BYTES_TO_GB = 1024 ** 3;
 
@@ -129,7 +130,11 @@ describe("MemoryMonitor.onAppBackground()", () => {
     let unloaded = false;
     monitor.configure(
       { n_ctx: 1024, n_batch: 64 },
-      { unloadModel: async () => { unloaded = true; } },
+      {
+        unloadModel: async () => {
+          unloaded = true;
+        },
+      },
     );
     monitor.onAppBackground();
     await new Promise((r) => setTimeout(r, 20));
@@ -141,7 +146,11 @@ describe("MemoryMonitor.onAppBackground()", () => {
     let unloaded = false;
     monitor.configure(
       { n_ctx: 1024, n_batch: 64 },
-      { unloadModel: async () => { unloaded = true; } },
+      {
+        unloadModel: async () => {
+          unloaded = true;
+        },
+      },
     );
     monitor.onAppBackground();
     await new Promise((r) => setTimeout(r, 20));

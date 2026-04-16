@@ -10,11 +10,15 @@
  *   - Budget 4GB at max context (1024 tokens): graceful degradation, no crash
  *   - Memory pressure > 70%: MemoryMonitor detects and reports it
  */
-import type { IDeviceInfoProvider, IPlatformProvider } from "@/shared/ai/device-detector";
+import type {
+    IDeviceInfoProvider,
+    IPlatformProvider,
+} from "@/shared/ai/device-detector";
 import { DeviceDetector } from "@/shared/ai/device-detector";
 import type { IMemoryInfoProvider } from "@/shared/ai/memory-monitor";
 import { MemoryMonitor } from "@/shared/ai/memory-monitor";
 import { RuntimeConfigGenerator } from "@/shared/ai/runtime-config-generator";
+import { describe, expect, test } from "bun:test";
 
 const MODEL_PATH = process.env.MODEL_PATH ?? "";
 const hasModel = MODEL_PATH.length > 0;
@@ -40,7 +44,10 @@ function makeProvider(totalGB: number, usedGB: number): IDeviceInfoProvider {
   };
 }
 
-function makeMemoryProvider(totalGB: number, usedGB: number): IMemoryInfoProvider {
+function makeMemoryProvider(
+  totalGB: number,
+  usedGB: number,
+): IMemoryInfoProvider {
   return {
     getTotalMemory: () => Promise.resolve(totalGB * GB),
     getUsedMemory: () => Promise.resolve(usedGB * GB),
@@ -54,34 +61,46 @@ const generator = new RuntimeConfigGenerator();
 // T028: Chat inference on budget 4GB device
 // ─────────────────────────────────────────────────────────────────────────
 describe("T028: E2E — Chat inference on budget device (4GB Android)", () => {
-  itOnDevice("model loads with budget config (n_ctx=1024, use_mmap=true)", async () => {
-    const { initLlama } = await import("llama.rn");
-    const deviceInfo = await new DeviceDetector(makeProvider(4, 0.8), androidPlatform).detect();
-    const config = generator.generateRuntimeConfig(deviceInfo, MODEL_PATH);
+  itOnDevice(
+    "model loads with budget config (n_ctx=1024, use_mmap=true)",
+    async () => {
+      const { initLlama } = await import("llama.rn");
+      const deviceInfo = await new DeviceDetector(
+        makeProvider(4, 0.8),
+        androidPlatform,
+      ).detect();
+      const config = generator.generateRuntimeConfig(deviceInfo, MODEL_PATH);
 
-    expect(config.n_ctx).toBe(1024);
-    expect(config.use_mmap).toBe(true);
+      expect(config.n_ctx).toBe(1024);
+      expect(config.use_mmap).toBe(true);
 
-    const ctx = await initLlama(config);
-    expect(ctx).toBeDefined();
-    await ctx.release();
-  });
+      const ctx = await initLlama(config);
+      expect(ctx).toBeDefined();
+      await ctx.release();
+    },
+  );
 
-  itOnDevice("inference returns non-empty response on budget config", async () => {
-    const { initLlama } = await import("llama.rn");
-    const deviceInfo = await new DeviceDetector(makeProvider(4, 0.8), androidPlatform).detect();
-    const config = generator.generateRuntimeConfig(deviceInfo, MODEL_PATH);
-    const ctx = await initLlama(config);
+  itOnDevice(
+    "inference returns non-empty response on budget config",
+    async () => {
+      const { initLlama } = await import("llama.rn");
+      const deviceInfo = await new DeviceDetector(
+        makeProvider(4, 0.8),
+        androidPlatform,
+      ).detect();
+      const config = generator.generateRuntimeConfig(deviceInfo, MODEL_PATH);
+      const ctx = await initLlama(config);
 
-    const result = await ctx.completion({
-      messages: [{ role: "user", content: "Say hello." }],
-      n_predict: 20,
-      temperature: 0.1,
-    });
+      const result = await ctx.completion({
+        messages: [{ role: "user", content: "Say hello." }],
+        n_predict: 20,
+        temperature: 0.1,
+      });
 
-    expect(result.text.trim().length).toBeGreaterThan(0);
-    await ctx.release();
-  });
+      expect(result.text.trim().length).toBeGreaterThan(0);
+      await ctx.release();
+    },
+  );
 });
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -90,12 +109,16 @@ describe("T028: E2E — Chat inference on budget device (4GB Android)", () => {
 describe("T029: E2E — Context limit on budget device (n_ctx=1024)", () => {
   itOnDevice("inference at near-max context does not crash", async () => {
     const { initLlama } = await import("llama.rn");
-    const deviceInfo = await new DeviceDetector(makeProvider(4, 0.8), androidPlatform).detect();
+    const deviceInfo = await new DeviceDetector(
+      makeProvider(4, 0.8),
+      androidPlatform,
+    ).detect();
     const config = generator.generateRuntimeConfig(deviceInfo, MODEL_PATH);
     const ctx = await initLlama(config);
 
     // Build up context to ~80% of the budget limit
-    const longMessage = "Tell me about memory management in mobile systems. ".repeat(15);
+    const longMessage =
+      "Tell me about memory management in mobile systems. ".repeat(15);
     const result = await ctx.completion({
       messages: [{ role: "user", content: longMessage }],
       n_predict: 50,
@@ -107,13 +130,16 @@ describe("T029: E2E — Context limit on budget device (n_ctx=1024)", () => {
     await ctx.release();
   });
 
-  itOnDevice("recommended max context is within budget tier limit", async () => {
-    const monitor = new MemoryMonitor(makeMemoryProvider(4, 0.8));
-    monitor.configure({ n_ctx: 1024, n_batch: 64 });
-    const pressure = await monitor.evaluate();
+  itOnDevice(
+    "recommended max context is within budget tier limit",
+    async () => {
+      const monitor = new MemoryMonitor(makeMemoryProvider(4, 0.8));
+      monitor.configure({ n_ctx: 1024, n_batch: 64 });
+      const pressure = await monitor.evaluate();
 
-    expect(pressure.recommendedMaxContext).toBeLessThanOrEqual(1024);
-  });
+      expect(pressure.recommendedMaxContext).toBeLessThanOrEqual(1024);
+    },
+  );
 });
 
 // ─────────────────────────────────────────────────────────────────────────

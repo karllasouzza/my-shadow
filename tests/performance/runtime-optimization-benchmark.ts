@@ -10,11 +10,15 @@
  * ⚠️ Live benchmarks require MODEL_PATH env var.
  *    Config-generation benchmarks run without a model.
  */
-import type { IDeviceInfoProvider, IPlatformProvider } from "@/shared/ai/device-detector";
+import type {
+    IDeviceInfoProvider,
+    IPlatformProvider,
+} from "@/shared/ai/device-detector";
 import { DeviceDetector } from "@/shared/ai/device-detector";
 import type { IMemoryInfoProvider } from "@/shared/ai/memory-monitor";
 import { MemoryMonitor } from "@/shared/ai/memory-monitor";
 import { RuntimeConfigGenerator } from "@/shared/ai/runtime-config-generator";
+import { describe, expect, test } from "bun:test";
 
 const MODEL_PATH = process.env.MODEL_PATH ?? "";
 const hasModel = MODEL_PATH.length > 0;
@@ -35,17 +39,27 @@ function makeProvider(totalGB: number, usedGB: number): IDeviceInfoProvider {
   };
 }
 
-function makeMemoryProvider(totalGB: number, usedGB: number): IMemoryInfoProvider {
+function makeMemoryProvider(
+  totalGB: number,
+  usedGB: number,
+): IMemoryInfoProvider {
   return {
     getTotalMemory: () => Promise.resolve(totalGB * GB),
     getUsedMemory: () => Promise.resolve(usedGB * GB),
   };
 }
 
-async function detectAndGenerate(totalGB: number, usedGB: number, platform: IPlatformProvider) {
+async function detectAndGenerate(
+  totalGB: number,
+  usedGB: number,
+  platform: IPlatformProvider,
+) {
   const detector = new DeviceDetector(makeProvider(totalGB, usedGB), platform);
   const deviceInfo = await detector.detect();
-  return generator.generateRuntimeConfig(deviceInfo, MODEL_PATH || "/models/model.gguf");
+  return generator.generateRuntimeConfig(
+    deviceInfo,
+    MODEL_PATH || "/models/model.gguf",
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────

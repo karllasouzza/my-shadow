@@ -1,10 +1,11 @@
-import Ajv from "ajv";
 import { RuntimeConfigGenerator } from "@/shared/ai/runtime-config-generator";
 import {
-  mockBudgetDevice,
-  mockMidRangeDevice,
-  mockPremiumDevice,
+    mockBudgetDevice,
+    mockMidRangeDevice,
+    mockPremiumDevice,
 } from "@/tests/utils/device-simulator";
+import Ajv from "ajv";
+import { describe, expect, test } from "bun:test";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const schema = require("../../specs/001-optimize-runtime-planning/contracts/runtime-config.schema.json");
@@ -15,7 +16,9 @@ const validate = ajv.compile(schema);
 const generator = new RuntimeConfigGenerator();
 const MODEL_PATH = "/data/models/model.gguf";
 
-function generateAndValidate(deviceSimulator: () => ReturnType<typeof mockBudgetDevice>) {
+function generateAndValidate(
+  deviceSimulator: () => ReturnType<typeof mockBudgetDevice>,
+) {
   const config = generator.generateRuntimeConfig(deviceSimulator(), MODEL_PATH);
   const valid = validate(config);
   return { config, valid, errors: validate.errors ?? [] };
@@ -108,26 +111,40 @@ describe("RuntimeConfig: JSON Schema validation", () => {
 
   describe("Schema constraint enforcement", () => {
     test("rejects n_ctx below minimum (128)", () => {
-      const invalidConfig = { ...generator.generateRuntimeConfig(mockBudgetDevice(), MODEL_PATH), n_ctx: 64 };
+      const invalidConfig = {
+        ...generator.generateRuntimeConfig(mockBudgetDevice(), MODEL_PATH),
+        n_ctx: 64,
+      };
       const valid = validate(invalidConfig);
       expect(valid).toBe(false);
-      expect(validate.errors?.some((e) => e.dataPath.includes("n_ctx"))).toBe(true);
+      expect(validate.errors?.some((e) => e.dataPath.includes("n_ctx"))).toBe(
+        true,
+      );
     });
 
     test("rejects n_ctx above maximum (8192)", () => {
-      const invalidConfig = { ...generator.generateRuntimeConfig(mockBudgetDevice(), MODEL_PATH), n_ctx: 16384 };
+      const invalidConfig = {
+        ...generator.generateRuntimeConfig(mockBudgetDevice(), MODEL_PATH),
+        n_ctx: 16384,
+      };
       const valid = validate(invalidConfig);
       expect(valid).toBe(false);
     });
 
     test("rejects invalid cache_type_k", () => {
-      const invalidConfig = { ...generator.generateRuntimeConfig(mockBudgetDevice(), MODEL_PATH), cache_type_k: "bf16" };
+      const invalidConfig = {
+        ...generator.generateRuntimeConfig(mockBudgetDevice(), MODEL_PATH),
+        cache_type_k: "bf16",
+      };
       const valid = validate(invalidConfig);
       expect(valid).toBe(false);
     });
 
     test("rejects missing required field (model)", () => {
-      const config = generator.generateRuntimeConfig(mockBudgetDevice(), MODEL_PATH) as Partial<typeof config>;
+      const config = generator.generateRuntimeConfig(
+        mockBudgetDevice(),
+        MODEL_PATH,
+      ) as Partial<typeof config>;
       const { model: _, ...noModel } = config;
       const valid = validate(noModel);
       expect(valid).toBe(false);

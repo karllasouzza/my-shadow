@@ -3,7 +3,9 @@ import type { DeviceInfo } from "@/shared/types/device";
 /** Default CPU cores for test device simulations */
 const DEFAULT_CPU_CORES = 8;
 
-export function mockDeviceInfo(overrides: Partial<DeviceInfo> = {}): DeviceInfo {
+export function mockDeviceInfo(
+  overrides: Partial<DeviceInfo> = {},
+): DeviceInfo {
   return {
     totalRAM: 4,
     availableRAM: 3.2,
