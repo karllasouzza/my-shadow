@@ -1,5 +1,3 @@
-import type { GenerationMetrics } from "../metrics";
-
 export type MessageRole = "system" | "user" | "assistant" | "tool";
 
 export interface ChatMessage {
@@ -9,6 +7,4 @@ export interface ChatMessage {
   modelId?: string;
   errorCode?: string;
   timestamp?: string;
-  /** Generation metrics (only for assistant messages) */
-  generationMetrics?: GenerationMetrics;
 }

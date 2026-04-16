@@ -1,16 +1,9 @@
 import type { DeviceInfo, RuntimeConfig } from "@/shared/types/device";
 import { createError, err, ok, Result } from "@/shared/utils/app-error";
-// @ts-ignore
-import type {
-  LlamaContext,
-  RNLlamaOAICompatibleMessage,
-  TokenData,
-} from "llama.rn";
 import { initLlama, loadLlamaModelInfo } from "llama.rn";
 import { findModelById } from "./catalog";
 import { DeviceDetector } from "./device-detector";
 import { MemoryMonitor } from "./memory-monitor";
-import { calculateMetrics, GenerationMetrics } from "./metrics";
 import { isLikelyOOMError } from "./oom-detection";
 import { RuntimeConfigGenerator } from "./runtime-config-generator";
 import type { ChatMessage } from "./types/chat";
@@ -19,42 +12,26 @@ import type {
   LoadedModel,
   StreamCompletionOptions,
 } from "./types/runtime";
+import { STOP_WORDS } from "./utils/constants";
 
 let instance: AIRuntime | null = null;
 
-const STOP_WORDS = [
-  "</s>",
-  "<|end|>",
-  "<|eot_id|>",
-  "<|end_of_text|>",
-  "<|EOT|>",
-  "<|END_OF_TURN_TOKEN|>",
-  "<|end_of_turn|>",
-];
-
-const INSUFFICIENT_RAM_GB = 1.5;
-
 export class AIRuntime {
   private model: LoadedModel | null = null;
-  private context: LlamaContext | null = null;
+  private context: any = null;
   private stop: (() => Promise<void>) | null = null;
   private readonly deviceDetector = new DeviceDetector();
   private readonly configGenerator = new RuntimeConfigGenerator();
   private readonly memoryMonitor = new MemoryMonitor();
   private lastModelPath: string | null = null;
   private lastRuntimeConfig: RuntimeConfig | null = null;
-  private lastDeviceInfo: DeviceInfo | null = null;
-
-  // ── Startup ──────────────────────────────────────────────────────────────
 
   async initializeAdaptiveRuntime(): Promise<void> {
     const pressure = await this.memoryMonitor.evaluate();
-    if (pressure.availableRAM / 1024 ** 3 < INSUFFICIENT_RAM_GB) {
+    if (pressure.availableRAM / 1024 ** 3 < 1.5) {
       console.warn("[AIRuntime] Insufficient RAM for local inference");
     }
   }
-
-  // ── Model loading: detect → classify → generate → load ───────────────────
 
   async loadModel(
     modelId: string,
@@ -77,13 +54,8 @@ export class AIRuntime {
         flash_attn_type: deviceInfo.gpuBackend === "metal" ? "on" : "auto",
       });
 
-      console.log(
-        `[AIRuntime] Flash attention: ${hasGPU ? "enabled" : "disabled (CPU-only)"}`,
-      );
-
       this.lastModelPath = path;
       this.lastRuntimeConfig = runtimeConfig;
-      this.lastDeviceInfo = deviceInfo;
       this.model = { id: modelId, isLoaded: true };
 
       void this.warmUp();
@@ -127,20 +99,112 @@ export class AIRuntime {
 
     let text = "";
     let reasoning = "";
-    let tokenCount = 0;
-    let firstTokenTime: number | null = null;
-    const messagesForContext = this.sanitizeMessagesForLLMContext(messages);
-    const startTime = performance.now();
-
+    let isInThinkTag = false;
+    let pendingTagBuffer = "";
     const signal = options?.abortSignal;
-    const onAbort = () => void this.cancelGeneration();
+
+    const getTrailingPartialTagLength = (source: string, tag: string) => {
+      const maxLength = Math.min(source.length, tag.length - 1);
+
+      for (let length = maxLength; length > 0; length -= 1) {
+        if (source.endsWith(tag.slice(0, length))) {
+          return length;
+        }
+      }
+
+      return 0;
+    };
+
+    const consumeTokenChunk = (
+      rawToken: string,
+      captureInlineReasoning: boolean,
+    ) => {
+      let outputToken = "";
+      let outputReasoning = "";
+
+      const combined = `${pendingTagBuffer}${rawToken}`;
+      pendingTagBuffer = "";
+
+      let cursor = 0;
+
+      while (cursor < combined.length) {
+        if (!isInThinkTag) {
+          const thinkStart = combined.indexOf("<think>", cursor);
+
+          if (thinkStart === -1) {
+            const tail = combined.slice(cursor);
+            const partialTagLength = getTrailingPartialTagLength(
+              tail,
+              "<think>",
+            );
+
+            if (partialTagLength > 0) {
+              outputToken += tail.slice(0, tail.length - partialTagLength);
+              pendingTagBuffer = tail.slice(tail.length - partialTagLength);
+            } else {
+              outputToken += tail;
+            }
+
+            break;
+          }
+
+          outputToken += combined.slice(cursor, thinkStart);
+          cursor = thinkStart + "<think>".length;
+          isInThinkTag = true;
+          continue;
+        }
+
+        const thinkEnd = combined.indexOf("</think>", cursor);
+
+        if (thinkEnd === -1) {
+          const tail = combined.slice(cursor);
+          const partialTagLength = getTrailingPartialTagLength(
+            tail,
+            "</think>",
+          );
+          const reasoningTail =
+            partialTagLength > 0
+              ? tail.slice(0, tail.length - partialTagLength)
+              : tail;
+
+          if (captureInlineReasoning && reasoningTail) {
+            outputReasoning += reasoningTail;
+          }
+
+          pendingTagBuffer =
+            partialTagLength > 0
+              ? tail.slice(tail.length - partialTagLength)
+              : "";
+          break;
+        }
+
+        const reasoningSegment = combined.slice(cursor, thinkEnd);
+        if (captureInlineReasoning && reasoningSegment) {
+          outputReasoning += reasoningSegment;
+        }
+
+        cursor = thinkEnd + "</think>".length;
+        isInThinkTag = false;
+      }
+
+      return {
+        token: outputToken,
+        reasoning: outputReasoning,
+      };
+    };
 
     try {
-      await this.context.parallel.enable({ n_parallel: 0 });
+      await this.context.parallel.enable({ n_parallel: 1 });
 
       const { promise, stop } = await this.context.parallel.completion(
         {
-          messages: messagesForContext,
+          messages: messages.map((msg) => ({
+            role: msg.role,
+            content: msg.content,
+            ...(msg.role !== "user" && msg.reasoning_content
+              ? { reasoning_content: msg.reasoning_content }
+              : {}),
+          })),
           jinja: true,
           enable_thinking: enableThinking,
           thinking_forced_open: enableThinking,
@@ -153,36 +217,68 @@ export class AIRuntime {
           min_p: this.lastRuntimeConfig?.min_p ?? 0.05,
           dry_penalty_last_n: this.lastRuntimeConfig?.dry_penalty_last_n ?? 64,
         },
-        (_: number, data: TokenData) => {
-          const t = data.token ?? "";
-          const r = data.reasoning_content ?? "";
-          if (!t && !r) return;
+        (_: number, data: any) => {
+          const rawToken = data.token ?? "";
+          const nativeReasoningChunk = data.reasoning_content ?? "";
 
-          if (firstTokenTime === null) firstTokenTime = performance.now();
-
-          // Count tokens from the regular token stream
-          if (t) tokenCount++;
-
-          // Heuristic: estimate tokens coming from reasoning_content by splitting on whitespace
-          if (r) {
-            const reasoningTokenCount = r.trim()
-              ? r.trim().split(/\s+/).filter(Boolean).length
-              : 0;
-            tokenCount += reasoningTokenCount;
+          if (!rawToken && !nativeReasoningChunk) {
+            return;
           }
 
-          text += t;
-          reasoning += r;
-          options?.onStreamChunk?.({ token: t, reasoning: r || undefined });
+          const parsedToken = consumeTokenChunk(
+            rawToken,
+            !nativeReasoningChunk,
+          );
+          const outputToken = parsedToken.token;
+          const outputReasoning = `${parsedToken.reasoning}${nativeReasoningChunk}`;
+
+          if (outputToken) {
+            text += outputToken;
+          }
+
+          if (outputReasoning) {
+            reasoning += outputReasoning;
+          }
+
+          if (outputToken || outputReasoning) {
+            options?.onStreamChunk?.({
+              token: outputToken,
+              reasoning: outputReasoning || undefined,
+            });
+          }
         },
       );
 
       this.stop = stop;
-      this.bindAbort(signal, onAbort);
-      await promise;
+      this.bindAbort(signal);
+
+      const result = await promise;
 
       if (signal?.aborted) {
         return err(createError("ABORTED", "Geração cancelada."));
+      }
+
+      if (pendingTagBuffer && !isInThinkTag) {
+        text += pendingTagBuffer;
+      }
+      pendingTagBuffer = "";
+
+      if (result.text && !text) {
+        text = result.text;
+      }
+
+      const resultReasoning =
+        (result as any).reasoning_content ?? (result as any).reasoning;
+      if (!reasoning && resultReasoning) {
+        reasoning = String(resultReasoning);
+      }
+
+      if (!reasoning && text.includes("<think>")) {
+        const thinkMatch = text.match(/<think>([\s\S]*?)<\/think>/);
+        if (thinkMatch) {
+          reasoning = thinkMatch[1];
+          text = text.replace(/<think>[\s\S]*?<\/think>/, "").trim();
+        }
       }
 
       if (!text.trim() && !reasoning.trim()) {
@@ -191,23 +287,21 @@ export class AIRuntime {
         );
       }
 
-      const metrics = calculateMetrics(
-        startTime,
-        firstTokenTime,
-        performance.now(),
-        tokenCount,
-      );
-
-      return ok({ text, reasoning: reasoning || undefined, metrics });
+      return ok({
+        text,
+        reasoning: reasoning || undefined,
+        timings: {
+          prompt_ms: result.timings?.prompt_ms ?? 0,
+          predicted_ms: result.timings?.predicted_ms ?? 0,
+          prompt_tokens: result.timings?.prompt_tokens ?? 0,
+          predicted_tokens: result.timings?.predicted_tokens ?? 0,
+        },
+      });
     } catch (error) {
-      console.error("Erro durante geração local:", error);
       if ((error as Error).name === "AbortError") {
         return err(createError("ABORTED", "Geração cancelada."));
       }
 
-      // Only attempt the automatic degraded-config reload when the failure
-      // appears to be an out-of-memory condition coming from llama.rn.
-      // Otherwise return the original error to avoid masking non-OOM failures.
       const isOOM = isLikelyOOMError(error);
       const pressure = await this.memoryMonitor.evaluate().catch(() => null);
 
@@ -215,38 +309,16 @@ export class AIRuntime {
         isOOM &&
         pressure?.criticalLevel &&
         this.lastModelPath &&
-        this.lastRuntimeConfig &&
         this.model
       ) {
-        const modelId = this.model.id;
-        const path = this.lastModelPath;
         const degradedConfig: Partial<RuntimeConfig> = {
-          n_ctx: Math.floor(this.lastRuntimeConfig.n_ctx / 2),
+          n_ctx: Math.floor((this.lastRuntimeConfig?.n_ctx ?? 4096) / 2),
         };
 
-        console.warn(
-          `[AIRuntime] OOM detected and memory critical (${pressure.utilizationPercent}%). Reloading with degraded config (n_ctx=${degradedConfig.n_ctx}).`,
-        );
-
-        const reloadResult = await this.loadModel(
-          modelId,
-          path,
-          degradedConfig,
-        );
-        if (reloadResult.success) {
-          return this.streamCompletion(messages, options);
-        }
-
-        const safeCtx = pressure.recommendedMaxContext;
-        return err(
-          createError(
-            "LOCAL_GENERATION_UNAVAILABLE",
-            `Memória insuficiente. Tente novamente com contexto < ${safeCtx} tokens.`,
-          ),
-        );
+        await this.loadModel(this.model.id, this.lastModelPath, degradedConfig);
+        return this.streamCompletion(messages, options);
       }
 
-      // If it was not an OOM (or memory isn't critical), preserve the original error.
       return err(
         createError(
           "LOCAL_GENERATION_UNAVAILABLE",
@@ -257,7 +329,7 @@ export class AIRuntime {
       );
     } finally {
       this.stop = null;
-      this.unbindAbort(signal, onAbort);
+      this.unbindAbort(signal);
       await this.context?.parallel.disable().catch(() => {});
     }
   }
@@ -276,62 +348,21 @@ export class AIRuntime {
     return this.model;
   }
 
-  private bindAbort(
-    signal: AbortSignal | undefined,
-    handler: () => void,
-  ): void {
+  private bindAbort(signal?: AbortSignal): void {
     if (!signal) return;
-    try {
-      signal.addEventListener?.("abort", handler) ?? (signal.onabort = handler);
-    } catch {
-      // ignore
-    }
+    signal.addEventListener?.("abort", () => this.cancelGeneration());
   }
 
-  private unbindAbort(
-    signal: AbortSignal | undefined,
-    handler: () => void,
-  ): void {
+  private unbindAbort(signal?: AbortSignal): void {
     if (!signal) return;
-    try {
-      signal.removeEventListener?.("abort", handler) ?? (signal.onabort = null);
-    } catch {
-      // ignore
-    }
+    signal.removeEventListener?.("abort", () => this.cancelGeneration());
   }
-
-  private sanitizeMessagesForLLMContext(
-    messages: ChatMessage[],
-  ): RNLlamaOAICompatibleMessage[] {
-    return messages.map((msg) => {
-      const { role, content, reasoning_content } = msg;
-      if (role === "user") {
-        return {
-          role,
-          content,
-        } as RNLlamaOAICompatibleMessage;
-      }
-      return {
-        role,
-        content,
-        reasoning_content,
-      } as RNLlamaOAICompatibleMessage;
-    });
-  }
-
-  // ── Adaptive config pipeline ──────────────────────────────────────────────
 
   private async buildAdaptiveConfig(
     modelPath: string,
     overrides?: Partial<RuntimeConfig>,
   ): Promise<{ runtimeConfig: RuntimeConfig; deviceInfo: DeviceInfo }> {
     const deviceInfo = await this.deviceDetector.detect();
-
-    const profile = this.configGenerator.selectDeviceProfile(deviceInfo);
-    console.log(
-      `[AIRuntime] Selected tier: ${profile.tier}, threads: ${deviceInfo.performanceCores - 1}, GPU: ${deviceInfo.gpuBackend ?? "none"}`,
-    );
-
     const runtimeConfig = this.configGenerator.generateRuntimeConfig(
       deviceInfo,
       modelPath,
@@ -346,7 +377,6 @@ export class AIRuntime {
     return { runtimeConfig, deviceInfo };
   }
 
-  /** Fire a minimal 1-token generation to pre-warm GPU/KV caches. Non-blocking. */
   private async warmUp(): Promise<void> {
     if (!this.context) return;
     try {
@@ -360,17 +390,10 @@ export class AIRuntime {
       );
       await stop();
       await promise.catch(() => {});
-      console.log(
-        "[AIRuntime] Model warm-up complete (first TTFT optimization applied)",
-      );
-    } catch {
-      // Non-fatal: warm-up is best-effort
-    }
+    } catch {}
   }
 }
 
 export function getAIRuntime(): AIRuntime {
   return (instance ??= new AIRuntime());
 }
-
-export type { GenerationMetrics };
