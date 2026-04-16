@@ -10,8 +10,11 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "ci": "bun install --frozen-lockfile",
-    "test": "jest --passWithNoTests",
-    "test:watch": "jest --watch"
+    "test": "bun test",
+    "test:unit": "bun test tests/unit",
+    "test:integration": "bun test tests/integration",
+    "test:e2e": "bun test tests/e2e",
+    "test:watch": "bun test --watch"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
