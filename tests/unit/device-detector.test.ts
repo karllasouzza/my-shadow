@@ -73,7 +73,9 @@ describe("DeviceDetector", () => {
 
     test("cpuCores defaults to 4 on error", async () => {
       const detector = new DeviceDetector(
-        makeProvider({ getNumberOfCores: () => Promise.reject(new Error("fail")) }),
+        makeProvider({
+          getNumberOfCores: () => Promise.reject(new Error("fail")),
+        }),
         androidPlatform,
       );
       const info = await detector.detect();

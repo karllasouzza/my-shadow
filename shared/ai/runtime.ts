@@ -285,8 +285,6 @@ export class AIRuntime {
     }
   }
 
-  
-
   private sanitizeMessagesForLLMContext(
     messages: ChatMessage[],
   ): RNLlamaOAICompatibleMessage[] {
