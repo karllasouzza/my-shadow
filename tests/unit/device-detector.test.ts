@@ -1,11 +1,17 @@
-import type { IDeviceInfoProvider, IPlatformProvider } from "@/shared/ai/device-detector";
+import type {
+    IDeviceInfoProvider,
+    IPlatformProvider,
+} from "@/shared/ai/device-detector";
 import { DeviceDetector } from "@/shared/ai/device-detector";
+import { describe, expect, test } from "bun:test";
 
 const FOUR_GB = 4 * 1024 * 1024 * 1024;
 const TWO_GB = 2 * 1024 * 1024 * 1024;
 const EIGHT_GB = 8 * 1024 * 1024 * 1024;
 
-function makeProvider(overrides?: Partial<IDeviceInfoProvider>): IDeviceInfoProvider {
+function makeProvider(
+  overrides?: Partial<IDeviceInfoProvider>,
+): IDeviceInfoProvider {
   return {
     getTotalMemory: () => Promise.resolve(FOUR_GB),
     getUsedMemory: () => Promise.resolve(TWO_GB),
@@ -34,14 +40,20 @@ describe("DeviceDetector", () => {
     });
 
     test("totalRAM is converted from bytes to gigabytes", async () => {
-      const detector = new DeviceDetector(makeProvider({ getTotalMemory: () => Promise.resolve(FOUR_GB) }), androidPlatform);
+      const detector = new DeviceDetector(
+        makeProvider({ getTotalMemory: () => Promise.resolve(FOUR_GB) }),
+        androidPlatform,
+      );
       const info = await detector.detect();
       expect(info.totalRAM).toBe(4);
     });
 
     test("availableRAM subtracts used memory and OS overhead", async () => {
       const detector = new DeviceDetector(
-        makeProvider({ getTotalMemory: () => Promise.resolve(FOUR_GB), getUsedMemory: () => Promise.resolve(TWO_GB) }),
+        makeProvider({
+          getTotalMemory: () => Promise.resolve(FOUR_GB),
+          getUsedMemory: () => Promise.resolve(TWO_GB),
+        }),
         androidPlatform,
       );
       const info = await detector.detect();
@@ -50,7 +62,10 @@ describe("DeviceDetector", () => {
     });
 
     test("cpuCores is capped at 16", async () => {
-      const detector = new DeviceDetector(makeProvider({ getMaxMemory: () => Promise.resolve(32) }), androidPlatform);
+      const detector = new DeviceDetector(
+        makeProvider({ getMaxMemory: () => Promise.resolve(32) }),
+        androidPlatform,
+      );
       const info = await detector.detect();
       expect(info.cpuCores).toBeLessThanOrEqual(16);
     });
@@ -71,7 +86,10 @@ describe("DeviceDetector", () => {
     });
 
     test("platform is ios when provider says ios", async () => {
-      const detector = new DeviceDetector(makeProvider({ getTotalMemory: () => Promise.resolve(EIGHT_GB) }), iosPlatform);
+      const detector = new DeviceDetector(
+        makeProvider({ getTotalMemory: () => Promise.resolve(EIGHT_GB) }),
+        iosPlatform,
+      );
       const info = await detector.detect();
       expect(info.platform).toBe("ios");
     });
@@ -83,21 +101,29 @@ describe("DeviceDetector", () => {
     });
 
     test("on iOS, GPU detection uses metal and sets hasGPU=true", async () => {
-      const detector = new DeviceDetector(makeProvider({ getTotalMemory: () => Promise.resolve(EIGHT_GB) }), iosPlatform);
+      const detector = new DeviceDetector(
+        makeProvider({ getTotalMemory: () => Promise.resolve(EIGHT_GB) }),
+        iosPlatform,
+      );
       const info = await detector.detect();
       expect(info.detectionMethod.gpu).toBe("metal");
       expect(info.hasGPU).toBe(true);
     });
 
     test("on iOS, cpuBrand is bionic", async () => {
-      const detector = new DeviceDetector(makeProvider({ getTotalMemory: () => Promise.resolve(EIGHT_GB) }), iosPlatform);
+      const detector = new DeviceDetector(
+        makeProvider({ getTotalMemory: () => Promise.resolve(EIGHT_GB) }),
+        iosPlatform,
+      );
       const info = await detector.detect();
       expect(info.cpuBrand).toBe("bionic");
     });
 
     test("on Android with Qualcomm brand, cpuBrand is snapdragon", async () => {
       const detector = new DeviceDetector(
-        makeProvider({ getBrand: () => Promise.resolve("Qualcomm Snapdragon") }),
+        makeProvider({
+          getBrand: () => Promise.resolve("Qualcomm Snapdragon"),
+        }),
         androidPlatform,
       );
       const info = await detector.detect();

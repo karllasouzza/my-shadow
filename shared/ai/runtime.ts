@@ -1,5 +1,5 @@
-import { createError, err, ok, Result } from "@/shared/utils/app-error";
 import type { RuntimeConfig } from "@/shared/types/device";
+import { createError, err, ok, Result } from "@/shared/utils/app-error";
 // @ts-ignore
 import type {
   LlamaContext,
@@ -9,8 +9,8 @@ import type {
 import { initLlama, loadLlamaModelInfo } from "llama.rn";
 import { findModelById } from "./catalog";
 import { DeviceDetector } from "./device-detector";
-import { calculateMetrics, GenerationMetrics } from "./metrics";
 import { MemoryMonitor } from "./memory-monitor";
+import { calculateMetrics, GenerationMetrics } from "./metrics";
 import { RuntimeConfigGenerator } from "./runtime-config-generator";
 import type { ChatMessage } from "./types/chat";
 import type {
@@ -47,7 +47,7 @@ export class AIRuntime {
 
   async initializeAdaptiveRuntime(): Promise<void> {
     const pressure = await this.memoryMonitor.evaluate();
-    if (pressure.availableRAM / (1024 ** 3) < INSUFFICIENT_RAM_GB) {
+    if (pressure.availableRAM / 1024 ** 3 < INSUFFICIENT_RAM_GB) {
       console.warn("[AIRuntime] Insufficient RAM for local inference");
     }
   }
@@ -63,7 +63,10 @@ export class AIRuntime {
       await this.unloadModel();
       await loadLlamaModelInfo(path);
 
-      const runtimeConfig = await this.buildAdaptiveConfig(path, optionalOverrideConfig);
+      const runtimeConfig = await this.buildAdaptiveConfig(
+        path,
+        optionalOverrideConfig,
+      );
       this.context = await initLlama({
         ...runtimeConfig,
         flash_attn_type: "on",
@@ -146,7 +149,9 @@ export class AIRuntime {
 
           // Heuristic: estimate tokens coming from reasoning_content by splitting on whitespace
           if (r) {
-            const reasoningTokenCount = r.trim() ? r.trim().split(/\s+/).filter(Boolean).length : 0;
+            const reasoningTokenCount = r.trim()
+              ? r.trim().split(/\s+/).filter(Boolean).length
+              : 0;
             tokenCount += reasoningTokenCount;
           }
 
@@ -185,7 +190,12 @@ export class AIRuntime {
       }
 
       const pressure = await this.memoryMonitor.evaluate().catch(() => null);
-      if (pressure?.criticalLevel && this.lastModelPath && this.lastRuntimeConfig && this.model) {
+      if (
+        pressure?.criticalLevel &&
+        this.lastModelPath &&
+        this.lastRuntimeConfig &&
+        this.model
+      ) {
         const modelId = this.model.id;
         const path = this.lastModelPath;
         const degradedConfig: Partial<RuntimeConfig> = {
@@ -196,7 +206,11 @@ export class AIRuntime {
           `[AIRuntime] Memory critical (${pressure.utilizationPercent}%). Reloading with degraded config (n_ctx=${degradedConfig.n_ctx}).`,
         );
 
-        const reloadResult = await this.loadModel(modelId, path, degradedConfig);
+        const reloadResult = await this.loadModel(
+          modelId,
+          path,
+          degradedConfig,
+        );
         if (reloadResult.success) {
           return this.streamCompletion(messages, options);
         }

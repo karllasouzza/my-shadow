@@ -5,7 +5,10 @@
 
 // Mock react-native
 const rnMock = {
-  Platform: { OS: "android" as const, select: (m: Record<string, unknown>) => m.android ?? m.default },
+  Platform: {
+    OS: "android" as const,
+    select: (m: Record<string, unknown>) => m.android ?? m.default,
+  },
   AppState: {
     addEventListener: () => ({ remove: () => {} }),
     currentState: "active",
