@@ -116,6 +116,9 @@ export interface RuntimeConfig {
   use_mmap: boolean; // Memory-mapped file loading (critical for low-RAM)
   use_mlock: boolean; // Lock model in RAM (false on mobile)
 
+  // GPU Offloading (if available)
+  n_gpu_layers: number; // 0-99 (0 = CPU only, 99 = all weights on GPU)
+
   // KV Cache Precision (from Phase 0 research)
   cache_type_k: "f16" | "q8_0" | "q4_0";
   cache_type_v: "f16" | "q8_0" | "q4_0";

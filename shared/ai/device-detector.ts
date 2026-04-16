@@ -1,4 +1,4 @@
-import type { CpuBrand, DeviceInfo, GpuType } from "@/shared/types/device";
+import type { CpuBrand, DeviceInfo, GpuBackend, GpuType } from "@/shared/types/device";
 
 /** Bytes → GB conversion factor */
 const BYTES_TO_GB = 1024 ** 3;
@@ -87,21 +87,32 @@ export class DeviceDetector {
       await this.detectCpuCores();
     const cpuBrand = await this.detectCpuBrand();
 
+    const platformOS = this.platform.OS;
+
     const { hasGPU, gpuMemoryMB, gpuType, gpuDetectionMethod } =
       await this.detectGPU(totalRAMBytes);
 
+    const performanceCores = this.calculatePerformanceCores(
+      cpuCores,
+      cpuBrand,
+      platformOS,
+    );
+
+    const gpuBackend = this.detectGpuBackend(platformOS, gpuType);
+
     const osVersion = await this.deviceInfo.getSystemVersion();
     const deviceModel = await this.deviceInfo.getModel();
-    const platformOS = this.platform.OS;
 
     return {
       totalRAM,
       availableRAM,
       cpuCores,
       cpuBrand,
+      performanceCores,
       hasGPU,
       gpuMemoryMB,
       gpuType,
+      gpuBackend,
       platform: platformOS,
       osVersion,
       deviceModel,
@@ -205,5 +216,39 @@ export class DeviceDetector {
       gpuType: "adreno",
       gpuDetectionMethod: "heuristic",
     };
+  }
+
+  /**
+   * Estimate the number of high-frequency P-cores.
+   * iOS (Apple Silicon): ~50% P/E split.
+   * Android Snapdragon/Bionic: ~37.5% (3 of 8 typical).
+   * Android Helio/unknown: conservative 50% fallback.
+   */
+  private calculatePerformanceCores(
+    cpuCores: number,
+    cpuBrand: CpuBrand,
+    platform: "ios" | "android",
+  ): number {
+    if (platform === "ios") {
+      return Math.ceil(cpuCores * 0.5);
+    }
+    if (cpuBrand === "snapdragon" || cpuBrand === "bionic") {
+      return Math.ceil(cpuCores * 0.375);
+    }
+    return Math.max(2, Math.ceil(cpuCores * 0.5));
+  }
+
+  /**
+   * Map detected GPU type to the compute backend used by llama.cpp.
+   * iOS → Metal, Android Adreno → OpenCL, Android Mali → Vulkan, else null.
+   */
+  private detectGpuBackend(
+    platform: "ios" | "android",
+    gpuType?: GpuType,
+  ): GpuBackend {
+    if (platform === "ios") return "metal";
+    if (gpuType === "adreno") return "opencl";
+    if (gpuType === "mali") return "vulkan";
+    return null;
   }
 }

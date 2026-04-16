@@ -59,6 +59,42 @@ export function validateRuntimeConfig(
 }
 
 export class RuntimeConfigGenerator {
+  /** Reserve one core for the UI thread; use only performance cores. */
+  generateThreadCount(deviceInfo: DeviceInfo): number {
+    return Math.max(1, deviceInfo.performanceCores - 1);
+  }
+
+  /**
+   * n_batch bounded by: context size/2, 30% of available RAM, and mobile ceiling 512.
+   * Floor of 64 enforced to prevent over-reduction on extreme memory.
+   */
+  calculateOptimalBatch(n_ctx: number, availableRAMBytes: number): number {
+    const maxByRAM = Math.floor((availableRAMBytes * 0.3) / 1024);
+    const maxByContext = Math.floor(n_ctx / 2);
+    return Math.min(512, Math.max(64, Math.min(maxByContext, maxByRAM)));
+  }
+
+  /**
+   * Adaptive n_predict sized by ratio of available RAM to model footprint.
+   * Safety factor: 2x model size for KV cache + activations overhead.
+   */
+  getAdaptiveNPredict(modelSizeGB: number, availableRAMBytes: number): number {
+    const availableGB = availableRAMBytes / 1024 ** 3;
+    const ratio = availableGB / (modelSizeGB * 2);
+    if (ratio < 1) return 512;
+    if (ratio < 2) return 1024;
+    return 2048;
+  }
+
+  /** GPU layer count scaled by tier and available VRAM. */
+  calculateGpuLayers(deviceInfo: DeviceInfo, tierDefault: number): number {
+    if (!deviceInfo.hasGPU || deviceInfo.gpuBackend === null) return 0;
+    if (deviceInfo.gpuMemoryMB !== undefined && deviceInfo.gpuMemoryMB < 1000) {
+      return Math.min(tierDefault, 20);
+    }
+    return tierDefault;
+  }
+
   generateRuntimeConfig(
     deviceInfo: DeviceInfo,
     modelPath: string,
@@ -71,11 +107,11 @@ export class RuntimeConfigGenerator {
       model: modelPath,
     };
 
-    base.n_threads = Math.min(base.n_threads, deviceInfo.cpuCores);
-
-    if (deviceInfo.gpuMemoryMB !== undefined && deviceInfo.gpuMemoryMB < 1000) {
-      base.n_gpu_layers = Math.min(base.n_gpu_layers, 20);
-    }
+    base.n_threads = this.generateThreadCount(deviceInfo);
+    base.n_gpu_layers = this.calculateGpuLayers(
+      deviceInfo,
+      profile.config.n_gpu_layers,
+    );
 
     const merged: RuntimeConfig = overrides
       ? { ...base, ...overrides, model: modelPath }
@@ -87,7 +123,9 @@ export class RuntimeConfigGenerator {
     }
 
     if (merged.cache_type_k === "q4_0" || merged.cache_type_v === "q4_0") {
-      // q4_0 trades quality for memory — acceptable only on extreme budget devices
+      console.warn(
+        "[RuntimeConfigGenerator] Q4_0 KV cache causes ±8-15% quality loss; recommend for 4GB devices only",
+      );
     }
 
     return merged;
@@ -95,5 +133,15 @@ export class RuntimeConfigGenerator {
 
   selectDeviceProfile(deviceInfo: DeviceInfo) {
     return selectDeviceProfile(deviceInfo);
+  }
+
+  validateCacheConfig(cache_type_k: string, cache_type_v: string): boolean {
+    const valid = validateCacheType(cache_type_k) && validateCacheType(cache_type_v);
+    if (cache_type_k === "q4_0" || cache_type_v === "q4_0") {
+      console.warn(
+        "[RuntimeConfigGenerator] Q4_0 KV cache causes ±8-15% quality loss; recommend for 4GB devices only",
+      );
+    }
+    return valid;
   }
 }

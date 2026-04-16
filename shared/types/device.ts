@@ -12,6 +12,8 @@ export type GpuType = "adreno" | "mali" | "metal" | "vulkan" | "unknown";
 
 export type CacheType = "f16" | "q8_0" | "q4_0";
 
+export type GpuBackend = "metal" | "opencl" | "vulkan" | null;
+
 export interface DeviceInfo {
   /** Total device RAM in gigabytes */
   totalRAM: number;
@@ -22,10 +24,24 @@ export interface DeviceInfo {
   cpuCores: number;
   cpuBrand: CpuBrand;
 
+  /**
+   * High-frequency performance cores for n_threads calculation.
+   * Heuristic: iOS 50% of cores, Android Snapdragon 37.5%, fallback 50%.
+   * @example iPhone 15 Pro (6 cores) → 3 P-cores
+   * @example Pixel 8 (8 cores, Tensor G3) → 3 P-cores
+   */
+  performanceCores: number;
+
   /** GPU presence and estimated VRAM */
   hasGPU: boolean;
   gpuMemoryMB?: number;
   gpuType?: GpuType;
+
+  /**
+   * GPU compute backend for flash_attn gating.
+   * iOS → "metal", Android Adreno → "opencl", Android Mali → "vulkan", CPU-only → null
+   */
+  gpuBackend: GpuBackend;
 
   /** iOS or Android only (no web) */
   platform: "ios" | "android";
@@ -69,9 +85,18 @@ export interface RuntimeConfig {
   /** KV cache precision for values */
   cache_type_v: CacheType;
 
+  /** Adaptive generation budget (replaces static 4096). 512–2048 for mobile. */
+  n_predict?: number;
+  /** 0 = single decode sequence (mobile optimal, -30% RAM). */
+  n_parallel?: number;
+
   temperature?: number;
+  /** Sampling: 0.9 maintains output diversity */
   top_p?: number;
+  /** Sampling: 40 reduces search space vs 50–100 default */
   top_k?: number;
+  /** Sampling: 0.05 filters improbable tokens aggressively */
+  min_p?: number;
 
   /** DRY repetition penalty window */
   dry_penalty?: number;
@@ -140,6 +165,8 @@ export interface MemoryPressure {
   canRunInference: boolean;
   /** Dynamically reduced safe context size given current RAM */
   recommendedMaxContext: number;
+  /** Safe n_batch for current available RAM */
+  recommendedBatch: number;
 
   sampledAt: number;
 }

@@ -1,4 +1,4 @@
-import type { RuntimeConfig } from "@/shared/types/device";
+import type { DeviceInfo, RuntimeConfig } from "@/shared/types/device";
 import { createError, err, ok, Result } from "@/shared/utils/app-error";
 // @ts-ignore
 import type {
@@ -43,6 +43,7 @@ export class AIRuntime {
   private readonly memoryMonitor = new MemoryMonitor();
   private lastModelPath: string | null = null;
   private lastRuntimeConfig: RuntimeConfig | null = null;
+  private lastDeviceInfo: DeviceInfo | null = null;
 
   // ── Startup ──────────────────────────────────────────────────────────────
 
@@ -64,19 +65,29 @@ export class AIRuntime {
       await this.unloadModel();
       await loadLlamaModelInfo(path);
 
-      const runtimeConfig = await this.buildAdaptiveConfig(
+      const { runtimeConfig, deviceInfo } = await this.buildAdaptiveConfig(
         path,
         optionalOverrideConfig,
       );
+
+      const hasGPU = deviceInfo.hasGPU && deviceInfo.gpuBackend !== null;
       this.context = await initLlama({
         ...runtimeConfig,
-        flash_attn_type: "on",
-        flash_attn: true,
+        flash_attn: hasGPU,
+        flash_attn_type: deviceInfo.gpuBackend === "metal" ? "on" : "auto",
       });
+
+      console.log(
+        `[AIRuntime] Flash attention: ${hasGPU ? "enabled" : "disabled (CPU-only)"}`,
+      );
 
       this.lastModelPath = path;
       this.lastRuntimeConfig = runtimeConfig;
+      this.lastDeviceInfo = deviceInfo;
       this.model = { id: modelId, isLoaded: true };
+
+      void this.warmUp();
+
       return ok(this.model);
     } catch (error) {
       this.model = null;
@@ -125,7 +136,7 @@ export class AIRuntime {
     const onAbort = () => void this.cancelGeneration();
 
     try {
-      await this.context.parallel.enable({ n_parallel: 1 });
+      await this.context.parallel.enable({ n_parallel: 0 });
 
       const { promise, stop } = await this.context.parallel.completion(
         {
@@ -133,10 +144,13 @@ export class AIRuntime {
           jinja: true,
           enable_thinking: enableThinking,
           thinking_forced_open: enableThinking,
-          n_predict: options?.maxTokens ?? 4096,
+          n_predict: options?.maxTokens ?? this.lastRuntimeConfig?.n_predict ?? 2048,
           temperature: options?.temperature ?? 0.7,
           stop: STOP_WORDS,
-          dry_penalty_last_n: 64,
+          top_k: this.lastRuntimeConfig?.top_k ?? 40,
+          top_p: this.lastRuntimeConfig?.top_p ?? 0.9,
+          min_p: this.lastRuntimeConfig?.min_p ?? 0.05,
+          dry_penalty_last_n: this.lastRuntimeConfig?.dry_penalty_last_n ?? 64,
         },
         (_: number, data: TokenData) => {
           const t = data.token ?? "";
@@ -309,28 +323,48 @@ export class AIRuntime {
   private async buildAdaptiveConfig(
     modelPath: string,
     overrides?: Partial<RuntimeConfig>,
-  ): Promise<RuntimeConfig> {
-    // Step 1: detect device capabilities (RAM, CPU, GPU)
+  ): Promise<{ runtimeConfig: RuntimeConfig; deviceInfo: DeviceInfo }> {
     const deviceInfo = await this.deviceDetector.detect();
 
-    // Step 2: classify device tier and generate optimised config
     const profile = this.configGenerator.selectDeviceProfile(deviceInfo);
-    console.log("[AIRuntime] Selected tier:", profile.tier);
+    console.log(
+      `[AIRuntime] Selected tier: ${profile.tier}, threads: ${deviceInfo.performanceCores - 1}, GPU: ${deviceInfo.gpuBackend ?? "none"}`,
+    );
 
-    // Step 3: merge with any caller-supplied overrides
     const runtimeConfig = this.configGenerator.generateRuntimeConfig(
       deviceInfo,
       modelPath,
       overrides,
     );
 
-    // Step 4: wire memory monitor to the resolved config
     this.memoryMonitor.configure({
       n_batch: runtimeConfig.n_batch,
       n_ctx: runtimeConfig.n_ctx,
     });
 
-    return runtimeConfig;
+    return { runtimeConfig, deviceInfo };
+  }
+
+  /** Fire a minimal 1-token generation to pre-warm GPU/KV caches. Non-blocking. */
+  private async warmUp(): Promise<void> {
+    if (!this.context) return;
+    try {
+      const { stop, promise } = await this.context.parallel.completion(
+        {
+          messages: [{ role: "user", content: "." }],
+          n_predict: 1,
+          stop: STOP_WORDS,
+        },
+        () => {},
+      );
+      await stop();
+      await promise.catch(() => {});
+      console.log(
+        "[AIRuntime] Model warm-up complete (first TTFT optimization applied)",
+      );
+    } catch {
+      // Non-fatal: warm-up is best-effort
+    }
   }
 }
 

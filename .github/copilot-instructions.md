@@ -17,7 +17,13 @@ tests/
 
 ## Commands
 
-npm test && npm run lint
+**Test Runner Migration**: Test infrastructure migrated from Jest to Bun (001-optimize-runtime-planning)
+- Run tests: `bun test tests/**/*.test.ts`
+- Run with coverage: `bun test tests/**/*.test.ts --coverage`
+- All test files must use `bun:test` imports (not `jest`)
+- Old jest.config.js is deprecated; Bun configuration lives in bunfig.toml
+
+Legacy (pre-001): `npm test && npm run lint`
 
 ## Code Style
 

@@ -20,7 +20,9 @@ All Phase 0 research is **complete** (`research.md`). Phase 1 design artifacts a
 
 ## Technical Context
 
-**Language/Version**: TypeScript 5.x (strict mode, zero `any`) / React Native 0.76+ / Expo SDK 52
+**Language/Version**: TypeScript 5.x (strict mode, zero `any`) / React Native 0.76+ / Expo SDK 52  
+**llama.rn Version**: Check package.json for current version; minimum v0.10.1 required for cache quantization  
+**llama.rn Version**: Check package.json for current version; minimum v0.10.1 required for cache quantization
 **Primary Dependencies**: `llama.rn` (llama.cpp bindings), `react-native-device-info`, `expo-router`
 **Storage**: MMKV (AES-256 encrypted, local-only)
 **Testing**: Bun test runner (`bun:test`); constitution-mandated migration from Jest
@@ -28,16 +30,20 @@ All Phase 0 research is **complete** (`research.md`). Phase 1 design artifacts a
 **Project Type**: Mobile app (React Native + Expo Router, MVVM pattern)
 **Performance Goals**:
   - Tokens/second: +20-50% over baseline (~8-12 t/s → 15-40 t/s)
-  - Time-to-first-token: < 300ms (Phase 2 target); currently 800-1500ms
-  - RAM during inference: < 1.5 GB (Phase 2 target); currently 2.5-4 GB
-  - Crash rate on 4GB RAM: < 1%
+  - Time-to-first-token: < 300ms (Phase 2 target); currently 800-1500ms  
+  - Crash rate on 4GB RAM: < 1%  
+  - **Note**: Constitution mandates app cold start < 2s globally; this feature optimizes model load time (< 5s) which is a component of cold start but not the only factor GB (Phase 2 target); currently 2.5-4 GB  
+  - Crash rate on 4GB RAM: < 1%  
+  - **Note**: Constitution mandates app cold start < 2s globally; this feature optimizes model load time (< 5s) which is a component of cold start but not the only factor
 
 **Constraints**:
   - No network calls; local-only processing (privacy requirement)
   - All user-facing text in pt-BR
   - MVVM: services must not be called directly from components
+  - Android-focused optimization (iOS support secondary); baseline device configurations Android-first
   - `react-native` cannot be imported in test files (use DI interfaces)
   - No `div`/HTML elements; native-only components (`@rn-primitives`)
+  - Android-focused optimization (iOS support secondary); baseline device configurations Android-first
 
 ---
 
@@ -136,18 +142,30 @@ optimized target state:
 |---|-----|---------------|-------------|
 | G1 | `n_threads` uses total cores, not performance cores | `cpuCores` count | `performanceCores - 1` (reserve UI thread) |
 | G2 | `n_batch` is fixed per tier | 64/128/512 static | `min(512, max(128, min(n_ctx/2, RAM*0.3)))` |
-| G3 | `n_predict` hardcoded to 4096 | `options?.maxTokens ?? 4096` | Adaptive: 512/1024/2048 by RAM ratio |
+**Device Tier Boundaries**:
+  - **Budget**: `availableRAM < 5` GB
+  - **Mid-Range**: `availableRAM >= 5 AND availableRAM < 7` GB
+  - **Premium**: `availableRAM >= 7` GB| G3 | `n_predict` hardcoded to 4096 | `options?.maxTokens ?? 4096` | Adaptive: 512/1024/2048 by RAM ratio |
 | G4 | `flash_attn` always enabled | `flash_attn_type: "on", flash_attn: true` | Only on GPU-capable devices; off on CPU-only |
 | G5 | No sampling parameter tuning | Default llama.rn params | `top_k: 40`, `top_p: 0.9`, `min_p: 0.05` |
-
+**Device Tier Boundaries**:
+  - **Budget**: `availableRAM < 5` GB
+  - **Mid-Range**: `availableRAM >= 5 AND availableRAM < 7` GB
+  - **Premium**: `availableRAM >= 7` GB
 ### Important Gaps (Medium Impact)
 
 | # | Gap | Current State | Target State |
 |---|-----|---------------|-------------|
 | G6 | `n_parallel` set to 1 | `context.parallel.enable({ n_parallel: 1 })` | `n_parallel: 0` (single-thread decode, -30% RAM) |
-| G7 | No model warm-up after load | Cold first inference | `warmUp()` call after `initLlama` (-50% first TTFT) |
+| G7 | No model warm-up after load | Cold first inference | `warmUp()` API call after `initLlama` (verify availability first) |
 | G8 | `dry_penalty_last_n` static at 64 | Always 64 | Tier-adaptive: 32 (budget) / 48 (midRange) / 64 (premium) |
-| G9 | GPU backend not typed | `gpuType?: 'adreno' | 'mali' | ...` | Add `gpuBackend?: 'metal' | 'opencl' | 'vulkan' | null` |
+| G9 | GPU backend not typed | `gpuType?: 'adreno' \| 'mali' \| ...` | Add `gpuBackend?: 'metal' \| 'opencl' \| 'vulkan' \| null` |
+
+### Device Tier Boundaries (explicit rules)
+
+- **Budget**: `availableRAM < 5` GB (3-4.99 GB)
+- **Mid-Range**: `availableRAM >= 5 AND availableRAM < 7` GB (5-6.99 GB)
+- **Premium**: `availableRAM >= 7` GB (7+ GB)
 
 ### Advanced Gaps (High Impact / High Effort — Deferred)
 

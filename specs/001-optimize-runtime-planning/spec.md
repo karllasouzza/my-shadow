@@ -31,7 +31,7 @@ Current runtime configuration (`n_ctx: 4096`, `n_gpu_layers: 99`, `use_mlock: tr
 | ------------------------ | ------------------- | -------------------- | --------------------------- |
 | RAM on model load        | ~100% of model size | 40-60% of model size | -50%                        |
 | RAM during inference     | 2-3x model size     | 1.5-2x model size    | -50%                        |
-| Tokens/second throughput | Baseline            | +20-40%              | Measurable gain             |
+| Tokens/second throughput | Baseline            | +20-50%              | Measurable gain             |
 | Model load time (7B)     | Baseline            | < 5 seconds          | Acceptable UX               |
 | Crash rate on 4GB RAM    | X%                  | < 1%                 | Reliability                 |
 | KV cache memory overhead | Unquantized         | -50% via q8_0        | Quality + Memory            |
@@ -41,13 +41,13 @@ Current runtime configuration (`n_ctx: 4096`, `n_gpu_layers: 99`, `use_mlock: tr
 
 ### In Scope
 
-1. **Dynamic Configuration**: Runtime parameters adapted to detected device capabilities
+1. **Dynamic Configuration**: Runtime parameters adapted to detected device capabilities (Android-focused; iOS secondary)
 2. **Memory Mapping (mmap)**: Lazy loading of model weights
-3. **KV Cache Quantization**: q8_0 quantization for key/value tensors
+3. **KV Cache Quantization**: q8_0 quantization for key/value tensors (< 2% perplexity loss validation required)
 4. **Dynamic Batch Sizing**: Context-aware `n_batch` and `n_ubatch` configuration
 5. **GPU Layer Management**: Intelligent fallback to CPU when VRAM insufficient
-6. **Device Detection**: RAM, CPU cores, VRAM capability detection
-7. **Quality Gates**: Benchmarking perplexity and task accuracy degradation
+6. **Device Detection**: RAM, CPU cores, VRAM capability detection (Android priority)
+7. **Quality Gates**: Benchmarking perplexity (< 2%) and task accuracy degradation
 
 ### Out of Scope
 
@@ -160,9 +160,9 @@ Current runtime configuration (`n_ctx: 4096`, `n_gpu_layers: 99`, `use_mlock: tr
 
 ### Quality
 
-- Perplexity degradation: < 2% with q8_0 cache quantization
-- Task accuracy loss: < 3% on GSM8K with Q4_K_M model quantization
-- Reasoning quality: Maintained or improved
+- Perplexity degradation: < 2% with q8_0 cache quantization (validated on Llama 2-7B, Llama 3-8B)
+- Task accuracy loss: < 3% on GSM8K (benchmark) with Q4_K_M model quantization
+- Reasoning quality: Maintained or improved (no degradation vs. FP16 baseline)
 
 ### Constraints
 
