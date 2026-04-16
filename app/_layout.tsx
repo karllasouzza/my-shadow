@@ -1,5 +1,5 @@
 import { ThemeProvider } from "@/context/themes";
-import { DeviceDetector } from "@/shared/ai/device-detector";
+import { detectDevice } from "@/shared/device";
 import { selectDeviceProfile } from "@/shared/ai/device-profiles";
 import { PortalHost } from "@rn-primitives/portal";
 import { Stack } from "expo-router";
@@ -12,10 +12,8 @@ import "../global.css";
 
 export default function RootLayout() {
   useEffect(() => {
-    const detector = new DeviceDetector();
-    detector
-      .detect()
-      .then((info) => {
+    detectDevice()
+      .then((info: any) => {
         const profile = selectDeviceProfile(info);
         console.log(
           `[Device] ${info.totalRAM.toFixed(1)}GB RAM, ${profile.tier} tier, ${info.gpuBackend ?? "CPU-only"}`,
