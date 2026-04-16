@@ -11,6 +11,8 @@ export interface IDeviceInfoProvider {
   getTotalMemory(): Promise<number>;
   getUsedMemory(): Promise<number>;
   getMaxMemory(): Promise<number>;
+  /** Number of CPU cores reported by the device (prefer a native source) */
+  getNumberOfCores(): Promise<number>;
   getBrand(): Promise<string> | string;
   getSystemVersion(): Promise<string> | string;
   getModel(): Promise<string> | string;
@@ -22,13 +24,39 @@ export interface IPlatformProvider {
 
 class DefaultDeviceInfoProvider implements IDeviceInfoProvider {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  private get lib() { return (require("react-native-device-info") as { default: typeof import("react-native-device-info") }).default; }
-  getTotalMemory() { return this.lib.getTotalMemory(); }
-  getUsedMemory() { return this.lib.getUsedMemory(); }
-  getMaxMemory() { return this.lib.getMaxMemory(); }
-  getBrand() { return this.lib.getBrand(); }
-  getSystemVersion() { return this.lib.getSystemVersion(); }
-  getModel() { return this.lib.getModel(); }
+  private get lib() {
+    return (
+      require("react-native-device-info") as {
+        default: typeof import("react-native-device-info");
+      }
+    ).default;
+  }
+  getTotalMemory() {
+    return this.lib.getTotalMemory();
+  }
+  getUsedMemory() {
+    return this.lib.getUsedMemory();
+  }
+  getMaxMemory() {
+    return this.lib.getMaxMemory();
+  }
+  getNumberOfCores() {
+    // react-native-device-info may expose getNumberOfCores as either
+    // a sync number or a promise-returning function depending on platform.
+    // Wrap with Promise.resolve to normalize.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const res = (this.lib as any).getNumberOfCores?.();
+    return Promise.resolve(res ?? 0);
+  }
+  getBrand() {
+    return this.lib.getBrand();
+  }
+  getSystemVersion() {
+    return this.lib.getSystemVersion();
+  }
+  getModel() {
+    return this.lib.getModel();
+  }
 }
 
 export class DeviceDetector {
@@ -41,7 +69,9 @@ export class DeviceDetector {
   ) {
     this.deviceInfo = deviceInfo ?? new DefaultDeviceInfoProvider();
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    this.platform = platformProvider ?? (require("react-native") as { Platform: IPlatformProvider }).Platform;
+    this.platform =
+      platformProvider ??
+      (require("react-native") as { Platform: IPlatformProvider }).Platform;
   }
 
   async detect(): Promise<DeviceInfo> {
@@ -53,7 +83,8 @@ export class DeviceDetector {
     const totalRAM = totalRAMBytes / BYTES_TO_GB;
     const availableRAM = availableRAMBytes / BYTES_TO_GB;
 
-    const cpuCores = await this.detectCpuCores();
+    const { count: cpuCores, method: cpuCoresMethod } =
+      await this.detectCpuCores();
     const cpuBrand = await this.detectCpuBrand();
 
     const { hasGPU, gpuMemoryMB, gpuType, gpuDetectionMethod } =
@@ -78,7 +109,7 @@ export class DeviceDetector {
       detectionMethod: {
         ram: "react-native-device-info",
         gpu: gpuDetectionMethod,
-        cpuCores: "native",
+        cpuCores: cpuCoresMethod,
       },
     };
   }
@@ -95,21 +126,41 @@ export class DeviceDetector {
     try {
       const used = await this.deviceInfo.getUsedMemory();
       const total = await this.deviceInfo.getTotalMemory();
-      const available = Math.max(0, total - used - OS_OVERHEAD_GB * BYTES_TO_GB);
+      const available = Math.max(
+        0,
+        total - used - OS_OVERHEAD_GB * BYTES_TO_GB,
+      );
       return available;
     } catch {
       return 2 * BYTES_TO_GB;
     }
   }
 
-  private async detectCpuCores(): Promise<number> {
+  private async detectCpuCores(): Promise<{ count: number; method: "os.cpus" | "native" }> {
+    // Prefer a native/core-count source exposed via the device info provider
     try {
-      const count = await this.deviceInfo.getMaxMemory();
-      if (typeof count === "number" && count > 0) return Math.min(count, 16);
+      const count = await this.deviceInfo.getNumberOfCores();
+      if (typeof count === "number" && count > 0)
+        return { count: Math.min(count, 16), method: "native" };
+    } catch {
+      // fall through to JS fallback
+    }
+
+    // Fallback to Node/JS os.cpus() when available (tests / non-native envs)
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const os = require("os");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cpus = (os as any).cpus?.();
+      const count = cpus?.length ?? 0;
+      if (typeof count === "number" && count > 0)
+        return { count: Math.min(count, 16), method: "os.cpus" };
     } catch {
       // fall through
     }
-    return 4;
+
+    // Final safe default
+    return { count: 4, method: "native" };
   }
 
   private async detectCpuBrand(): Promise<CpuBrand> {
@@ -119,8 +170,7 @@ export class DeviceDetector {
       if (brand.includes("qualcomm") || brand.includes("snapdragon"))
         return "snapdragon";
       if (brand.includes("exynos")) return "exynos";
-      if (brand.includes("helio") || brand.includes("mediatek"))
-        return "helio";
+      if (brand.includes("helio") || brand.includes("mediatek")) return "helio";
     } catch {
       // fall through
     }

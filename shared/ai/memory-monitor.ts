@@ -15,9 +15,19 @@ export interface IMemoryInfoProvider {
 
 class DefaultMemoryInfoProvider implements IMemoryInfoProvider {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  private get lib() { return (require("react-native-device-info") as { default: typeof import("react-native-device-info") }).default; }
-  getTotalMemory() { return this.lib.getTotalMemory(); }
-  getUsedMemory() { return this.lib.getUsedMemory(); }
+  private get lib() {
+    return (
+      require("react-native-device-info") as {
+        default: typeof import("react-native-device-info");
+      }
+    ).default;
+  }
+  getTotalMemory() {
+    return this.lib.getTotalMemory();
+  }
+  getUsedMemory() {
+    return this.lib.getUsedMemory();
+  }
 }
 
 export class MemoryMonitor {
@@ -49,9 +59,8 @@ export class MemoryMonitor {
   async evaluate(): Promise<MemoryPressure> {
     const [totalRAM, usedRAM] = await this.readRAWBytes();
     const availableRAM = Math.max(0, totalRAM - usedRAM);
-    const utilizationPercent = totalRAM > 0
-      ? Math.round((usedRAM / totalRAM) * 100)
-      : 0;
+    const utilizationPercent =
+      totalRAM > 0 ? Math.round((usedRAM / totalRAM) * 100) : 0;
     const criticalLevel = utilizationPercent > CRITICAL_UTILIZATION_THRESHOLD;
 
     const nBatch = this.currentConfig?.n_batch ?? 64;
@@ -85,19 +94,23 @@ export class MemoryMonitor {
   }
 
   onAppBackground(): void {
-    this.evaluate().then((pressure) => {
-      if (pressure.criticalLevel && this.unloadModelFn) {
-        void this.unloadModelFn();
-      }
-    }).catch(() => {});
+    this.evaluate()
+      .then((pressure) => {
+        if (pressure.criticalLevel && this.unloadModelFn) {
+          void this.unloadModelFn();
+        }
+      })
+      .catch(() => {});
   }
 
   onAppForeground(): void {
-    this.evaluate().then((pressure) => {
-      if (pressure.canRunInference && this.reloadModelFn) {
-        void this.reloadModelFn();
-      }
-    }).catch(() => {});
+    this.evaluate()
+      .then((pressure) => {
+        if (pressure.canRunInference && this.reloadModelFn) {
+          void this.reloadModelFn();
+        }
+      })
+      .catch(() => {});
   }
 
   onMemoryWarning(callback: MemoryWarningCallback): void {
@@ -106,7 +119,8 @@ export class MemoryMonitor {
 
   attachAppLifecycle(): void {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { AppState } = require("react-native") as typeof import("react-native");
+    const { AppState } =
+      require("react-native") as typeof import("react-native");
     this.appStateSubscription = AppState.addEventListener(
       "change",
       this.handleAppStateChange.bind(this),

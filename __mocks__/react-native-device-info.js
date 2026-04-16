@@ -4,6 +4,7 @@ const mock = {
   getTotalMemory: () => Promise.resolve(FOUR_GB),
   getUsedMemory: () => Promise.resolve(TWO_GB),
   getMaxMemory: () => Promise.resolve(8),
+  getNumberOfCores: () => Promise.resolve(8),
   getBrand: () => Promise.resolve("Qualcomm"),
   getSystemVersion: () => Promise.resolve("12.0"),
   getModel: () => Promise.resolve("Pixel 4a"),

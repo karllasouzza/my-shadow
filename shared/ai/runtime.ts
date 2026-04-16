@@ -10,6 +10,7 @@ import { initLlama, loadLlamaModelInfo } from "llama.rn";
 import { findModelById } from "./catalog";
 import { DeviceDetector } from "./device-detector";
 import { MemoryMonitor } from "./memory-monitor";
+import { isLikelyOOMError } from "./oom-detection";
 import { calculateMetrics, GenerationMetrics } from "./metrics";
 import { RuntimeConfigGenerator } from "./runtime-config-generator";
 import type { ChatMessage } from "./types/chat";
@@ -192,7 +193,7 @@ export class AIRuntime {
       // Only attempt the automatic degraded-config reload when the failure
       // appears to be an out-of-memory condition coming from llama.rn.
       // Otherwise return the original error to avoid masking non-OOM failures.
-      const isOOM = this.isLikelyOOMError(error);
+      const isOOM = isLikelyOOMError(error);
       const pressure = await this.memoryMonitor.evaluate().catch(() => null);
 
       if (

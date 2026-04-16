@@ -1,4 +1,8 @@
-import type { DeviceInfo, DeviceProfile, DeviceTier } from "@/shared/types/device";
+import type {
+    DeviceInfo,
+    DeviceProfile,
+    DeviceTier,
+} from "@/shared/types/device";
 
 const budgetProfile: DeviceProfile = {
   tier: "budget",

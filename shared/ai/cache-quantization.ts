@@ -41,7 +41,10 @@ export function resolveCacheType(
   return requested;
 }
 
-export function buildCacheQuantizationParams(cacheTypeK: CacheType, cacheTypeV: CacheType): {
+export function buildCacheQuantizationParams(
+  cacheTypeK: CacheType,
+  cacheTypeV: CacheType,
+): {
   cache_type_k: string;
   cache_type_v: string;
 } {
