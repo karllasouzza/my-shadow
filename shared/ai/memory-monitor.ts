@@ -1,4 +1,4 @@
-import type { MemoryPressure, RuntimeConfig } from "@/shared/types/device";
+import type { MemoryPressure, RuntimeConfig } from "@/shared/device/types";
 
 const BYTES_TO_GB = 1024 ** 3;
 const CRITICAL_UTILIZATION_THRESHOLD = 85;

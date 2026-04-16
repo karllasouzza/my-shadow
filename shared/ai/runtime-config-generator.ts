@@ -2,7 +2,7 @@ import type {
     CacheType,
     DeviceInfo,
     RuntimeConfig,
-} from "@/shared/types/device";
+} from "@/shared/device/types";
 import { selectDeviceProfile } from "./device-profiles";
 
 const VALID_CACHE_TYPES: CacheType[] = ["f16", "q8_0", "q4_0"];
@@ -105,12 +105,20 @@ export class RuntimeConfigGenerator {
     const base: RuntimeConfig = {
       ...profile.config,
       model: modelPath,
+      n_ctx: profile.config.n_ctx ?? 2048,
+      n_batch: profile.config.n_batch ?? 128,
+      n_threads: profile.config.n_threads ?? 4,
+      n_gpu_layers: profile.config.n_gpu_layers ?? 0,
+      use_mmap: profile.config.use_mmap ?? true,
+      use_mlock: profile.config.use_mlock ?? false,
+      cache_type_k: profile.config.cache_type_k ?? "q4_0",
+      cache_type_v: profile.config.cache_type_v ?? "q4_0",
     };
 
     base.n_threads = this.generateThreadCount(deviceInfo);
     base.n_gpu_layers = this.calculateGpuLayers(
       deviceInfo,
-      profile.config.n_gpu_layers,
+      base.n_gpu_layers,
     );
 
     const merged: RuntimeConfig = overrides

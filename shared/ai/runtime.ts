@@ -1,8 +1,8 @@
-import type { DeviceInfo, RuntimeConfig } from "@/shared/types/device";
+import type { DeviceInfo, RuntimeConfig } from "@/shared/device/types";
+import { detectDevice } from "@/shared/device";
 import { createError, err, ok, Result } from "@/shared/utils/app-error";
 import { initLlama, LlamaContext, loadLlamaModelInfo } from "llama.rn";
 import { findModelById } from "./catalog";
-import { DeviceDetector } from "./device-detector";
 import { MemoryMonitor } from "./memory-monitor";
 import { isLikelyOOMError } from "./oom-detection";
 import { RuntimeConfigGenerator } from "./runtime-config-generator";
@@ -20,7 +20,6 @@ export class AIRuntime {
   private model: LoadedModel | null = null;
   private context: LlamaContext | null = null;
   private stop: (() => Promise<void>) | null = null;
-  private readonly deviceDetector = new DeviceDetector();
   private readonly configGenerator = new RuntimeConfigGenerator();
   private readonly memoryMonitor = new MemoryMonitor();
   private lastModelPath: string | null = null;
@@ -357,7 +356,7 @@ export class AIRuntime {
     modelPath: string,
     overrides?: Partial<RuntimeConfig>,
   ): Promise<{ runtimeConfig: RuntimeConfig; deviceInfo: DeviceInfo }> {
-    const deviceInfo = await this.deviceDetector.detect();
+    const deviceInfo = await detectDevice();
     const runtimeConfig = this.configGenerator.generateRuntimeConfig(
       deviceInfo,
       modelPath,

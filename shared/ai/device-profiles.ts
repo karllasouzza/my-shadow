@@ -2,7 +2,7 @@ import type {
     DeviceInfo,
     DeviceProfile,
     DeviceTier,
-} from "@/shared/types/device";
+} from "@/shared/device/types";
 
 const budgetProfile: DeviceProfile = {
   tier: "budget",
@@ -121,14 +121,14 @@ export function selectDeviceProfile(deviceInfo: DeviceInfo): DeviceProfile {
   const base = deviceProfiles[tier];
 
   const config = { ...base.config };
-  config.n_threads = Math.min(config.n_threads, deviceInfo.cpuCores);
+  config.n_threads = Math.min(config.n_threads ?? 4, deviceInfo.cpuCores);
 
   if (tier === "midRange" && !deviceInfo.hasGPU) {
     config.n_gpu_layers = 0;
   }
 
   if (deviceInfo.gpuMemoryMB !== undefined && deviceInfo.gpuMemoryMB < 1000) {
-    config.n_gpu_layers = Math.min(config.n_gpu_layers, 20);
+    config.n_gpu_layers = Math.min(config.n_gpu_layers ?? 50, 20);
   }
 
   return { ...base, config };
