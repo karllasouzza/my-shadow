@@ -98,12 +98,9 @@ My Shadow automatically adapts to your device's hardware. No configuration neede
 ### Key Optimizations
 
 - **40–50% RAM reduction** via KV cache quantization (q8_0) on budget/mid-range devices
-- **Crash rate reduced from ~35% → <1%** on 4 GB devices through adaptive context sizing
-- **+20–50% throughput** via performance-core threading and adaptive batch sizing
-- **-50% first-inference latency** with post-load model warm-up
+- **Crash rate reduced from ~35% → ~3%** on 4 GB devices through adaptive context sizing
 - **Automatic OOM fallback**: if inference fails due to memory pressure, context is halved and retried automatically
 - **mmap model loading** on budget devices reduces cold-start memory by 40–60%
-- **3 GB+ device support** (previously required 6 GB+)
 
 ### Transparent by Default
 

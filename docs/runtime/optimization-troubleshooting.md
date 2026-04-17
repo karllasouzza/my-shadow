@@ -65,7 +65,6 @@ const mockProvider: IDeviceInfoProvider = {
   getTotalMemory: () => Promise.resolve(4 * 1024 ** 3), // 4 GB
   getUsedMemory: () => Promise.resolve(0.8 * 1024 ** 3),
   getMaxMemory: () => Promise.resolve(8),
-  getNumberOfCores: () => Promise.resolve(8),
   getBrand: () => "Qualcomm",
   getSystemVersion: () => "12.0",
   getModel: () => "Pixel 4a",

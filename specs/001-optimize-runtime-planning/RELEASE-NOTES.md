@@ -15,10 +15,7 @@ Adaptive runtime configuration for `llama.rn` inference. The app now supports 3�
 ## Key Benefits
 
 - **40–50% RAM reduction** during inference via KV cache quantization (q8_0)
-- **Crash rate reduced from ~35% → <1%** on 4 GB Android devices
-- **+20–50% throughput** via performance-core threading and adaptive batch sizing
-- **-50% first-inference latency** with post-load model warm-up
-- **3 GB+ device support** (previously required 6 GB+)
+- **Crash rate reduced from ~35% → ~3%** on 4 GB Android devices
 - **Transparent optimization** — all existing API calls are unchanged
 - **Automatic OOM recovery** — context is halved and retried without user intervention
 
@@ -45,8 +42,8 @@ Adaptive runtime configuration for `llama.rn` inference. The app now supports 3�
 
 | Directory            | Tests               | Notes                                                  |
 | -------------------- | ------------------- | ------------------------------------------------------ |
-| `tests/unit/`        | 92                  | Device detection, config generation, memory monitoring |
-| `tests/integration/` | 44                  | JSON schema validation, adaptive field validation      |
+| `tests/unit/`        | 57                  | Device detection, config generation, memory monitoring |
+| `tests/integration/` | 41                  | JSON schema validation, model loading across tiers     |
 | `tests/e2e/`         | 10 (3 pass, 7 skip) | Skips require MODEL_PATH env var                       |
 | `tests/performance/` | 17                  | Config latency < 50ms, memory math, crash simulation   |
 
@@ -84,13 +81,3 @@ Adaptive runtime configuration for `llama.rn` inference. The app now supports 3�
 - No device data leaves the device — all inference is local
 - Memory readings are used only for runtime optimization decisions, never logged to external services
 - No new network calls added by this feature
-
-## Infrastructure Changes
-
-### Test Runner Migration: Jest → Bun
-
-- Removed `jest.config.js` and Jest dependencies (`@testing-library/jest-native`, `@types/jest`)
-- All test files import from `bun:test` (not Jest)
-- Test script: `bun test` (configured via `bunfig.toml`)
-- Coverage: 80%+ lines in `shared/ai/` services
-- Total: 155 passing tests, 0 failures across unit/integration/performance suites

@@ -1,11 +1,8 @@
 # my-shadow Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-04-16
+Auto-generated from all feature plans. Last updated: 2026-04-15
 
 ## Active Technologies
-
-- TypeScript 5.x (strict mode, zero `any`) / React Native 0.76+ / Expo SDK 52 + `llama.rn` (llama.cpp bindings), `react-native-device-info`, `expo-router` (001-optimize-runtime-planning)
-- MMKV (AES-256 encrypted, local-only) (001-optimize-runtime-planning)
 
 - TypeScript (React Native / Expo Router) + `llama.rn` (llama.cpp bindings), `@react-native`, `expo-router` (001-optimize-runtime-planning)
 
@@ -18,22 +15,13 @@ tests/
 
 ## Commands
 
-**Test Runner Migration**: Test infrastructure migrated from Jest to Bun (001-optimize-runtime-planning)
-
-- Run tests: `bun test tests/**/*.test.ts`
-- Run with coverage: `bun test tests/**/*.test.ts --coverage`
-- All test files must use `bun:test` imports (not `jest`)
-- Old jest.config.js is deprecated; Bun configuration lives in bunfig.toml
-
-Legacy (pre-001): `npm test && npm run lint`
+npm test && npm run lint
 
 ## Code Style
 
 TypeScript (React Native / Expo Router): Follow standard conventions
 
 ## Recent Changes
-
-- 001-optimize-runtime-planning: Added TypeScript 5.x (strict mode, zero `any`) / React Native 0.76+ / Expo SDK 52 + `llama.rn` (llama.cpp bindings), `react-native-device-info`, `expo-router`
 
 - 001-optimize-runtime-planning: Added TypeScript (React Native / Expo Router) + `llama.rn` (llama.cpp bindings), `@react-native`, `expo-router`
 
