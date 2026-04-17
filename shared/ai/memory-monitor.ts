@@ -36,6 +36,7 @@ export class MemoryMonitor {
   private unloadModelFn: (() => Promise<void>) | null = null;
   private reloadModelFn: (() => Promise<void>) | null = null;
   private appStateSubscription: { remove(): void } | null = null;
+  private monitoringInterval: ReturnType<typeof setInterval> | null = null;
   private readonly memoryProvider: IMemoryInfoProvider;
 
   constructor(memoryProvider?: IMemoryInfoProvider) {
@@ -134,6 +135,34 @@ export class MemoryMonitor {
   detachAppLifecycle(): void {
     this.appStateSubscription?.remove();
     this.appStateSubscription = null;
+  }
+
+  startMonitoring(onCritical?: MemoryWarningCallback): void {
+    if (onCritical) {
+      this.onWarningCallback = onCritical;
+    }
+    if (this.monitoringInterval) return;
+
+    this.monitoringInterval = setInterval(() => {
+      this.evaluate()
+        .then((pressure) => {
+          if (pressure.criticalLevel) {
+            this.onWarningCallback?.(pressure);
+          }
+        })
+        .catch(() => {});
+    }, 5000);
+  }
+
+  stopMonitoring(): void {
+    if (this.monitoringInterval) {
+      clearInterval(this.monitoringInterval);
+      this.monitoringInterval = null;
+    }
+  }
+
+  getPressure(): null {
+    return null;
   }
 
   private handleAppStateChange(state: string): void {

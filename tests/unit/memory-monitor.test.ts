@@ -194,3 +194,42 @@ describe("MemoryMonitor.evaluate() recommendedBatch", () => {
     );
   });
 });
+
+describe("MemoryMonitor.startMonitoring() / stopMonitoring()", () => {
+  test("T070: startMonitoring registers critical callback invoked by evaluate()", async () => {
+    const monitor = new MemoryMonitor(makeMemoryProvider(4, 3.6));
+    let called = false;
+    monitor.startMonitoring((p) => {
+      called = true;
+      expect(p.criticalLevel).toBe(true);
+    });
+    const pressure = await monitor.evaluate();
+    expect(pressure.criticalLevel).toBe(true);
+    monitor.stopMonitoring();
+    expect(called).toBe(true);
+  });
+
+  test("T071: callback is NOT invoked when memory is not critical", async () => {
+    const monitor = new MemoryMonitor(makeMemoryProvider(4, 2));
+    let called = false;
+    monitor.startMonitoring(() => {
+      called = true;
+    });
+    await monitor.evaluate();
+    monitor.stopMonitoring();
+    expect(called).toBe(false);
+  });
+
+  test("T072: stopMonitoring clears the interval (double stop is safe)", () => {
+    const monitor = new MemoryMonitor(makeMemoryProvider(4, 2));
+    monitor.startMonitoring();
+    monitor.stopMonitoring();
+    expect(() => monitor.stopMonitoring()).not.toThrow();
+  });
+
+  test("getPressure returns null before any evaluation", () => {
+    const monitor = new MemoryMonitor(makeMemoryProvider(4, 2));
+    expect(monitor.getPressure()).toBeNull();
+  });
+});
+

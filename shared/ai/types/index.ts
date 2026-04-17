@@ -83,4 +83,7 @@ export interface IntegrityResult {
   calculatedHash: string;
   expectedHash?: string;
   matches: boolean;
+  filePath: string;
+  fileSize: number;
+  verifiedAt: number;
 }
