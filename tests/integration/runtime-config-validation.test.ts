@@ -1,5 +1,5 @@
 import { RuntimeConfigGenerator } from "@/shared/ai/runtime-config-generator";
-import type { RuntimeConfig } from "@/shared/device/types";
+import type { RuntimeConfig } from "@/shared/ai/types";
 import {
     mockBudgetDevice,
     mockMidRangeDevice,

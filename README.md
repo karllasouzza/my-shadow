@@ -123,20 +123,20 @@ The `shared/ai` and `shared/device` modules implement the runtime optimization p
 
 ### Modules
 
-| Module | Location | Responsibility |
-|--------|----------|----------------|
-| `DeviceDetector` | `shared/device` | Detects device capabilities: total RAM, available RAM (after OS overhead), CPU cores, GPU backend |
-| `RuntimeConfigGenerator` | `shared/ai/runtime-config-generator` | Generates optimal llama.rn config (n_ctx, n_threads, gpu_layers, flash_attn) from device profile |
-| `MemoryMonitor` | `shared/ai/memory-monitor` | Monitors runtime memory pressure; triggers callback at >85% utilization |
-| `model-budget` | `shared/ai/model-budget` | `calculateMemoryBudget`, `preflightCheck`, `verifyIntegrity` — pure RAM math + optional SHA-256 |
+| Module                   | Location                             | Responsibility                                                                                    |
+| ------------------------ | ------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| `DeviceDetector`         | `shared/device`                      | Detects device capabilities: total RAM, available RAM (after OS overhead), CPU cores, GPU backend |
+| `RuntimeConfigGenerator` | `shared/ai/runtime-config-generator` | Generates optimal llama.rn config (n_ctx, n_threads, gpu_layers, flash_attn) from device profile  |
+| `MemoryMonitor`          | `shared/ai/memory-monitor`           | Monitors runtime memory pressure; triggers callback at >85% utilization                           |
+| `model-budget`           | `shared/ai/model-budget`             | `calculateMemoryBudget`, `preflightCheck`, `verifyIntegrity` — pure RAM math + optional SHA-256   |
 
 ### Device Tiers
 
-| Tier | Available RAM | KV Cache | GPU |
-|------|--------------|----------|-----|
-| Budget | < 5 GB | q8_0 (50% reduction) | CPU-only |
-| Mid-Range | 5–7 GB | q8_0 | 50 GPU layers |
-| Premium | ≥ 7 GB | f16 (full precision) | Full GPU offload |
+| Tier      | Available RAM | KV Cache             | GPU              |
+| --------- | ------------- | -------------------- | ---------------- |
+| Budget    | < 5 GB        | q8_0 (50% reduction) | CPU-only         |
+| Mid-Range | 5–7 GB        | q8_0                 | 50 GPU layers    |
+| Premium   | ≥ 7 GB        | f16 (full precision) | Full GPU offload |
 
 ### GPU Backends
 

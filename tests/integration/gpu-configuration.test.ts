@@ -1,13 +1,12 @@
-import { DeviceDetector } from "@/shared/device/detector";
 import {
-  RuntimeConfigGenerator,
-  selectGpuBackend,
-  probeGpuBackend,
+    probeGpuBackend,
+    selectGpuBackend,
 } from "@/shared/ai/runtime-config-generator";
 import type {
-  IDeviceInfoProvider,
-  IPlatformProvider,
+    IDeviceInfoProvider,
+    IPlatformProvider,
 } from "@/shared/device/adapters";
+import { DeviceDetector } from "@/shared/device/detector";
 import { describe, expect, test } from "bun:test";
 
 const GB = 1024 ** 3;
@@ -37,12 +36,20 @@ function makePlatform(os: "ios" | "android"): IPlatformProvider {
 // T049: Snapdragon Android 13+ → Vulkan → probe → config with GPU layers
 describe("T049: Snapdragon device (Android 13+) full GPU pipeline", () => {
   test("selectGpuBackend returns Vulkan for Android 13+ Snapdragon", () => {
-    const backend = selectGpuBackend("13.0", "Qualcomm Snapdragon 8 Gen 3", "android");
+    const backend = selectGpuBackend(
+      "13.0",
+      "Qualcomm Snapdragon 8 Gen 3",
+      "android",
+    );
     expect(backend).toBe("Vulkan");
   });
 
   test("probeGpuBackend returns true for Vulkan (simulated success)", async () => {
-    const backend = selectGpuBackend("13.0", "Qualcomm Snapdragon 8 Gen 3", "android");
+    const backend = selectGpuBackend(
+      "13.0",
+      "Qualcomm Snapdragon 8 Gen 3",
+      "android",
+    );
     const available = await probeGpuBackend(backend);
     expect(available).toBe(true);
   });
@@ -109,7 +116,11 @@ describe("T050: GPU probe fallback behavior", () => {
   });
 
   test("OpenCL device without Snapdragon falls back gracefully", async () => {
-    const backend = selectGpuBackend("12.0", "MediaTek Dimensity 9200", "android");
+    const backend = selectGpuBackend(
+      "12.0",
+      "MediaTek Dimensity 9200",
+      "android",
+    );
     expect(backend).toBe("OpenCL");
 
     const probeResult = await probeGpuBackend(backend);

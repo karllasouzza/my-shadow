@@ -21,7 +21,10 @@ const detector = new DeviceDetector();
 const generator = new RuntimeConfigGenerator();
 
 const deviceInfo = await detector.detect();
-const config = generator.generateRuntimeConfig(deviceInfo, "/path/to/model.gguf");
+const config = generator.generateRuntimeConfig(
+  deviceInfo,
+  "/path/to/model.gguf",
+);
 // { n_ctx: 2048, n_batch: 512, n_threads: 6, gpu_layers: 35,
 //   cache_type_k: "q8_0", flash_attn: true }
 ```
@@ -29,14 +32,17 @@ const config = generator.generateRuntimeConfig(deviceInfo, "/path/to/model.gguf"
 ## Memory Budget & Preflight Check
 
 ```typescript
-import { calculateMemoryBudget, preflightCheck } from "@/shared/ai/model-budget";
+import {
+  calculateMemoryBudget,
+  preflightCheck,
+} from "@/shared/ai/model-budget";
 
 // Pure calculation (no filesystem access)
 const budget = calculateMemoryBudget(
-  4.2,    // model size in GB
-  2048,   // context window
+  4.2, // model size in GB
+  2048, // context window
   "q8_0", // KV cache quantization
-  5.5,    // available RAM in GB
+  5.5, // available RAM in GB
 );
 // { requiredGB: 5.42, availableGB: 5.5, sufficient: true, breakdown: {...} }
 

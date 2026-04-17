@@ -1,8 +1,5 @@
-import type {
-    CacheType,
-    DeviceInfo,
-    RuntimeConfig,
-} from "@/shared/device/types";
+import type { DeviceInfo, RuntimeConfig } from "@/shared/ai/types";
+import type { CacheType } from "@/shared/device/types";
 import { selectDeviceProfile } from "./device-profiles";
 
 const VALID_CACHE_TYPES: CacheType[] = ["f16", "q8_0", "q4_0"];
@@ -175,9 +172,9 @@ export class RuntimeConfigGenerator {
     }
 
     merged.flash_attn =
-      deviceInfo.platform === "ios" &&
+      deviceInfo.platform === "iOS" &&
       deviceInfo.hasGPU &&
-      deviceInfo.gpuBackend === "metal";
+      deviceInfo.gpuBackend === "Metal";
 
     return merged;
   }

@@ -1,5 +1,6 @@
-import { detectDevice } from "@/shared/device";
-import type { DeviceInfo, RuntimeConfig } from "@/shared/device/types";
+import { DeviceDetector } from "@/shared/device";
+import type { DeviceInfo } from "@/shared/ai/types";
+import type { RuntimeConfig } from "@/shared/device/types";
 import { createError, err, ok, Result } from "@/shared/utils/app-error";
 import { initLlama, LlamaContext, loadLlamaModelInfo } from "llama.rn";
 import { findModelById } from "./catalog";
@@ -46,11 +47,11 @@ export class AIRuntime {
         optionalOverrideConfig,
       );
 
-      const hasGPU = deviceInfo.hasGPU && deviceInfo.gpuBackend !== null;
+      const hasGPU = deviceInfo.hasGPU && deviceInfo.gpuBackend !== "none";
       this.context = await initLlama({
         ...runtimeConfig,
         flash_attn: hasGPU,
-        flash_attn_type: deviceInfo.gpuBackend === "metal" ? "on" : "auto",
+        flash_attn_type: deviceInfo.gpuBackend === "Metal" ? "on" : "auto",
       });
 
       this.lastModelPath = path;
@@ -357,7 +358,7 @@ export class AIRuntime {
     modelPath: string,
     overrides?: Partial<RuntimeConfig>,
   ): Promise<{ runtimeConfig: RuntimeConfig; deviceInfo: DeviceInfo }> {
-    const deviceInfo = await detectDevice();
+    const deviceInfo = await new DeviceDetector().detect();
     const runtimeConfig = this.configGenerator.generateRuntimeConfig(
       deviceInfo,
       modelPath,

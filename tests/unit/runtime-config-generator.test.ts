@@ -381,7 +381,7 @@ describe("RuntimeConfigGenerator.validateCacheConfig", () => {
 
   test("flash_attn disabled on CPU-only devices", () => {
     const device = mockBudgetDevice();
-    expect(device.gpuBackend).toBeNull();
+    expect(device.gpuBackend).toBe("none");
   });
 });
 

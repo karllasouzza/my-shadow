@@ -1,23 +1,14 @@
-import type { DeviceInfo, MemoryPressure } from "@/shared/device/types";
-import type { DeviceInfo as NewDeviceInfo } from "@/shared/ai/types";
+import type { DeviceInfo } from "@/shared/ai/types";
+import type { MemoryPressure } from "@/shared/device/types";
 
-/** Default CPU cores for test device simulations */
-const DEFAULT_CPU_CORES = 8;
-
-export function mockDeviceInfo(
-  overrides: Partial<DeviceInfo> = {},
-): DeviceInfo {
+export function mockDeviceInfo(overrides?: Partial<DeviceInfo>): DeviceInfo {
   return {
     totalRAM: 4,
-    availableRAM: 3.2,
-    cpuCores: DEFAULT_CPU_CORES,
-    cpuBrand: "snapdragon",
-    performanceCores: 3,
+    availableRAM: 2,
+    cpuCores: 8,
     hasGPU: false,
-    gpuMemoryMB: undefined,
-    gpuType: undefined,
-    gpuBackend: null,
-    platform: "android",
+    gpuBackend: "none",
+    platform: "Android",
     osVersion: "12.0",
     deviceModel: "Pixel 4a",
     detectedAt: Date.now(),
@@ -29,12 +20,10 @@ export function mockDeviceInfo(
 export function mockBudgetDevice(): DeviceInfo {
   return mockDeviceInfo({
     totalRAM: 4,
-    availableRAM: 3.2,
+    availableRAM: 2,
     cpuCores: 4,
-    performanceCores: 2,
     hasGPU: false,
-    gpuMemoryMB: undefined,
-    gpuBackend: null,
+    gpuBackend: "none",
     deviceModel: "Pixel 4a",
   });
 }
@@ -42,14 +31,11 @@ export function mockBudgetDevice(): DeviceInfo {
 /** 6 GB Android mid-range device */
 export function mockMidRangeDevice(): DeviceInfo {
   return mockDeviceInfo({
-    totalRAM: 6,
-    availableRAM: 5.2,
+    totalRAM: 8,
+    availableRAM: 5.5,
     cpuCores: 6,
-    performanceCores: 3,
     hasGPU: true,
-    gpuMemoryMB: 1500,
-    gpuType: "adreno",
-    gpuBackend: "opencl",
+    gpuBackend: "OpenCL",
     deviceModel: "Samsung Galaxy A52",
   });
 }
@@ -57,35 +43,26 @@ export function mockMidRangeDevice(): DeviceInfo {
 /** 8 GB iOS premium device */
 export function mockPremiumDevice(): DeviceInfo {
   return mockDeviceInfo({
-    totalRAM: 8,
-    availableRAM: 7.1,
+    totalRAM: 12,
+    availableRAM: 8,
     cpuCores: 8,
-    performanceCores: 4,
-    cpuBrand: "bionic",
     hasGPU: true,
-    gpuMemoryMB: 8192,
-    gpuType: "metal",
-    gpuBackend: "metal",
-    platform: "ios",
+    gpuBackend: "Metal",
+    platform: "iOS",
     osVersion: "17.3.1",
     deviceModel: "iPhone15,2",
+    gpuBrand: "Apple",
   });
 }
 
-/** Simulate high memory pressure (70% utilization) */
+/** Device with high memory pressure (70% utilization) */
 export function mockHighPressureDevice(): DeviceInfo {
-  return mockDeviceInfo({
-    totalRAM: 4,
-    availableRAM: 1.2,
-  });
+  return mockDeviceInfo({ totalRAM: 4, availableRAM: 1.2 });
 }
 
-/** Simulate critically low available RAM (<1.5 GB) */
+/** Device with critically low available RAM (<1.5 GB) */
 export function mockCriticalPressureDevice(): DeviceInfo {
-  return mockDeviceInfo({
-    totalRAM: 4,
-    availableRAM: 0.8,
-  });
+  return mockDeviceInfo({ totalRAM: 4, availableRAM: 0.8 });
 }
 
 /** Simulate MemoryPressure at a given utilization percent */
@@ -110,42 +87,4 @@ export function simulateMemoryPressure(percent: number): MemoryPressure {
     ),
     sampledAt: Date.now(),
   };
-}
-
-// ---------------------------------------------------------------------------
-// New DeviceInfo helpers (shared/ai/types - Sprint 2+)
-// ---------------------------------------------------------------------------
-
-export function mockNewDeviceInfo(overrides?: Partial<NewDeviceInfo>): NewDeviceInfo {
-  return {
-    totalRAM: 4,
-    availableRAM: 2,
-    cpuCores: 8,
-    hasGPU: false,
-    gpuBackend: "none",
-    platform: "Android",
-    osVersion: "12.0",
-    deviceModel: "Pixel 4a",
-    detectedAt: Date.now(),
-    ...overrides,
-  };
-}
-
-export function mockNewBudgetDevice(): NewDeviceInfo {
-  return mockNewDeviceInfo({ totalRAM: 4, availableRAM: 2, hasGPU: false, gpuBackend: "none" });
-}
-
-export function mockNewMidRangeDevice(): NewDeviceInfo {
-  return mockNewDeviceInfo({ totalRAM: 8, availableRAM: 5.5, hasGPU: true, gpuBackend: "OpenCL" });
-}
-
-export function mockNewPremiumDevice(): NewDeviceInfo {
-  return mockNewDeviceInfo({
-    totalRAM: 12,
-    availableRAM: 8,
-    hasGPU: true,
-    gpuBackend: "Metal",
-    platform: "iOS",
-    gpuBrand: "Apple",
-  });
 }

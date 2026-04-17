@@ -1,24 +1,11 @@
-import { createRNAdapter } from "./adapters";
-import { buildRuntimeConfig } from "./config-builder";
-import { detectCapabilities, DeviceDetector } from "./detector";
-import { DeviceInfo, RuntimeConfig } from "./types";
+import type { DeviceInfo } from "@/shared/ai/types";
+import { DeviceDetector } from "./detector";
 
-export { DeviceDetector };
 export type {
-  IDeviceInfoProvider,
-  IPlatformProvider,
-  IMemoryInfoProvider,
+  IDeviceInfoProvider, IMemoryInfoProvider, IPlatformProvider
 } from "./adapters";
+export { DeviceDetector };
 
 export async function detectDevice(): Promise<DeviceInfo> {
-  const adapter = createRNAdapter();
-  return detectCapabilities(adapter);
-}
-
-export function configureModel(
-  deviceInfo: DeviceInfo,
-  modelPath: string,
-  overrides?: Partial<RuntimeConfig>,
-): RuntimeConfig {
-  return buildRuntimeConfig(deviceInfo, modelPath, overrides);
+  return new DeviceDetector().detect();
 }

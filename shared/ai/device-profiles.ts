@@ -1,5 +1,5 @@
+import type { DeviceInfo } from "@/shared/ai/types";
 import type {
-    DeviceInfo,
     DeviceProfile,
     DeviceTier,
 } from "@/shared/device/types";

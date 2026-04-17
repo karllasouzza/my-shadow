@@ -1,5 +1,3 @@
-import { resolveCpuProfile, resolveGpuProfile } from "./hardware-database";
-import { DetectionDeps, DeviceInfo } from "./types";
 import {
   DefaultDeviceInfoProvider,
   DefaultPlatformProvider,
@@ -10,51 +8,6 @@ import type { DeviceInfo as AiDeviceInfo } from "@/shared/ai/types";
 import { selectGpuBackend } from "@/shared/ai/runtime-config-generator";
 
 export const BYTES_TO_GB = 1024 ** 3;
-// Legacy constant kept for the deprecated detectCapabilities() function.
-// The DeviceDetector class uses per-platform values below.
-export const OS_OVERHEAD_BYTES = 0.8 * BYTES_TO_GB;
-
-/**
- * @deprecated Use DeviceDetector class with DI providers instead.
- * This function uses the old DetectionDeps interface and returns the old DeviceInfo type.
- */
-export async function detectCapabilities(
-  deps: DetectionDeps,
-): Promise<DeviceInfo> {
-  const state = await deps.getSystemState();
-
-  const totalRAM = state.totalRAMBytes / BYTES_TO_GB;
-  const availableRAM =
-    Math.max(0, state.totalRAMBytes - state.usedRAMBytes - OS_OVERHEAD_BYTES) /
-    BYTES_TO_GB;
-
-  const cpuProfile = resolveCpuProfile(state.brand);
-  const gpuProfile = resolveGpuProfile(deps.platform, state.brand);
-
-  const performanceCores = Math.max(
-    2,
-    Math.ceil(state.cpuCores * cpuProfile.performanceCoreRatio),
-  );
-  const gpuMemoryMB = Math.round(
-    (state.totalRAMBytes * gpuProfile.vramFraction) / (1024 * 1024),
-  );
-
-  return {
-    totalRAM,
-    availableRAM,
-    cpuCores: Math.min(state.cpuCores, 16),
-    performanceCores: Math.min(performanceCores, 8),
-    cpuBrand: cpuProfile.brand,
-    hasGPU: gpuProfile.backend !== null && gpuMemoryMB > 512,
-    gpuMemoryMB: gpuProfile.backend ? gpuMemoryMB : undefined,
-    gpuType: gpuProfile.type,
-    gpuBackend: gpuProfile.backend,
-    platform: deps.platform,
-    osVersion: state.osVersion,
-    deviceModel: state.model,
-    detectedAt: Date.now(),
-  };
-}
 
 export class DeviceDetector {
   constructor(

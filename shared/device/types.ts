@@ -1,28 +1,5 @@
 export type DeviceTier = "budget" | "midRange" | "premium";
-export type CpuBrand = "snapdragon" | "exynos" | "bionic" | "helio" | "unknown";
-export type GpuType = "adreno" | "mali" | "metal" | "unknown";
-export type GpuBackend = "metal" | "opencl" | "vulkan" | null;
 export type CacheType = "f16" | "q8_0" | "q4_0";
-
-export interface DeviceInfo {
-  totalRAM: number;
-  availableRAM: number;
-  cpuCores: number;
-  /** @deprecated Use cpuCores directly */
-  performanceCores: number;
-  /** @deprecated Use shared/ai/types DeviceInfo instead */
-  cpuBrand: CpuBrand;
-  hasGPU: boolean;
-  /** @deprecated Not used for decisions */
-  gpuMemoryMB?: number;
-  /** @deprecated Not used for decisions */
-  gpuType?: GpuType;
-  gpuBackend: GpuBackend;
-  platform: "ios" | "android";
-  osVersion: string;
-  deviceModel: string;
-  detectedAt: number;
-}
 
 export interface RuntimeConfig {
   model: string;
@@ -44,20 +21,6 @@ export interface RuntimeConfig {
   top_k?: number;
   min_p?: number;
   dry_penalty_last_n?: number;
-}
-
-export interface SystemState {
-  totalRAMBytes: number;
-  usedRAMBytes: number;
-  cpuCores: number;
-  brand: string;
-  model: string;
-  osVersion: string;
-}
-
-export interface DetectionDeps {
-  getSystemState(): Promise<SystemState>;
-  platform: "ios" | "android";
 }
 
 export interface DeviceProfile {

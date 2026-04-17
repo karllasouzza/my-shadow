@@ -1,9 +1,9 @@
 export * from "./chat";
-export * from "./manager";
-export * from "./model-loader";
-export * from "./model";
-export * from "./runtime";
 export * from "./constants";
+export * from "./manager";
+export * from "./model";
+export * from "./model-loader";
+export * from "./runtime";
 
 export interface DeviceInfo {
   totalRAM: number;
@@ -77,13 +77,4 @@ export interface PreflightCheckResult {
   integrityOk: boolean;
   integrityStatus: "verified" | "unverified" | "failed";
   reasons: string[];
-}
-
-export interface IntegrityResult {
-  calculatedHash: string;
-  expectedHash?: string;
-  matches: boolean;
-  filePath: string;
-  fileSize: number;
-  verifiedAt: number;
 }

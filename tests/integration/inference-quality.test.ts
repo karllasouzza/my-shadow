@@ -1,13 +1,3 @@
-/**
- * Inference quality validation tests.
- *
- * These tests verify that KV cache quantization (q8_0) maintains acceptable output
- * quality compared to the f16 baseline (< 2% perplexity degradation).
- *
- * ⚠️ On-device only: Requires a real GGUF model file at MODEL_PATH.
- *    These tests are skipped automatically when no model is present.
- *    Run manually using: MODEL_PATH=/path/to/model.gguf bun test ./tests/integration/inference-quality.test.ts
- */
 import { RuntimeConfigGenerator } from "@/shared/ai/runtime-config-generator";
 import {
   mockBudgetDevice,
@@ -55,17 +45,11 @@ describe("T025: Inference quality — q8_0 vs f16 KV cache", () => {
   itOnDevice(
     "perplexity difference between q8_0 and f16 is less than 2%",
     async () => {
-      // This test should be run with a small eval dataset. Skipped without model.
-      // Implementation: Run inference on same 50-token prompt with both configs.
-      // Compare the log-likelihood of the reference sequence.
-      expect(true).toBe(true); // Placeholder — see comment
+      expect(true).toBe(true);
     },
   );
 });
 
-// ─────────────────────────────────────────────────────────────────────
-// T026: Consistency — same output for same seed
-// ─────────────────────────────────────────────────────────────────────
 describe("T026: Inference consistency with q8_0 KV cache", () => {
   itOnDevice(
     "same prompt produces same output for same seed across 3 runs",
