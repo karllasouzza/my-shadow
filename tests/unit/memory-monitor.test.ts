@@ -1,4 +1,4 @@
-import type { IMemoryInfoProvider } from "@/shared/ai/memory-monitor";
+import type { MemoryInfoProvider } from "@/shared/ai/memory-monitor";
 import { MemoryMonitor } from "@/shared/ai/memory-monitor";
 import { describe, expect, test } from "bun:test";
 
@@ -7,7 +7,7 @@ const BYTES_TO_GB = 1024 ** 3;
 function makeMemoryProvider(
   totalGB: number,
   usedGB: number,
-): IMemoryInfoProvider {
+): MemoryInfoProvider {
   return {
     getTotalMemory: () => Promise.resolve(totalGB * BYTES_TO_GB),
     getUsedMemory: () => Promise.resolve(usedGB * BYTES_TO_GB),
@@ -83,7 +83,7 @@ describe("MemoryMonitor.evaluate()", () => {
   });
 
   test("falls back to defaults on provider error", async () => {
-    const failProvider: IMemoryInfoProvider = {
+    const failProvider: MemoryInfoProvider = {
       getTotalMemory: () => Promise.reject(new Error("hw fail")),
       getUsedMemory: () => Promise.reject(new Error("hw fail")),
     };
@@ -232,4 +232,3 @@ describe("MemoryMonitor.startMonitoring() / stopMonitoring()", () => {
     expect(monitor.getPressure()).toBeNull();
   });
 });
-

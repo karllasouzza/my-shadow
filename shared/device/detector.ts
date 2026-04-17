@@ -1,11 +1,7 @@
-import {
-  DefaultDeviceInfoProvider,
-  DefaultPlatformProvider,
-  IDeviceInfoProvider,
-  IPlatformProvider,
-} from "./adapters";
-import type { DeviceInfo as AiDeviceInfo } from "@/shared/ai/types";
 import { selectGpuBackend } from "@/shared/ai/runtime-config-generator";
+import type { DeviceInfo as AiDeviceInfo } from "@/shared/ai/types";
+import { DefaultDeviceInfoProvider, DefaultPlatformProvider } from "./adapters";
+import { IDeviceInfoProvider, IPlatformProvider } from "./types/adapters";
 
 export const BYTES_TO_GB = 1024 ** 3;
 

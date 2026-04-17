@@ -1,9 +1,3 @@
-/**
- * Database: Theme Storage
- *
- * MMKV storage para configurações de tema.
- */
-
 import { createMMKV } from "react-native-mmkv";
 
 const themeStorage = createMMKV({ id: "theme_config" });

@@ -1,4 +1,4 @@
-import { getStorage } from "../../chat";
+import { getStorage } from "..";
 
 const THINKING_KEY = "chat:thinking_enabled";
 

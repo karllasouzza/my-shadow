@@ -1,4 +1,4 @@
-import { getStorage } from "../../chat";
+import { getStorage } from "..";
 
 const LAST_MODEL_KEY = "chat:last_model";
 

@@ -8,12 +8,12 @@ const SAFE_MEMORY_FRACTION = 0.5;
 
 type MemoryWarningCallback = (pressure: MemoryPressure) => void;
 
-export interface IMemoryInfoProvider {
+export interface MemoryInfoProvider {
   getTotalMemory(): Promise<number>;
   getUsedMemory(): Promise<number>;
 }
 
-class DefaultMemoryInfoProvider implements IMemoryInfoProvider {
+class DefaultMemoryInfoProvider implements MemoryInfoProvider {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   private get lib() {
     return (
@@ -37,9 +37,9 @@ export class MemoryMonitor {
   private reloadModelFn: (() => Promise<void>) | null = null;
   private appStateSubscription: { remove(): void } | null = null;
   private monitoringInterval: ReturnType<typeof setInterval> | null = null;
-  private readonly memoryProvider: IMemoryInfoProvider;
+  private readonly memoryProvider: MemoryInfoProvider;
 
-  constructor(memoryProvider?: IMemoryInfoProvider) {
+  constructor(memoryProvider?: MemoryInfoProvider) {
     this.memoryProvider = memoryProvider ?? new DefaultMemoryInfoProvider();
   }
 

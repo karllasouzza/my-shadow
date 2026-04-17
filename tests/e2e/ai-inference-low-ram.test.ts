@@ -1,4 +1,4 @@
-import type { IMemoryInfoProvider } from "@/shared/ai/memory-monitor";
+import type { MemoryInfoProvider } from "@/shared/ai/memory-monitor";
 import { MemoryMonitor } from "@/shared/ai/memory-monitor";
 import { RuntimeConfigGenerator } from "@/shared/ai/runtime-config-generator";
 import { describe, expect, test } from "bun:test";
@@ -20,7 +20,7 @@ const generator = new RuntimeConfigGenerator();
 function makeMemoryProvider(
   totalGB: number,
   usedGB: number,
-): IMemoryInfoProvider {
+): MemoryInfoProvider {
   return {
     getTotalMemory: () => Promise.resolve(totalGB * GB),
     getUsedMemory: () => Promise.resolve(usedGB * GB),

@@ -1,7 +1,7 @@
 import * as DatabaseChat from "@/database/chat";
 import type {
-  ChatConversation,
-  ChatConversationIndex,
+    ChatConversation,
+    ChatConversationIndex,
 } from "@/features/chat/model/chat-conversation";
 import type { Result } from "@/shared/utils/app-error";
 import { useCallback, useMemo, useState } from "react";

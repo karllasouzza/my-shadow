@@ -1,11 +1,11 @@
-import type { IMemoryInfoProvider } from "@/shared/ai/memory-monitor";
+import type { MemoryInfoProvider } from "@/shared/ai/memory-monitor";
 import { MemoryMonitor } from "@/shared/ai/memory-monitor";
 import { RuntimeConfigGenerator } from "@/shared/ai/runtime-config-generator";
 import { describe, expect, test } from "bun:test";
 import {
-  mockBudgetDevice,
-  mockMidRangeDevice,
-  mockPremiumDevice,
+    mockBudgetDevice,
+    mockMidRangeDevice,
+    mockPremiumDevice,
 } from "../utils/device-simulator";
 
 const MODEL_PATH = process.env.MODEL_PATH ?? "";
@@ -15,7 +15,7 @@ const generator = new RuntimeConfigGenerator();
 function makeMemoryProvider(
   totalGB: number,
   usedGB: number,
-): IMemoryInfoProvider {
+): MemoryInfoProvider {
   const GB = 1024 ** 3;
   return {
     getTotalMemory: () => Promise.resolve(totalGB * GB),

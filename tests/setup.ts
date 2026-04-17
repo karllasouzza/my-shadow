@@ -37,6 +37,33 @@ globalThis.__RN_MOCK__ = rnMock;
 // @ts-expect-error — global mock injection for bun test environment
 globalThis.__DEVICE_INFO_MOCK__ = deviceInfoMock;
 
+// Initialize a shared in-memory store map for MMKV mocks used in tests
+// @ts-expect-error — test global
+globalThis.__MMKV_STORES__ = new Map<string, Map<string, string>>();
+
+// Mock react-native-mmkv using the shared stores map so tests can inspect persisted data
+if (typeof Bun !== "undefined" && (Bun as any).mock) {
+  (Bun as any).mock.module("react-native-mmkv", () => ({
+    createMMKV: ({ id }: { id: string }) => {
+      const stores = (globalThis as any).__MMKV_STORES__ as Map<
+        string,
+        Map<string, string>
+      >;
+      if (!stores.has(id)) stores.set(id, new Map());
+      const state = stores.get(id)!;
+      return {
+        set: (key: string, value: string) => state.set(key, value),
+        getString: (key: string) => state.get(key),
+        getAllKeys: () => [...state.keys()],
+      };
+    },
+  }));
+
+  (Bun as any).mock.module("expo-crypto", () => ({
+    randomUUID: () => "mocked-conversation-id",
+  }));
+}
+
 declare global {
   const Bun: {
     mock: {

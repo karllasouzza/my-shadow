@@ -1,14 +1,14 @@
 import {
-  getLastUsedModelId,
-  setLastUsedModelId,
-} from "@/database/actions/chat/last-model";
+    getLastUsedModelId,
+    setLastUsedModelId,
+} from "@/database/chat/actions/last-model";
 import DeviceInfo from "react-native-device-info";
 import { findModelById, getAllModels } from "./catalog";
 import {
-  getDownloadedModels,
-  getModelLocalPath,
-  isModelDownloaded,
-  removeDownloadedModel,
+    getDownloadedModels,
+    getModelLocalPath,
+    isModelDownloaded,
+    removeDownloadedModel,
 } from "./manager";
 import { getAIRuntime } from "./runtime";
 import type { AvailableModel, ModelLoadResult } from "./types/model-loader";

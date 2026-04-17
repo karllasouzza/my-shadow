@@ -1,4 +1,4 @@
-import type { GpuBackend } from "../ai/types";
+import { GpuBackend } from "../ai/utils/constants";
 import type { DeviceTier, RuntimeConfig } from "./types";
 
 interface CpuProfile {

@@ -1,8 +1,8 @@
+import * as DatabaseChat from "@/database/chat";
 import {
     getThinkingEnabled,
     setThinkingEnabled,
-} from "@/database/actions/chat/think-mode";
-import * as DatabaseChat from "@/database/chat";
+} from "@/database/chat/actions/think-mode";
 import {
     createChatMessage,
     validateChatMessage,

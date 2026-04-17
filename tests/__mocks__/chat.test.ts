@@ -1,47 +1,54 @@
-type MockStoreState = Map<string, string>;
+import { beforeEach, describe, expect, it } from "bun:test";
 
-const stores = new Map<string, MockStoreState>();
-
-class MockMMKV {
-  private readonly state: MockStoreState;
-
-  constructor(id: string) {
-    if (!stores.has(id)) {
-      stores.set(id, new Map());
-    }
-
-    this.state = stores.get(id)!;
+async function mockNativeModules() {
+  // Preloaded setup.ts registers Bun.mock.module for these modules. If Bun.mock
+  // isn't available, attempt a best-effort fallback by stubbing required
+  // module exports before loading the tested module.
+  if (
+    typeof Bun !== "undefined" &&
+    (Bun as any).mock &&
+    (Bun as any).mock.module
+  ) {
+    // Bun.mock.module was likely registered in preload; nothing else to do.
+    return;
   }
 
-  set(key: string, value: string) {
-    this.state.set(key, value);
+  try {
+    const mmkv = await import("react-native-mmkv");
+    (mmkv as any).createMMKV = ({ id }: { id: string }) => {
+      const stores = (globalThis as any).__MMKV_STORES__ as Map<
+        string,
+        Map<string, string>
+      >;
+      if (!stores.has(id)) stores.set(id, new Map());
+      const state = stores.get(id)!;
+      return {
+        set: (k: string, v: string) => state.set(k, v),
+        getString: (k: string) => state.get(k),
+        getAllKeys: () => [...state.keys()],
+      };
+    };
+  } catch {
+    // ignore
   }
 
-  getString(key: string) {
-    return this.state.get(key);
-  }
-
-  getAllKeys() {
-    return [...this.state.keys()];
+  try {
+    const expoCrypto = await import("expo-crypto");
+    (expoCrypto as any).randomUUID = () => "mocked-conversation-id";
+  } catch {
+    // ignore
   }
 }
 
-function mockNativeModules() {
-  jest.doMock("react-native-mmkv", () => ({
-    createMMKV: ({ id }: { id: string }) => new MockMMKV(id),
-  }));
-
-  jest.doMock("expo-crypto", () => ({
-    randomUUID: () => "mocked-conversation-id",
-  }));
-}
-
-function loadChatDatabase() {
-  return require("./chat") as typeof import("./chat");
+async function loadChatDatabase() {
+  return (await import("../../database/chat")) as typeof import("../../database/chat");
 }
 
 function getChatStore() {
-  const store = stores.get("chat_conversations");
+  const stores = (globalThis as any).__MMKV_STORES__ as
+    | Map<string, Map<string, string>>
+    | undefined;
+  const store = stores?.get("chat_conversations");
   if (!store) {
     throw new Error("Expected chat_conversations store to be initialized");
   }
@@ -50,14 +57,20 @@ function getChatStore() {
 }
 
 describe("chat history persistence", () => {
-  beforeEach(() => {
-    jest.resetModules();
-    stores.clear();
-    mockNativeModules();
+  beforeEach(async () => {
+    // Clear test-internal stores
+    const globalStores = (globalThis as any).__MMKV_STORES__ as
+      | Map<string, Map<string, string>>
+      | undefined;
+    if (globalStores) globalStores.clear();
+
+    // Ensure mocks are registered (setup.ts preloads Bun.mock.module). If Bun.mock isn't
+    // available, mockNativeModules() will attempt a fallback.
+    await mockNativeModules();
   });
 
-  it("creates history snippets from persisted message content only", () => {
-    const chatDb = loadChatDatabase();
+  it("creates history snippets from persisted message content only", async () => {
+    const chatDb = await loadChatDatabase();
 
     const saveResult = chatDb.saveConversation({
       id: "conversation-1",
@@ -91,9 +104,15 @@ describe("chat history persistence", () => {
     });
   });
 
-  it("rebuilds stale index entries from persisted conversations", () => {
+  it("rebuilds stale index entries from persisted conversations", async () => {
     mockNativeModules();
-    const store = new MockMMKV("chat_conversations");
+    const stores = (globalThis as any).__MMKV_STORES__ as
+      | Map<string, Map<string, string>>
+      | undefined;
+    if (!stores) throw new Error("MMKV stores not initialized");
+    if (!stores.has("chat_conversations"))
+      stores.set("chat_conversations", new Map());
+    const store = stores.get("chat_conversations")!;
 
     store.set(
       "chat:conversation-2",
@@ -124,7 +143,7 @@ describe("chat history persistence", () => {
       ]),
     );
 
-    const chatDb = loadChatDatabase();
+    const chatDb = await loadChatDatabase();
     const listResult = chatDb.listConversations();
 
     expect(listResult).toEqual({
@@ -148,8 +167,8 @@ describe("chat history persistence", () => {
     ]);
   });
 
-  it("returns an empty preview when the latest persisted message has no content", () => {
-    const chatDb = loadChatDatabase();
+  it("returns an empty preview when the latest persisted message has no content", async () => {
+    const chatDb = await loadChatDatabase();
 
     const saveResult = chatDb.saveConversation({
       id: "conversation-3",

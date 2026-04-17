@@ -1,9 +1,9 @@
-import type {
-  IDeviceInfoProvider,
-  IPlatformProvider,
-} from "@/shared/device/adapters";
 import { DeviceDetector } from "@/shared/device/detector";
 import { getTierByRAM, getTierConfig } from "@/shared/device/hardware-database";
+import {
+  IDeviceInfoProvider,
+  IPlatformProvider,
+} from "@/shared/device/types/adapters";
 import { describe, expect, test } from "bun:test";
 
 const GB = 1024 ** 3;
@@ -171,4 +171,3 @@ describe("getTierConfig", () => {
     expect(config.use_mlock).toBe(true);
   });
 });
-
