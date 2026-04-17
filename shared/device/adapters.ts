@@ -1,5 +1,3 @@
-import { SystemState } from "./types";
-
 export interface IDeviceInfoProvider {
   getTotalMemory(): Promise<number>;
   getUsedMemory(): Promise<number>;

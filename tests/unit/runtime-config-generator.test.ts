@@ -325,17 +325,17 @@ describe("RuntimeConfigGenerator.calculateGpuLayers", () => {
   const generator = new RuntimeConfigGenerator();
 
   test("returns 0 for CPU-only devices", () => {
-    const device = mockDeviceInfo({ hasGPU: false, gpuBackend: null });
+    const device = mockDeviceInfo({ hasGPU: false, gpuBackend: "none" });
     expect(generator.calculateGpuLayers(device, 50)).toBe(0);
   });
 
   test("returns tier default for GPU devices", () => {
-    const device = mockDeviceInfo({ hasGPU: true, gpuBackend: "metal" });
+    const device = mockDeviceInfo({ hasGPU: true, gpuBackend: "Metal" });
     expect(generator.calculateGpuLayers(device, 99)).toBe(99);
   });
 
   test("returns tier default for GPU devices without gpuMemoryMB", () => {
-    const device = mockDeviceInfo({ hasGPU: true, gpuBackend: "opencl" });
+    const device = mockDeviceInfo({ hasGPU: true, gpuBackend: "OpenCL" });
     expect(generator.calculateGpuLayers(device, 50)).toBe(50);
   });
 });
@@ -471,9 +471,9 @@ describe("flash_attn configuration", () => {
 
   test("iOS device without GPU gets flash_attn=false", () => {
     const device = mockDeviceInfo({
-      platform: "ios",
+      platform: "iOS",
       hasGPU: false,
-      gpuBackend: null,
+      gpuBackend: "none",
     });
     const config = generator.generateRuntimeConfig(device, MODEL_PATH);
     expect(config.flash_attn).toBe(false);

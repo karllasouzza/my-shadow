@@ -1,18 +1,13 @@
-import type {
-    CpuBrand,
-    DeviceTier,
-    GpuBackend,
-    GpuType,
-    RuntimeConfig,
-} from "./types";
+import type { GpuBackend } from "../ai/types";
+import type { DeviceTier, RuntimeConfig } from "./types";
 
 interface CpuProfile {
-  brand: CpuBrand;
+  brand: string;
   performanceCoreRatio: number;
 }
 
 interface GpuProfile {
-  type: GpuType;
+  type: string;
   backend: GpuBackend;
   vramFraction: number;
 }
@@ -26,9 +21,9 @@ const CPU_PROFILES: Record<string, CpuProfile> = {
 };
 
 const GPU_PROFILES: Record<string, GpuProfile> = {
-  ios: { type: "metal", backend: "metal", vramFraction: 1.0 },
-  adreno: { type: "adreno", backend: "opencl", vramFraction: 0.3 },
-  mali: { type: "mali", backend: "vulkan", vramFraction: 0.25 },
+  ios: { type: "metal", backend: "Metal", vramFraction: 1.0 },
+  adreno: { type: "adreno", backend: "OpenCL", vramFraction: 0.3 },
+  mali: { type: "mali", backend: "Vulkan", vramFraction: 0.25 },
 };
 
 const TIER_PROFILES: Record<
@@ -99,21 +94,15 @@ export function resolveCpuProfile(brand: string): CpuProfile {
 }
 
 export function resolveGpuProfile(
-  platform: "ios" | "android",
+  platform: "iOS" | "Android",
   brand?: string,
 ): GpuProfile {
-  if (platform === "ios") return GPU_PROFILES.ios;
+  if (platform === "iOS") return GPU_PROFILES.ios;
 
-  const lower = brand?.toLowerCase() ?? "";
-  if (
-    lower.includes("qualcomm") ||
-    lower.includes("snapdragon") ||
-    lower.includes("adreno")
-  ) {
-    return GPU_PROFILES.adreno;
-  }
-  if (lower.includes("mali") || lower.includes("exynos")) {
-    return GPU_PROFILES.mali;
-  }
-  return { type: "unknown", backend: null, vramFraction: 0.3 };
+  const key = Object.keys(GPU_PROFILES).find((k) =>
+    brand?.toLowerCase().includes(k),
+  );
+  return key
+    ? GPU_PROFILES[key]
+    : { type: "unknown", backend: "none", vramFraction: 0.3 };
 }

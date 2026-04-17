@@ -69,6 +69,12 @@ export interface ModelMetadata {
   sha256?: string;
 }
 
+export interface IntegrityResult {
+  calculatedHash: string;
+  expectedHash?: string;
+  matches: boolean;
+}
+
 export interface PreflightCheckResult {
   canLoad: boolean;
   requiredRAM: number;

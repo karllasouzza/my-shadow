@@ -1,5 +1,6 @@
+import { DeviceInfo } from "../ai/types";
 import { getTierByRAM, getTierConfig } from "./hardware-database";
-import { DeviceInfo, RuntimeConfig } from "./types";
+import { RuntimeConfig } from "./types";
 
 export function buildRuntimeConfig(
   deviceInfo: DeviceInfo,

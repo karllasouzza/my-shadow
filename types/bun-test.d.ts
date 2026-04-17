@@ -16,7 +16,11 @@ declare module "bun:test" {
     toBeLessThanOrEqual(n: number): void;
     toContain(item: unknown): void;
     toHaveLength(n: number): void;
+    toBeCloseTo(number: number, numDigits?: number): void;
     toThrow(expected?: string | RegExp | Error): void;
+    rejects: {
+      toThrow(expected?: string | RegExp | Error): Promise<void>;
+    };
     not: {
       toBe(expected: T): void;
       toEqual(expected: unknown): void;
