@@ -126,47 +126,47 @@ This document defines the actionable, dependency-ordered implementation tasks fo
 
 ### Implement Memory Budget Calculation
 
-- [ ] T052 [US3] Create `calculateMemoryBudget(modelPath: string, deviceInfo: DeviceInfo): Promise<{required: number, available: number, sufficient: boolean}>` in `shared/ai/model-loader.ts`
-- [ ] T053 [US3] Integrate `loadLlamaModelInfo(modelPath)` call to fetch model metadata (quantization, context, cache params)
-- [ ] T054 [US3] Implement accurate formula: Weights + KV Cache (2 × 32 × context_size × 4096 × 2 bytes in f16) + Working (15%) + Overhead (0.5GB) (FR-005)
-- [ ] T055 [US3] Implement fallback formula: if metadata unavailable, use conservative estimate (assume f16, 1024-token context)
-- [ ] T056 [US3] Add validation: if required > available, log exact deficit; return sufficient=false
+- [x] T052 [US3] Create `calculateMemoryBudget(modelPath: string, deviceInfo: DeviceInfo): Promise<{required: number, available: number, sufficient: boolean}>` in `shared/ai/model-loader.ts`
+- [x] T053 [US3] Integrate `loadLlamaModelInfo(modelPath)` call to fetch model metadata (quantization, context, cache params)
+- [x] T054 [US3] Implement accurate formula: Weights + KV Cache (2 × 32 × context_size × 4096 × 2 bytes in f16) + Working (15%) + Overhead (0.5GB) (FR-005)
+- [x] T055 [US3] Implement fallback formula: if metadata unavailable, use conservative estimate (assume f16, 1024-token context)
+- [x] T056 [US3] Add validation: if required > available, log exact deficit; return sufficient=false
 
 ### Implement Pre-Flight Memory Check
 
-- [ ] T057 [US3] Create `preflightCheck(modelPath: string, deviceInfo: DeviceInfo): Promise<PreflightCheckResult>` in `shared/ai/model-loader.ts`
-- [ ] T058 [US3] Checks: file exists, memory sufficient, integrity OK (if SHA256 available), platform compatible (FR-006)
-- [ ] T059 [US3] Return detailed reasons if canLoad=false (used for user-facing error messages)
-- [ ] T060 [US3] Call calculateMemoryBudget() from preflightCheck()
+- [x] T057 [US3] Create `preflightCheck(modelPath: string, deviceInfo: DeviceInfo): Promise<PreflightCheckResult>` in `shared/ai/model-loader.ts`
+- [x] T058 [US3] Checks: file exists, memory sufficient, integrity OK (if SHA256 available), platform compatible (FR-006)
+- [x] T059 [US3] Return detailed reasons if canLoad=false (used for user-facing error messages)
+- [x] T060 [US3] Call calculateMemoryBudget() from preflightCheck()
 
 ### Integrate Memory Monitoring
 
-- [ ] T061 [US3] Update `MemoryMonitor` to track critical pressure (>85% utilization) (FR-013)
-- [ ] T062 [US3] Add `startMonitoring(onCritical?: callback): void` to trigger callback when critical
-- [ ] T063 [US3] Integrate memory monitor into model loading workflow (abort if critical during load)
+- [x] T061 [US3] Update `MemoryMonitor` to track critical pressure (>85% utilization) (FR-013)
+- [x] T062 [US3] Add `startMonitoring(onCritical?: callback): void` to trigger callback when critical
+- [x] T063 [US3] Integrate memory monitor into model loading workflow (abort if critical during load)
 
 ### Implement Model Rejection with User Feedback
 
-- [ ] T064 [US3] Create clear error message template: "Memória insuficiente: XXX GB disponível, YYY GB necessário" (pt-BR) (FR-007)
-- [ ] T065 [US3] Integrate preflightCheck result → user-facing error in features/model-management
+- [x] T064 [US3] Create clear error message template: "Memória insuficiente: XXX GB disponível, YYY GB necessário" (pt-BR) (FR-007)
+- [x] T065 [US3] Integrate preflightCheck result → user-facing error in features/model-management
 
 ### Write Unit Tests for Memory Budget
 
-- [ ] T066 [P] [US3] Test calculateMemoryBudget() with mocked model metadata
-- [ ] T067 [P] [US3] Test formula accuracy for 7B model with 2048 context window
-- [ ] T068 [P] [US3] Test fallback formula when metadata unavailable
-- [ ] T069 [P] [US3] Test preflightCheck result for sufficient and insufficient RAM scenarios
-- [ ] T070 [P] [US3] Test memory pressure evaluation with mocked RAM values
-- [ ] T071 [P] [US3] Test critical pressure threshold (>85%)
-- [ ] T072 [US3] Run memory tests: `bun test tests/unit/model-loader.test.ts --grep memory`
+- [x] T066 [P] [US3] Test calculateMemoryBudget() with mocked model metadata
+- [x] T067 [P] [US3] Test formula accuracy for 7B model with 2048 context window
+- [x] T068 [P] [US3] Test fallback formula when metadata unavailable
+- [x] T069 [P] [US3] Test preflightCheck result for sufficient and insufficient RAM scenarios
+- [x] T070 [P] [US3] Test memory pressure evaluation with mocked RAM values
+- [x] T071 [P] [US3] Test critical pressure threshold (>85%)
+- [x] T072 [US3] Run memory tests: `bun test tests/unit/model-loader.test.ts --grep memory`
 
 ### Write Integration Tests for Memory Budget
 
-- [ ] T073 [US3] Create scenario: device detection → config generation → memory budget calculation → pre-flight check
-- [ ] T074 [US3] Test model that fits: preflightCheck.canLoad=true
-- [ ] T075 [US3] Test model that doesn't fit: preflightCheck.canLoad=false with detailed reasons
-- [ ] T076 [US3] Test memory pressure evaluation during model loading
-- [ ] T077 [US3] Run memory integration tests: `bun test tests/integration/memory-budget.test.ts`
+- [x] T073 [US3] Create scenario: device detection → config generation → memory budget calculation → pre-flight check
+- [x] T074 [US3] Test model that fits: preflightCheck.canLoad=true
+- [x] T075 [US3] Test model that doesn't fit: preflightCheck.canLoad=false with detailed reasons
+- [x] T076 [US3] Test memory pressure evaluation during model loading
+- [x] T077 [US3] Run memory integration tests: `bun test tests/integration/memory-budget.test.ts`
 
 ---
 
