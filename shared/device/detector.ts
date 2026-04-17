@@ -11,6 +11,10 @@ import type { DeviceInfo as AiDeviceInfo } from "@/shared/ai/types";
 export const BYTES_TO_GB = 1024 ** 3;
 export const OS_OVERHEAD_BYTES = 0.8 * BYTES_TO_GB;
 
+/**
+ * @deprecated Use DeviceDetector class with DI providers instead.
+ * This function uses the old DetectionDeps interface and returns the old DeviceInfo type.
+ */
 export async function detectCapabilities(
   deps: DetectionDeps,
 ): Promise<DeviceInfo> {
@@ -72,14 +76,21 @@ export class DeviceDetector {
     const usedRAM = usedBytes / BYTES_TO_GB;
     const availableRAM = Math.max(0, totalRAM - osOverheadGB - usedRAM);
 
-    const gpuBackend: AiDeviceInfo["gpuBackend"] =
+    let gpuBackend: AiDeviceInfo["gpuBackend"] =
       platform === "ios" ? "Metal" : "none";
+    let hasGPU = gpuBackend !== "none";
+
+    // T016: insufficient available RAM disables GPU acceleration
+    if (availableRAM < 1) {
+      hasGPU = false;
+      gpuBackend = "none";
+    }
 
     return {
       totalRAM,
       availableRAM,
       cpuCores,
-      hasGPU: gpuBackend !== "none",
+      hasGPU,
       gpuBackend,
       platform: platform === "ios" ? "iOS" : "Android",
       osVersion,

@@ -198,18 +198,19 @@ describe("RuntimeConfigGenerator.selectDeviceProfile", () => {
 describe("RuntimeConfigGenerator.generateThreadCount", () => {
   const generator = new RuntimeConfigGenerator();
 
-  test("returns performanceCores - 1", () => {
-    const device = mockDeviceInfo({ performanceCores: 4 });
-    expect(generator.generateThreadCount(device)).toBe(3);
+  test("returns min(cpuCores, 8)", () => {
+    const device = mockDeviceInfo({ cpuCores: 4 });
+    expect(generator.generateThreadCount(device)).toBe(4);
   });
 
-  test("ensures minimum of 1 thread", () => {
-    const device = mockDeviceInfo({ performanceCores: 1 });
-    expect(generator.generateThreadCount(device)).toBe(1);
+  test("caps at 8 for devices with many cores", () => {
+    const device = mockDeviceInfo({ cpuCores: 12 });
+    expect(generator.generateThreadCount(device)).toBe(8);
   });
 
-  test("budget device gets 1 thread (2 perf cores - 1)", () => {
-    expect(generator.generateThreadCount(mockBudgetDevice())).toBe(1);
+  test("budget device gets correct thread count", () => {
+    // mockBudgetDevice has cpuCores: 4
+    expect(generator.generateThreadCount(mockBudgetDevice())).toBe(4);
   });
 });
 
@@ -311,22 +312,14 @@ describe("RuntimeConfigGenerator.calculateGpuLayers", () => {
     expect(generator.calculateGpuLayers(device, 50)).toBe(0);
   });
 
-  test("returns tier default for GPU devices with sufficient VRAM", () => {
-    const device = mockDeviceInfo({
-      hasGPU: true,
-      gpuBackend: "metal",
-      gpuMemoryMB: 4096,
-    });
+  test("returns tier default for GPU devices", () => {
+    const device = mockDeviceInfo({ hasGPU: true, gpuBackend: "metal" });
     expect(generator.calculateGpuLayers(device, 99)).toBe(99);
   });
 
-  test("caps at 20 for low VRAM devices", () => {
-    const device = mockDeviceInfo({
-      hasGPU: true,
-      gpuBackend: "opencl",
-      gpuMemoryMB: 800,
-    });
-    expect(generator.calculateGpuLayers(device, 50)).toBe(20);
+  test("returns tier default for GPU devices without gpuMemoryMB", () => {
+    const device = mockDeviceInfo({ hasGPU: true, gpuBackend: "opencl" });
+    expect(generator.calculateGpuLayers(device, 50)).toBe(50);
   });
 });
 

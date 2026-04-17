@@ -1,4 +1,5 @@
 import type { DeviceInfo, MemoryPressure } from "@/shared/device/types";
+import type { DeviceInfo as NewDeviceInfo } from "@/shared/ai/types";
 
 /** Default CPU cores for test device simulations */
 const DEFAULT_CPU_CORES = 8;
@@ -109,4 +110,42 @@ export function simulateMemoryPressure(percent: number): MemoryPressure {
     ),
     sampledAt: Date.now(),
   };
+}
+
+// ---------------------------------------------------------------------------
+// New DeviceInfo helpers (shared/ai/types - Sprint 2+)
+// ---------------------------------------------------------------------------
+
+export function mockNewDeviceInfo(overrides?: Partial<NewDeviceInfo>): NewDeviceInfo {
+  return {
+    totalRAM: 4,
+    availableRAM: 2,
+    cpuCores: 8,
+    hasGPU: false,
+    gpuBackend: "none",
+    platform: "Android",
+    osVersion: "12.0",
+    deviceModel: "Pixel 4a",
+    detectedAt: Date.now(),
+    ...overrides,
+  };
+}
+
+export function mockNewBudgetDevice(): NewDeviceInfo {
+  return mockNewDeviceInfo({ totalRAM: 4, availableRAM: 2, hasGPU: false, gpuBackend: "none" });
+}
+
+export function mockNewMidRangeDevice(): NewDeviceInfo {
+  return mockNewDeviceInfo({ totalRAM: 8, availableRAM: 5.5, hasGPU: true, gpuBackend: "OpenCL" });
+}
+
+export function mockNewPremiumDevice(): NewDeviceInfo {
+  return mockNewDeviceInfo({
+    totalRAM: 12,
+    availableRAM: 8,
+    hasGPU: true,
+    gpuBackend: "Metal",
+    platform: "iOS",
+    gpuBrand: "Apple",
+  });
 }

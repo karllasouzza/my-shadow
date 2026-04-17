@@ -1,7 +1,8 @@
 import { buildRuntimeConfig } from "@/shared/device/config-builder";
-import { detectCapabilities } from "@/shared/device/detector";
+import { detectCapabilities, DeviceDetector } from "@/shared/device/detector";
 import { getTierByRAM, getTierConfig } from "@/shared/device/hardware-database";
 import { DetectionDeps, SystemState } from "@/shared/device/types";
+import type { IDeviceInfoProvider, IPlatformProvider } from "@/shared/device/adapters";
 import { describe, expect, test } from "bun:test";
 
 const FOUR_GB = 4 * 1024 * 1024 * 1024;
@@ -128,6 +129,142 @@ describe("gpuBackend", () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// DeviceDetector class (Sprint 2 - T019-T023)
+// ---------------------------------------------------------------------------
+
+const GB = 1024 ** 3;
+
+function makeMockDeviceInfoProvider(overrides?: {
+  totalMemory?: number;
+  usedMemory?: number;
+  brand?: string;
+  model?: string;
+  osVersion?: string;
+  cpuCores?: number;
+}): IDeviceInfoProvider {
+  return {
+    getTotalMemory: () => Promise.resolve(overrides?.totalMemory ?? 8 * GB),
+    getUsedMemory: () => Promise.resolve(overrides?.usedMemory ?? 2 * GB),
+    getBrand: () => Promise.resolve(overrides?.brand ?? "Qualcomm"),
+    getModel: () => Promise.resolve(overrides?.model ?? "Pixel 7"),
+    getSystemVersion: () => Promise.resolve(overrides?.osVersion ?? "13.0"),
+    getNumberOfCPUCores: () => Promise.resolve(overrides?.cpuCores ?? 8),
+  };
+}
+
+function makeMockPlatformProvider(os: "ios" | "android"): IPlatformProvider {
+  return { OS: os };
+}
+
+describe("DeviceDetector", () => {
+  // T020: OS overhead
+  test("iOS overhead is 1.5 GB", async () => {
+    const detector = new DeviceDetector(
+      makeMockDeviceInfoProvider({ totalMemory: 8 * GB, usedMemory: 0 }),
+      makeMockPlatformProvider("ios"),
+    );
+    const info = await detector.detect();
+    // availableRAM = 8 - 1.5 - 0 = 6.5
+    expect(info.availableRAM).toBeCloseTo(6.5, 5);
+  });
+
+  test("Android overhead is 2.0 GB", async () => {
+    const detector = new DeviceDetector(
+      makeMockDeviceInfoProvider({ totalMemory: 8 * GB, usedMemory: 0 }),
+      makeMockPlatformProvider("android"),
+    );
+    const info = await detector.detect();
+    // availableRAM = 8 - 2.0 - 0 = 6.0
+    expect(info.availableRAM).toBeCloseTo(6.0, 5);
+  });
+
+  // T019: budget tier (< 5 GB available)
+  test("budget tier device has availableRAM < 5", async () => {
+    const detector = new DeviceDetector(
+      makeMockDeviceInfoProvider({ totalMemory: 4 * GB, usedMemory: 0 }),
+      makeMockPlatformProvider("android"),
+    );
+    const info = await detector.detect();
+    // availableRAM = 4 - 2.0 - 0 = 2.0 < 5 → budget
+    expect(info.availableRAM).toBeLessThan(5);
+  });
+
+  // T021/T023: availableRAM negative → clamped to 0
+  test("availableRAM is clamped to 0 when memory exceeds total minus overhead", async () => {
+    const detector = new DeviceDetector(
+      makeMockDeviceInfoProvider({ totalMemory: 4 * GB, usedMemory: 4 * GB }),
+      makeMockPlatformProvider("android"),
+    );
+    const info = await detector.detect();
+    // totalRAM=4, usedRAM=4, overhead=2 → 4-2-4 = -2 → clamped to 0
+    expect(info.availableRAM).toBe(0);
+  });
+
+  // T022: availableRAM < 1 GB → hasGPU = false
+  test("hasGPU is false when availableRAM is below 1 GB on iOS", async () => {
+    const detector = new DeviceDetector(
+      // iOS overhead=1.5, used=3 → 4-1.5-3 = -0.5 → clamped to 0 < 1
+      makeMockDeviceInfoProvider({ totalMemory: 4 * GB, usedMemory: 3 * GB }),
+      makeMockPlatformProvider("ios"),
+    );
+    const info = await detector.detect();
+    expect(info.availableRAM).toBe(0);
+    expect(info.hasGPU).toBe(false);
+    expect(info.gpuBackend).toBe("none");
+  });
+
+  test("hasGPU is true for iOS when availableRAM >= 1 GB", async () => {
+    const detector = new DeviceDetector(
+      makeMockDeviceInfoProvider({ totalMemory: 8 * GB, usedMemory: 2 * GB }),
+      makeMockPlatformProvider("ios"),
+    );
+    const info = await detector.detect();
+    // availableRAM = 8 - 1.5 - 2 = 4.5 >= 1
+    expect(info.hasGPU).toBe(true);
+    expect(info.gpuBackend).toBe("Metal");
+  });
+
+  test("platform is set correctly for iOS", async () => {
+    const detector = new DeviceDetector(
+      makeMockDeviceInfoProvider(),
+      makeMockPlatformProvider("ios"),
+    );
+    const info = await detector.detect();
+    expect(info.platform).toBe("iOS");
+  });
+
+  test("platform is set correctly for Android", async () => {
+    const detector = new DeviceDetector(
+      makeMockDeviceInfoProvider(),
+      makeMockPlatformProvider("android"),
+    );
+    const info = await detector.detect();
+    expect(info.platform).toBe("Android");
+  });
+
+  test("detectedAt is a recent timestamp", async () => {
+    const before = Date.now();
+    const detector = new DeviceDetector(
+      makeMockDeviceInfoProvider(),
+      makeMockPlatformProvider("android"),
+    );
+    const info = await detector.detect();
+    const after = Date.now();
+    expect(info.detectedAt).toBeGreaterThanOrEqual(before);
+    expect(info.detectedAt).toBeLessThanOrEqual(after);
+  });
+
+  test("cpuCores is forwarded from provider", async () => {
+    const detector = new DeviceDetector(
+      makeMockDeviceInfoProvider({ cpuCores: 6 }),
+      makeMockPlatformProvider("android"),
+    );
+    const info = await detector.detect();
+    expect(info.cpuCores).toBe(6);
+  });
+});
+
 describe("getTierByRAM", () => {
   test("4GB or less is budget", () => {
     expect(getTierByRAM(2)).toBe("budget");
@@ -182,10 +319,11 @@ describe("buildRuntimeConfig", () => {
     expect(config.model).toBe("/path/to/model.gguf");
   });
 
-  test("adjusts n_threads to performance cores", () => {
+  test("ajusta n_threads para min(cpuCores, 8)", () => {
     const config = buildRuntimeConfig(mockDeviceInfo, "/model.gguf");
-    expect(config.n_threads).toBe(4);
-    expect(config.n_threads_batch).toBe(4);
+    // cpuCores=8, min(8,8)=8
+    expect(config.n_threads).toBe(8);
+    expect(config.n_threads_batch).toBe(8);
   });
 
   test("disables GPU layers when hasGPU is false", () => {

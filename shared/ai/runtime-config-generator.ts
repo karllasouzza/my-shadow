@@ -59,9 +59,9 @@ export function validateRuntimeConfig(
 }
 
 export class RuntimeConfigGenerator {
-  /** Reserve one core for the UI thread; use only performance cores. */
+  /** n_threads = min(cpuCores, 8) as per spec FR-008. */
   generateThreadCount(deviceInfo: DeviceInfo): number {
-    return Math.max(1, deviceInfo.performanceCores - 1);
+    return Math.min(deviceInfo.cpuCores, 8);
   }
 
   /**
@@ -86,12 +86,9 @@ export class RuntimeConfigGenerator {
     return 2048;
   }
 
-  /** GPU layer count scaled by tier and available VRAM. */
+  /** GPU layer count: returns tierDefault when GPU is available, 0 otherwise. */
   calculateGpuLayers(deviceInfo: DeviceInfo, tierDefault: number): number {
     if (!deviceInfo.hasGPU || deviceInfo.gpuBackend === null) return 0;
-    if (deviceInfo.gpuMemoryMB !== undefined && deviceInfo.gpuMemoryMB < 1000) {
-      return Math.min(tierDefault, 20);
-    }
     return tierDefault;
   }
 

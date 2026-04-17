@@ -9,7 +9,7 @@ export function buildRuntimeConfig(
   const tier = getTierByRAM(deviceInfo.totalRAM);
   const baseConfig = getTierConfig(tier);
 
-  const threads = Math.min(deviceInfo.performanceCores, 8);
+  const threads = Math.min(deviceInfo.cpuCores, 8);
   const adjustedBatch = Math.min(
     baseConfig.n_batch || 512,
     Math.floor(deviceInfo.availableRAM * 128),

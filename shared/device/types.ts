@@ -8,10 +8,14 @@ export interface DeviceInfo {
   totalRAM: number;
   availableRAM: number;
   cpuCores: number;
+  /** @deprecated Use cpuCores directly */
   performanceCores: number;
+  /** @deprecated Use shared/ai/types DeviceInfo instead */
   cpuBrand: CpuBrand;
   hasGPU: boolean;
+  /** @deprecated Not used for decisions */
   gpuMemoryMB?: number;
+  /** @deprecated Not used for decisions */
   gpuType?: GpuType;
   gpuBackend: GpuBackend;
   platform: "ios" | "android";

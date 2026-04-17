@@ -123,12 +123,8 @@ export function selectDeviceProfile(deviceInfo: DeviceInfo): DeviceProfile {
   const config = { ...base.config };
   config.n_threads = Math.min(config.n_threads ?? 4, deviceInfo.cpuCores);
 
-  if (tier === "midRange" && !deviceInfo.hasGPU) {
+  if (!deviceInfo.hasGPU) {
     config.n_gpu_layers = 0;
-  }
-
-  if (deviceInfo.gpuMemoryMB !== undefined && deviceInfo.gpuMemoryMB < 1000) {
-    config.n_gpu_layers = Math.min(config.n_gpu_layers ?? 50, 20);
   }
 
   return { ...base, config };
