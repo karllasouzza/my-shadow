@@ -1,9 +1,9 @@
 import {
+  probeGpuBackend,
   RuntimeConfigGenerator,
+  selectGpuBackend,
   validateCacheType,
   validateRuntimeConfig,
-  selectGpuBackend,
-  probeGpuBackend,
 } from "@/shared/ai/runtime-config-generator";
 import {
   mockBudgetDevice,
@@ -403,9 +403,9 @@ describe("selectGpuBackend", () => {
   });
 
   test("Android 13 non-Snapdragon (Samsung Exynos) returns OpenCL", () => {
-    expect(
-      selectGpuBackend("13.0", "Samsung Exynos 2200", "android"),
-    ).toBe("OpenCL");
+    expect(selectGpuBackend("13.0", "Samsung Exynos 2200", "android")).toBe(
+      "OpenCL",
+    );
   });
 
   test("Android unknown GPU vendor returns OpenCL", () => {

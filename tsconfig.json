@@ -3,6 +3,8 @@
   "compilerOptions": {
     "strict": true,
     "typeRoots": ["./types", "./node_modules/@types"],
+    "types": ["bun"],
+    "lib": ["ESNext"],
     "paths": {
       "@/*": ["./*"]
     },

@@ -108,7 +108,8 @@
     "react-native-svg-transformer": "^1.5.3",
     "tailwindcss": "^3.4.1",
     "ts-node": "^10.9.2",
-    "typescript": "~5.9.2"
+    "typescript": "~5.9.2",
+    "@types/bun": "latest"
   },
   "trustedDependencies": [
     "llama.rn"

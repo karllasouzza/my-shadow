@@ -58,12 +58,7 @@ export function AIBubble({
   const handleCopy = async () => {
     const text = reasoning || content;
     if (!text) return;
-    try {
-      await Clipboard.setStringAsync(text);
-    } catch {
-      if (navigator.clipboard?.writeText)
-        await navigator.clipboard.writeText(text);
-    }
+    await Clipboard.setStringAsync(text);
   };
 
   return (
