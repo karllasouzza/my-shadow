@@ -1,69 +1,42 @@
 import { FocusAwareBars } from "@/components/focus-aware-bars";
-import { mmkvStorage } from "@/database/theme";
+import userPreferencesState$ from "@/database/user-preferences/state";
+import { UserPreferences } from "@/database/user-preferences/types";
 import { getThemeColorSafe } from "@/lib/tailwind-color";
+import { useValue } from "@legendapp/state/react";
 import { useColorScheme } from "nativewind";
-import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
+import React, { memo, useCallback, useMemo } from "react";
 import { Appearance, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { rawColors, themes } from "./theme-config";
-import { ThemeContext } from "./theme-context";
-import { ThemeProviderProps } from "./types";
+import { rawColors, themes } from "../../lib/themes";
+import { UserPreferencesContext } from "./context";
+import { UserPreferencesProviderProps } from "./types";
 
-type UserPreferences = {
-  theme: keyof typeof themes;
-  colorScheme: "light" | "dark" | "system";
-  backgroundColor: string;
-};
-
-const ThemeProviderComponent = ({ children }: ThemeProviderProps) => {
-  const [userPreferences, setUserPreferences] = useState<UserPreferences>({
-    theme: "minimalist",
-    colorScheme: "system",
-    backgroundColor: "--color-background",
-  });
-
+/**
+ * UserPreferencesProvider component that provides theme context to its children.
+ *
+ * @param {children}
+ */
+const UserPreferencesProvider = ({
+  children,
+}: UserPreferencesProviderProps) => {
   const {
     colorScheme: systemColorScheme,
     setColorScheme: setSystemColorScheme,
   } = useColorScheme();
 
-  const effectiveColorScheme = useMemo(() => {
-    const safe = userPreferences?.colorScheme || systemColorScheme || "light";
-    return safe === "system" ? systemColorScheme || "light" : safe;
-  }, [userPreferences, systemColorScheme]);
-
-  const safeThemeName = useMemo(
-    () => userPreferences?.theme || "minimalist",
-    [userPreferences],
+  const { backgroundColor, colorScheme, theme } = useValue(
+    userPreferencesState$,
   );
 
-  useEffect(() => {
-    const storedColorScheme = mmkvStorage.getItem("customColorScheme");
-    const storedThemeName = mmkvStorage.getItem("customTheme");
-    const storedBackgroundColor = mmkvStorage.getItem("customBackgroundColor");
+  const effectiveColorScheme = useMemo(() => {
+    const safe = colorScheme || systemColorScheme || "light";
+    return safe === "system" ? systemColorScheme || "light" : safe;
+  }, [colorScheme, systemColorScheme]);
 
-    const colorScheme: UserPreferences["colorScheme"] =
-      storedColorScheme && ["light", "dark"].includes(storedColorScheme)
-        ? (storedColorScheme as "light" | "dark")
-        : "system";
-
-    const theme: UserPreferences["theme"] =
-      storedThemeName && storedThemeName in themes
-        ? (storedThemeName as keyof typeof themes)
-        : "minimalist";
-
-    const backgroundColor = storedBackgroundColor ?? "--color-background";
-
-    setUserPreferences({ colorScheme, theme, backgroundColor });
-
-    if (colorScheme !== "system") {
-      setSystemColorScheme(colorScheme);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const safeThemeName = useMemo(() => theme || "default", [theme]);
 
   const handleSetColorScheme = useCallback(
-    (scheme: "light" | "dark" | "system"): boolean => {
+    (scheme: UserPreferences["colorScheme"]): boolean => {
       try {
         if (!["light", "dark", "system"].includes(scheme))
           throw new Error("Invalid color scheme");
@@ -75,11 +48,9 @@ const ThemeProviderComponent = ({ children }: ThemeProviderProps) => {
         );
 
         if (scheme === "system") {
-          setUserPreferences((prev) => ({ ...prev, colorScheme: "system" }));
-          mmkvStorage.removeItem("colorScheme");
+          userPreferencesState$.colorScheme.set("system");
         } else if (scheme === "light" || scheme === "dark") {
-          setUserPreferences((prev) => ({ ...prev, colorScheme: scheme }));
-          mmkvStorage.setItem("colorScheme", scheme);
+          userPreferencesState$.colorScheme.set(scheme);
         }
 
         return true;
@@ -88,7 +59,7 @@ const ThemeProviderComponent = ({ children }: ThemeProviderProps) => {
         return false;
       }
     },
-    [setUserPreferences, setSystemColorScheme],
+    [setSystemColorScheme],
   );
 
   const handleSetThemeName = useCallback(
@@ -96,8 +67,7 @@ const ThemeProviderComponent = ({ children }: ThemeProviderProps) => {
       try {
         if (!themes[theme]) throw new Error("Theme not found");
 
-        setUserPreferences((prev) => ({ ...prev, theme }));
-        mmkvStorage.setItem("theme", theme);
+        userPreferencesState$.theme.set(theme);
 
         return true;
       } catch (error) {
@@ -114,12 +84,9 @@ const ThemeProviderComponent = ({ children }: ThemeProviderProps) => {
         if (!color) throw new Error("Background color is required");
 
         if (color === "default") {
-          setUserPreferences((prev) => ({
-            ...prev,
-            backgroundColor: "--color-background",
-          }));
+          userPreferencesState$.backgroundColor.set("--color-background");
         } else {
-          setUserPreferences((prev) => ({ ...prev, backgroundColor: color }));
+          userPreferencesState$.backgroundColor.set(color);
         }
 
         return true;
@@ -137,7 +104,7 @@ const ThemeProviderComponent = ({ children }: ThemeProviderProps) => {
     const backgroundColorFallback =
       effectiveColorScheme === "dark" ? "0 0% 0%" : "0 0% 100%";
 
-    const colorVar = userPreferences?.backgroundColor || "--color-background";
+    const colorVar = backgroundColor || "--color-background";
 
     const channels = getThemeColorSafe({
       themeVars,
@@ -145,7 +112,7 @@ const ThemeProviderComponent = ({ children }: ThemeProviderProps) => {
       fallback: backgroundColorFallback,
     });
     return `hsl(${channels})`;
-  }, [safeThemeName, effectiveColorScheme, userPreferences]);
+  }, [safeThemeName, effectiveColorScheme]);
 
   const contextValue = useMemo(() => {
     return {
@@ -170,14 +137,8 @@ const ThemeProviderComponent = ({ children }: ThemeProviderProps) => {
   }, [safeThemeName, effectiveColorScheme]);
 
   return (
-    <ThemeContext.Provider value={contextValue}>
-      <FocusAwareBars
-        colorScheme={
-          userPreferences?.colorScheme === "system"
-            ? "auto"
-            : effectiveColorScheme
-        }
-      />
+    <UserPreferencesContext.Provider value={contextValue}>
+      <FocusAwareBars colorScheme={effectiveColorScheme} />
       <SafeAreaView
         style={{
           flex: 1,
@@ -188,8 +149,8 @@ const ThemeProviderComponent = ({ children }: ThemeProviderProps) => {
           {children}
         </View>
       </SafeAreaView>
-    </ThemeContext.Provider>
+    </UserPreferencesContext.Provider>
   );
 };
 
-export default memo(ThemeProviderComponent);
+export default memo(UserPreferencesProvider);

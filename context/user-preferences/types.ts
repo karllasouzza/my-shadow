@@ -1,10 +1,10 @@
-import { themes } from "./theme-config";
+import { themes } from "../../lib/themes";
 
-export interface ThemeProviderProps {
+export interface UserPreferencesProviderProps {
   children: React.ReactNode;
 }
 
-export interface ThemeContextT {
+export interface IUserPreferencesContext {
   theme: keyof typeof themes;
   colorScheme: "light" | "dark";
   backgroundColor: string;

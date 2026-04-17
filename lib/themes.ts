@@ -9,7 +9,7 @@ import { vars } from "nativewind";
  * Concept: Clean, airy, modern - inspired by contemporary AI assistants
  */
 export const rawColors = {
-  minimalist: {
+  default: {
     light: {
       // === CORE (60% - Dominant) ===
       "--color-background": "0 0% 98%" /* #FAFAFA */,
@@ -133,8 +133,8 @@ export const rawColors = {
  * Themes with NativeWind vars() for use in style props.
  */
 export const themes = {
-  minimalist: {
-    light: vars(rawColors.minimalist.light),
-    dark: vars(rawColors.minimalist.dark),
+  default: {
+    light: vars(rawColors.default.light),
+    dark: vars(rawColors.default.dark),
   },
 };
