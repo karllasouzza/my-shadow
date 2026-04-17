@@ -85,40 +85,40 @@ This document defines the actionable, dependency-ordered implementation tasks fo
 
 ### Implement GPU Backend Selection
 
-- [ ] T030 [US2] Create `selectGpuBackend(osVersion: string, gpuBrand: string, platform: string): string` function in `shared/ai/runtime-config-generator.ts`
-- [ ] T031 [US2] Logic: Android 13+ + Snapdragon → Vulkan; Android < 13 or other chips → OpenCL; iOS → Metal
-- [ ] T032 [US2] Handle edge case: unknown GPU vendor → fallback to platform default (OpenCL Android, Metal iOS)
-- [ ] T033 [US2] Update `RuntimeConfigGenerator.selectDeviceProfile()` to use selectGpuBackend() (FR-002)
+- [x] T030 [US2] Create `selectGpuBackend(osVersion: string, gpuBrand: string, platform: string): string` function in `shared/ai/runtime-config-generator.ts`
+- [x] T031 [US2] Logic: Android 13+ + Snapdragon → Vulkan; Android < 13 or other chips → OpenCL; iOS → Metal
+- [x] T032 [US2] Handle edge case: unknown GPU vendor → fallback to platform default (OpenCL Android, Metal iOS)
+- [x] T033 [US2] Update `RuntimeConfigGenerator.selectDeviceProfile()` to use selectGpuBackend() (FR-002)
 
 ### Implement GPU Probing with Fallback
 
-- [ ] T034 [US2] Add `probeGpuBackend(gpuBackend: string): Promise<boolean>` to `shared/ai/runtime-config-generator.ts`
-- [ ] T035 [US2] Implement timeout-safe GPU initialization attempt (~500ms) with isolated error handling
-- [ ] T036 [US2] On probe failure: set hasGPU=false, record failure reason for telemetry
-- [ ] T037 [US2] Integrate probeGpuBackend() into AIRuntime initialization or detectCapabilities() flow
-- [ ] T038 [US2] Add logging: record GPU backend selection and probe result with timestamps
+- [x] T034 [US2] Add `probeGpuBackend(gpuBackend: string): Promise<boolean>` to `shared/ai/runtime-config-generator.ts`
+- [x] T035 [US2] Implement timeout-safe GPU initialization attempt (~500ms) with isolated error handling
+- [x] T036 [US2] On probe failure: set hasGPU=false, record failure reason for telemetry
+- [x] T037 [US2] Integrate probeGpuBackend() into AIRuntime initialization or detectCapabilities() flow
+- [x] T038 [US2] Add logging: record GPU backend selection and probe result with timestamps
 
 ### Flash Attention Configuration
 
-- [ ] T039 [US2] Update RuntimeConfig generation to set flash_attn based on platform and backend (FR-004)
-- [ ] T040 [US2] Rule: Android → flash_attn: false; iOS Metal → flash_attn: true; others → false
-- [ ] T041 [US2] Add validation: if flash_attn=true, assert platform="iOS" and gpuBackend="Metal"
+- [x] T039 [US2] Update RuntimeConfig generation to set flash_attn based on platform and backend (FR-004)
+- [x] T040 [US2] Rule: Android → flash_attn: false; iOS Metal → flash_attn: true; others → false
+- [x] T041 [US2] Add validation: if flash_attn=true, assert platform="iOS" and gpuBackend="Metal"
 
 ### Write Unit Tests for GPU Configuration
 
-- [ ] T042 [P] [US2] Test selectGpuBackend() for all tier/platform/osVersion combinations
-- [ ] T043 [P] [US2] Test GPU probing logic (success and timeout scenarios)
-- [ ] T044 [P] [US2] Test Flash Attention configuration by platform (Android=false, iOS Metal=true)
-- [ ] T045 [P] [US2] Test edge case: Snapdragon 8 Gen 2 on Android 13 (should select Vulkan)
-- [ ] T046 [P] [US2] Test edge case: unknown GPU vendor (should fallback safely)
-- [ ] T047 [US2] Run tests: `bun test tests/unit/runtime-config-generator.test.ts --grep GPU`
+- [x] T042 [P] [US2] Test selectGpuBackend() for all tier/platform/osVersion combinations
+- [x] T043 [P] [US2] Test GPU probing logic (success and timeout scenarios)
+- [x] T044 [P] [US2] Test Flash Attention configuration by platform (Android=false, iOS Metal=true)
+- [x] T045 [P] [US2] Test edge case: Snapdragon 8 Gen 2 on Android 13 (should select Vulkan)
+- [x] T046 [P] [US2] Test edge case: unknown GPU vendor (should fallback safely)
+- [x] T047 [US2] Run tests: `bun test tests/unit/runtime-config-generator.test.ts --grep GPU`
 
 ### Write Integration Tests for GPU
 
-- [ ] T048 [US2] Create scenario: detect device → select profile → probe GPU → fallback if fails
-- [ ] T049 [US2] Test on mock Snapdragon device with Vulkan success
-- [ ] T050 [US2] Test on mock Snapdragon device with Vulkan probe timeout
-- [ ] T051 [US2] Run GPU integration tests: `bun test tests/integration/gpu-configuration.test.ts`
+- [x] T048 [US2] Create scenario: detect device → select profile → probe GPU → fallback if fails
+- [x] T049 [US2] Test on mock Snapdragon device with Vulkan success
+- [x] T050 [US2] Test on mock Snapdragon device with Vulkan probe timeout
+- [x] T051 [US2] Run GPU integration tests: `bun test tests/integration/gpu-configuration.test.ts`
 
 ---
 
