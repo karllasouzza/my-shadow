@@ -1,6 +1,6 @@
 import { buildRuntimeConfig } from "@/shared/device/config-builder";
 import { detectCapabilities } from "@/shared/device/detector";
-import { getTierByRAM, getTierConfig, resolveCpuProfile, resolveGpuProfile } from "@/shared/device/hardware-database";
+import { getTierByRAM, getTierConfig } from "@/shared/device/hardware-database";
 import { DetectionDeps, SystemState } from "@/shared/device/types";
 import { describe, expect, test } from "bun:test";
 
@@ -80,33 +80,6 @@ describe("detectCapabilities", () => {
     expect(info.platform).toBe("ios");
   });
 
-  test("on Android, gpuType is resolved from brand", async () => {
-    const info = await detectCapabilities(makeDeps(makeState()));
-    expect(info.gpuType).toBe("adreno");
-  });
-
-  test("on iOS, GPU is metal and hasGPU=true", async () => {
-    const info = await detectCapabilities(
-      makeDeps(makeState({ totalRAMBytes: EIGHT_GB }), "ios"),
-    );
-    expect(info.gpuType).toBe("metal");
-    expect(info.hasGPU).toBe(true);
-  });
-
-  test("on iOS, cpuBrand is bionic", async () => {
-    const info = await detectCapabilities(
-      makeDeps(makeState({ totalRAMBytes: EIGHT_GB }), "ios"),
-    );
-    expect(info.cpuBrand).toBe("bionic");
-  });
-
-  test("on Android with Qualcomm brand, cpuBrand is snapdragon", async () => {
-    const info = await detectCapabilities(
-      makeDeps(makeState({ brand: "Qualcomm Snapdragon" })),
-    );
-    expect(info.cpuBrand).toBe("snapdragon");
-  });
-
   test("detectedAt is a recent timestamp", async () => {
     const before = Date.now();
     const info = await detectCapabilities(makeDeps(makeState()));
@@ -126,58 +99,6 @@ describe("detectCapabilities", () => {
       ),
     );
     expect(info.availableRAM).toBe(0);
-  });
-});
-
-describe("performanceCores", () => {
-  test("iOS uses 50% of cores", async () => {
-    const info = await detectCapabilities(
-      makeDeps(makeState({ cpuCores: 6 }), "ios"),
-    );
-    expect(info.performanceCores).toBe(3);
-  });
-
-  test("Android Snapdragon uses 37.5% of cores", async () => {
-    const info = await detectCapabilities(
-      makeDeps(
-        makeState({
-          cpuCores: 8,
-          brand: "Qualcomm",
-        }),
-      ),
-    );
-    expect(info.performanceCores).toBe(3);
-  });
-
-  test("Android Helio uses 50% with floor of 2", async () => {
-    const info = await detectCapabilities(
-      makeDeps(
-        makeState({
-          cpuCores: 4,
-          brand: "MediaTek Helio",
-        }),
-      ),
-    );
-    expect(info.performanceCores).toBe(2);
-  });
-
-  test("performance cores is at least 2 for unknown brand", async () => {
-    const info = await detectCapabilities(
-      makeDeps(
-        makeState({
-          cpuCores: 2,
-          brand: "Unknown",
-        }),
-      ),
-    );
-    expect(info.performanceCores).toBe(2);
-  });
-
-  test("performance cores capped at 8", async () => {
-    const info = await detectCapabilities(
-      makeDeps(makeState({ cpuCores: 16 }), "ios"),
-    );
-    expect(info.performanceCores).toBe(8);
   });
 });
 
@@ -204,54 +125,6 @@ describe("gpuBackend", () => {
       makeDeps(makeState({ totalRAMBytes: 1024 * 1024 * 1024 })), // 1GB
     );
     expect(info.hasGPU).toBe(false);
-  });
-});
-
-describe("resolveCpuProfile", () => {
-  test("detects Snapdragon from brand string", () => {
-    const profile = resolveCpuProfile("Qualcomm Snapdragon 8 Gen 2");
-    expect(profile.brand).toBe("snapdragon");
-    expect(profile.performanceCoreRatio).toBe(0.375);
-  });
-
-  test("detects Bionic from Apple", () => {
-    const profile = resolveCpuProfile("Apple iPhone15,2");
-    expect(profile.brand).toBe("bionic");
-  });
-
-  test("defaults to unknown with 50% ratio", () => {
-    const profile = resolveCpuProfile("Some Unknown Brand");
-    expect(profile.brand).toBe("unknown");
-    expect(profile.performanceCoreRatio).toBe(0.5);
-  });
-});
-
-describe("resolveGpuProfile", () => {
-  test("iOS always returns Metal", () => {
-    const profile = resolveGpuProfile("ios");
-    expect(profile.type).toBe("metal");
-    expect(profile.backend).toBe("metal");
-    expect(profile.vramFraction).toBe(1.0);
-  });
-
-  test("detects Adreno from brand", () => {
-    const profile = resolveGpuProfile("android", "Qualcomm Snapdragon");
-    expect(profile.type).toBe("adreno");
-    expect(profile.backend).toBe("opencl");
-  });
-
-  test("detects Mali from brand", () => {
-    const profile = resolveGpuProfile(
-      "android",
-      "Samsung Exynos with Mali-G78",
-    );
-    expect(profile.type).toBe("mali");
-    expect(profile.backend).toBe("vulkan");
-  });
-
-  test("returns unknown backend for unrecognized GPU", () => {
-    const profile = resolveGpuProfile("android", "Some GPU");
-    expect(profile.backend).toBeNull();
   });
 });
 

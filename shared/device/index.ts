@@ -1,7 +1,14 @@
 import { createRNAdapter } from "./adapters";
 import { buildRuntimeConfig } from "./config-builder";
-import { detectCapabilities } from "./detector";
+import { detectCapabilities, DeviceDetector } from "./detector";
 import { DeviceInfo, RuntimeConfig } from "./types";
+
+export { DeviceDetector };
+export type {
+  IDeviceInfoProvider,
+  IPlatformProvider,
+  IMemoryInfoProvider,
+} from "./adapters";
 
 export async function detectDevice(): Promise<DeviceInfo> {
   const adapter = createRNAdapter();

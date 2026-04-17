@@ -26,9 +26,9 @@ This document defines the actionable, dependency-ordered implementation tasks fo
 
 ## Phase 1: Setup & Infrastructure
 
-- [ ] T001 Create TypeScript interfaces for DI providers in `shared/device/adapters.ts`
-- [ ] T002 [P] Update `shared/ai/types/index.ts` with DeviceInfo, GpuProfile, RuntimeConfig, MemoryPressure, ModelMetadata types
-- [ ] T003 [P] Create `shared/ai/types/constants.ts` with device tier definitions, GPU backends, cache types
+- [x] T001 Create TypeScript interfaces for DI providers in `shared/device/adapters.ts`
+- [x] T002 [P] Update `shared/ai/types/index.ts` with DeviceInfo, GpuProfile, RuntimeConfig, MemoryPressure, ModelMetadata types
+- [x] T003 [P] Create `shared/ai/types/constants.ts` with device tier definitions, GPU backends, cache types
 
 ---
 
@@ -36,18 +36,18 @@ This document defines the actionable, dependency-ordered implementation tasks fo
 
 ### Dependency Injection Setup
 
-- [ ] T004 Implement IDeviceInfoProvider interface in `shared/device/adapters.ts` (wraps react-native-device-info)
-- [ ] T005 [P] Implement IPlatformProvider interface in `shared/device/adapters.ts` (wraps Platform module)
-- [ ] T006 [P] Implement IMemoryInfoProvider interface in `shared/device/adapters.ts`
-- [ ] T007 Create `shared/device/index.ts` with default exports (DeviceDetector with default providers)
+- [x] T004 Implement IDeviceInfoProvider interface in `shared/device/adapters.ts` (wraps react-native-device-info)
+- [x] T005 [P] Implement IPlatformProvider interface in `shared/device/adapters.ts` (wraps Platform module)
+- [x] T006 [P] Implement IMemoryInfoProvider interface in `shared/device/adapters.ts`
+- [x] T007 Create `shared/device/index.ts` with default exports (DeviceDetector with default providers)
 
 ### Test Infrastructure
 
-- [ ] T008 Create `tests/unit/device-detector.test.ts` stub with import of bun:test and type imports only (no react-native)
-- [ ] T009 [P] Create `tests/unit/runtime-config-generator.test.ts` stub
-- [ ] T010 [P] Create `tests/unit/memory-monitor.test.ts` stub
-- [ ] T011 [P] Create `tests/unit/model-loader.test.ts` stub
-- [ ] T012 Update `tests/setup.ts` to configure Bun test preload if needed (verify bunfig.toml preload is active)
+- [x] T008 Create `tests/unit/device-detector.test.ts` stub with import of bun:test and type imports only (no react-native)
+- [x] T009 [P] Create `tests/unit/runtime-config-generator.test.ts` stub
+- [x] T010 [P] Create `tests/unit/memory-monitor.test.ts` stub
+- [x] T011 [P] Create `tests/unit/model-loader.test.ts` stub
+- [x] T012 Update `tests/setup.ts` to configure Bun test preload if needed (verify bunfig.toml preload is active)
 
 ---
 
