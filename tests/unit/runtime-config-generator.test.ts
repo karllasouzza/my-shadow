@@ -214,6 +214,21 @@ describe("RuntimeConfigGenerator.generateThreadCount", () => {
     // mockBudgetDevice has cpuCores: 4
     expect(generator.generateThreadCount(mockBudgetDevice())).toBe(4);
   });
+
+  test("T082 device with 12 cores → n_threads capped at 8", () => {
+    const device = mockDeviceInfo({ cpuCores: 12 });
+    expect(generator.generateThreadCount(device)).toBe(8);
+  });
+
+  test("T083 device with 4 cores → n_threads = 4", () => {
+    const device = mockDeviceInfo({ cpuCores: 4 });
+    expect(generator.generateThreadCount(device)).toBe(4);
+  });
+
+  test("T084 device with 0 cores → n_threads clamped to 1", () => {
+    const device = mockDeviceInfo({ cpuCores: 0 });
+    expect(generator.generateThreadCount(device)).toBe(1);
+  });
 });
 
 describe("RuntimeConfigGenerator.calculateOptimalBatch", () => {

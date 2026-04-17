@@ -2,8 +2,12 @@ import {
   calculateMemoryBudget,
   calculateMemoryBudgetFromPath,
   preflightCheck,
+  verifyIntegrity,
 } from "@/shared/ai/model-budget";
 import { describe, expect, test } from "bun:test";
+import { mkdtemp, writeFile, rm } from "fs/promises";
+import { join } from "path";
+import { tmpdir } from "os";
 
 const BYTES_TO_GB = 1024 ** 3;
 
@@ -128,3 +132,55 @@ describe("preflightCheck()", () => {
   });
 });
 
+describe("verifyIntegrity", () => {
+  test("T094 calcula hash SHA256 para arquivo existente", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "model-test-"));
+    const testFile = join(dir, "model.gguf");
+    await writeFile(testFile, "dummy model content for testing");
+
+    const result = await verifyIntegrity(testFile);
+
+    expect(typeof result.calculatedHash).toBe("string");
+    expect(result.calculatedHash).toHaveLength(64); // SHA256 hex = 64 chars
+    expect(result.matches).toBe(true); // no expectedHash → always true
+    expect(result.fileSize).toBeGreaterThan(0);
+    expect(result.filePath).toBe(testFile);
+
+    await rm(dir, { recursive: true });
+  });
+
+  test("T095 detecta divergência de hash corretamente", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "model-test-"));
+    const testFile = join(dir, "model.gguf");
+    await writeFile(testFile, "dummy model content for testing");
+
+    const wrongHash = "a".repeat(64);
+    const result = await verifyIntegrity(testFile, wrongHash);
+
+    expect(result.matches).toBe(false);
+    expect(result.expectedHash).toBe(wrongHash);
+
+    await rm(dir, { recursive: true });
+  });
+
+  test("T095b verifica hash correto com sucesso", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "model-test-"));
+    const testFile = join(dir, "model.gguf");
+    await writeFile(testFile, "dummy model content for testing");
+
+    const firstResult = await verifyIntegrity(testFile);
+    const correctHash = firstResult.calculatedHash;
+
+    const result = await verifyIntegrity(testFile, correctHash);
+
+    expect(result.matches).toBe(true);
+
+    await rm(dir, { recursive: true });
+  });
+
+  test("T096 rejeita arquivo inexistente com erro", async () => {
+    await expect(
+      verifyIntegrity("/non/existent/model.gguf"),
+    ).rejects.toThrow();
+  });
+});

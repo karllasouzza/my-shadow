@@ -98,9 +98,9 @@ export function validateRuntimeConfig(
 }
 
 export class RuntimeConfigGenerator {
-  /** n_threads = min(cpuCores, 8) as per spec FR-008. */
+  /** n_threads = clamp(cpuCores, 1, 8) as per spec FR-008. */
   generateThreadCount(deviceInfo: DeviceInfo): number {
-    return Math.min(deviceInfo.cpuCores, 8);
+    return Math.max(1, Math.min(deviceInfo.cpuCores, 8));
   }
 
   /**
