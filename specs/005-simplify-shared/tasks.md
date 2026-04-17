@@ -55,29 +55,29 @@ This document defines the actionable, dependency-ordered implementation tasks fo
 
 ### Refactor DeviceDetector
 
-- [ ] T013 [US1] Refactor `shared/device/detector.ts` to use DI interfaces (IDeviceInfoProvider, IPlatformProvider)
-- [ ] T014 [US1] Update `detect()` method to calculate available RAM = totalRAM - osOverhead - currentUsage
-- [ ] T015 [US1] Implement OS overhead constants: iOS 1.5GB, Android 2GB in `shared/device/detector.ts`
-- [ ] T016 [US1] Add validation to availableRAM: if < 0, set to 0; if < 1GB, flag for GPU disabling (FR-003)
-- [ ] T017 [US1] Remove or deprecate: cpuBrand detection, performanceCoreRatio calculation, gpuMemoryMB estimation (FR-011)
-- [ ] T018 [US1] Keep deviceModel and osVersion for logging/debug only, add comment that they are not used for decisions
+- [x] T013 [US1] Refactor `shared/device/detector.ts` to use DI interfaces (IDeviceInfoProvider, IPlatformProvider)
+- [x] T014 [US1] Update `detect()` method to calculate available RAM = totalRAM - osOverhead - currentUsage
+- [x] T015 [US1] Implement OS overhead constants: iOS 1.5GB, Android 2GB in `shared/device/detector.ts`
+- [x] T016 [US1] Add validation to availableRAM: if < 0, set to 0; if < 1GB, flag for GPU disabling (FR-003)
+- [x] T017 [US1] Remove or deprecate: cpuBrand detection, performanceCoreRatio calculation, gpuMemoryMB estimation (FR-011)
+- [x] T018 [US1] Keep deviceModel and osVersion for logging/debug only, add comment that they are not used for decisions
 
 ### Write Unit Tests for Device Detection
 
-- [ ] T019 [P] [US1] Write unit tests for DeviceDetector.detect() with mocked providers (budget, midRange, premium tiers)
-- [ ] T020 [P] [US1] Test OS overhead calculation: iOS 1.5GB, Android 2GB (T015 coverage)
-- [ ] T021 [P] [US1] Test available RAM validation: negative → 0, low memory flag (<1GB) (T016 coverage)
-- [ ] T022 [P] [US1] Test edge case: device with <1GB available RAM
-- [ ] T023 [P] [US1] Test edge case: availableRAM calculation with negative result
-- [ ] T024 [US1] Run tests: `bun test tests/unit/device-detector.test.ts`
+- [x] T019 [P] [US1] Write unit tests for DeviceDetector.detect() with mocked providers (budget, midRange, premium tiers)
+- [x] T020 [P] [US1] Test OS overhead calculation: iOS 1.5GB, Android 2GB (T015 coverage)
+- [x] T021 [P] [US1] Test available RAM validation: negative → 0, low memory flag (<1GB) (T016 coverage)
+- [x] T022 [P] [US1] Test edge case: device with <1GB available RAM
+- [x] T023 [P] [US1] Test edge case: availableRAM calculation with negative result
+- [x] T024 [US1] Run tests: `bun test tests/unit/device-detector.test.ts`
 
 ### Write Integration Tests
 
-- [ ] T025 [US1] Create `tests/integration/device-detection.test.ts` for end-to-end detection workflow
-- [ ] T026 [US1] Test detection on mock iOS device with Metal GPU
-- [ ] T027 [US1] Test detection on mock Android device with Vulkan capability (Android 13+)
-- [ ] T028 [US1] Test detection on mock Android device without Vulkan (older version)
-- [ ] T029 [US1] Run integration tests: `bun test tests/integration/device-detection.test.ts`
+- [x] T025 [US1] Create `tests/integration/device-detection.test.ts` for end-to-end detection workflow
+- [x] T026 [US1] Test detection on mock iOS device with Metal GPU
+- [x] T027 [US1] Test detection on mock Android device with Vulkan capability (Android 13+)
+- [x] T028 [US1] Test detection on mock Android device without Vulkan (older version)
+- [x] T029 [US1] Run integration tests: `bun test tests/integration/device-detection.test.ts`
 
 ---
 
