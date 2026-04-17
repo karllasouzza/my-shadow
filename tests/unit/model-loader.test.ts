@@ -51,6 +51,25 @@ describe("calculateMemoryBudget()", () => {
     expect(result.sufficient).toBe(false);
     expect(result.requiredGB).toBeGreaterThan(4);
   });
+
+  test("T116 rejects model when available RAM < 1GB", () => {
+    const budget = calculateMemoryBudget(3, 512, "q4_0", 0.8);
+    expect(budget.sufficient).toBe(false);
+    expect(budget.availableGB).toBe(0.8);
+  });
+
+  test("T117 handles zero available RAM gracefully", () => {
+    const budget = calculateMemoryBudget(4, 2048, "f16", 0);
+    expect(budget.sufficient).toBe(false);
+    expect(budget.availableGB).toBe(0);
+    expect(budget.requiredGB).toBeGreaterThan(0);
+  });
+
+  test("T118 model too large for device total RAM", () => {
+    const budget = calculateMemoryBudget(70, 2048, "f16", 8); // 70B model
+    expect(budget.sufficient).toBe(false);
+    expect(budget.requiredGB).toBeGreaterThan(70);
+  });
 });
 
 describe("calculateMemoryBudgetFromPath()", () => {

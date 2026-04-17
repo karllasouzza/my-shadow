@@ -419,6 +419,13 @@ describe("selectGpuBackend", () => {
       "Vulkan",
     );
   });
+
+  test("T119 unknown GPU vendor falls back to OpenCL", () => {
+    // "UnknownBrand X1" matches no Snapdragon pattern → OpenCL is the safe fallback
+    expect(selectGpuBackend("17.0", "UnknownBrand X1", "android")).toBe(
+      "OpenCL",
+    );
+  });
 });
 
 describe("probeGpuBackend", () => {

@@ -146,3 +146,38 @@ Performance is measured per device RAM tier. The app auto-selects the appropriat
 - [ ] Add dynamic n_gpu_layers based on device thermal state
 - [ ] Migrate embeddings to llama.rn GGUF format (remove executorch dependency)
 - [ ] Benchmark on mid-range devices (Samsung A-series, Moto G series)
+
+---
+
+## Feature 005: Simplified Shared Module
+
+**Date**: 2026-04-17
+**Feature**: 005-simplify-shared
+
+### Device Detection (T111)
+
+- Target: <100ms
+- Implementation: `DeviceDetector.detect()` — async, parallel native API calls batched via `Promise.all`
+
+### Runtime Config Generation (T112)
+
+- Target: <50ms
+- Implementation: `RuntimeConfigGenerator.generateRuntimeConfig()` — pure computation, no async I/O
+
+### Memory Evaluation (T113)
+
+- Target: <10ms
+- Implementation: `MemoryMonitor.evaluate()` — single native API call, no disk access
+
+### Pre-Flight Check (T114)
+
+- Target: <1s (file I/O bound)
+- Implementation: `preflightCheck()` — `fs.stat` + optional SHA-256 streaming (64 KB chunks)
+
+### KV Cache Memory Reduction (Feature Benefit)
+
+| KV Type | Memory vs f16 | Quality Loss | Use Case |
+|---------|--------------|--------------|----------|
+| f16 | baseline | none | Premium (≥7 GB) |
+| q8_0 | −50% | <2% | Budget & Mid-Range |
+| q4_0 | −75% | ≥5% | Extreme edge cases only |

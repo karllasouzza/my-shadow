@@ -117,6 +117,39 @@ For details, see:
 - [Troubleshooting Guide](docs/runtime/optimization-troubleshooting.md)
 - [Research Notes](docs/research/kv-cache-optimization-research.md)
 
+## AI Runtime Architecture
+
+The `shared/ai` and `shared/device` modules implement the runtime optimization pipeline. All services follow the Dependency Injection pattern so they can be tested without native modules.
+
+### Modules
+
+| Module | Location | Responsibility |
+|--------|----------|----------------|
+| `DeviceDetector` | `shared/device` | Detects device capabilities: total RAM, available RAM (after OS overhead), CPU cores, GPU backend |
+| `RuntimeConfigGenerator` | `shared/ai/runtime-config-generator` | Generates optimal llama.rn config (n_ctx, n_threads, gpu_layers, flash_attn) from device profile |
+| `MemoryMonitor` | `shared/ai/memory-monitor` | Monitors runtime memory pressure; triggers callback at >85% utilization |
+| `model-budget` | `shared/ai/model-budget` | `calculateMemoryBudget`, `preflightCheck`, `verifyIntegrity` — pure RAM math + optional SHA-256 |
+
+### Device Tiers
+
+| Tier | Available RAM | KV Cache | GPU |
+|------|--------------|----------|-----|
+| Budget | < 5 GB | q8_0 (50% reduction) | CPU-only |
+| Mid-Range | 5–7 GB | q8_0 | 50 GPU layers |
+| Premium | ≥ 7 GB | f16 (full precision) | Full GPU offload |
+
+### GPU Backends
+
+- **Metal** — iOS (all devices)
+- **Vulkan** — Android 13+ with Snapdragon/Adreno chipsets
+- **OpenCL** — Android fallback (older OS or non-Snapdragon)
+
+### OS RAM Overhead
+
+iOS reserves 1.5 GB; Android reserves 2.0 GB. Available RAM = total − overhead − currently used.
+
+See [Usage Examples](docs/usage-examples.md) for code samples.
+
 ## Learn more
 
 To learn more about developing your project with Expo, look at the following resources:

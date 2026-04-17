@@ -310,3 +310,34 @@ interface AppError {
 - **Shared journaling** (v3): Encrypted collaboration with consent
 - **Advanced analytics** (v3): On-device pattern recognition
 - **Model customization** (v3): User-fine-tuned reflection prompts
+
+---
+
+## Edge Case Handling — Shared AI Runtime (005-simplify-shared)
+
+### Zero / Negative Available RAM
+
+`availableRAM = max(0, totalRAM − osOverhead − usedRAM)`. If the result is
+negative (e.g., the OS overhead exceeds reported free memory), it clamps to 0.
+`calculateMemoryBudget` still computes the correct `requiredGB`, so
+`sufficient` is always `false` and the pt-BR reason string indicates the exact
+deficit.
+
+### cpuCores = 0
+
+`generateThreadCount` uses `Math.max(1, Math.min(cpuCores, 8))`, so a 0-core
+report is clamped to 1 thread — inference runs single-threaded rather than
+crashing.
+
+### Unknown GPU Vendor
+
+`selectGpuBackend` checks only for Snapdragon/Adreno identifiers on Android.
+Any other brand (Exynos, MediaTek, unknown OEM) returns `"OpenCL"`, the
+safest Android fallback. iOS always returns `"Metal"`.
+
+### Missing Model File
+
+`preflightCheck` calls `fs.stat` first. If the file is absent it returns
+`canLoad: false` with a pt-BR reason (`"Modelo não encontrado: <filename>"`).
+No RAM budget computation is attempted, so the function is safe to call before
+a model is downloaded.

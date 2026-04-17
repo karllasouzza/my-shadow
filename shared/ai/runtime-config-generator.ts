@@ -98,7 +98,9 @@ export function validateRuntimeConfig(
 }
 
 export class RuntimeConfigGenerator {
-  /** n_threads = clamp(cpuCores, 1, 8) as per spec FR-008. */
+  // n_threads is capped at 8 because llama.cpp's internal parallelism shows
+  // diminishing returns beyond 8 threads on mobile silicon — extra threads
+  // increase context-switch overhead without improving throughput (FR-008).
   generateThreadCount(deviceInfo: DeviceInfo): number {
     return Math.max(1, Math.min(deviceInfo.cpuCores, 8));
   }

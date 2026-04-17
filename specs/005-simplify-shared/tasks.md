@@ -224,40 +224,40 @@ This document defines the actionable, dependency-ordered implementation tasks fo
 
 ### Documentation & Examples
 
-- [ ] T102 Update README.md with feature overview and usage examples
-- [ ] T103 [P] Update inline comments in all refactored modules to explain design decisions (English)
-- [ ] T104 [P] Create code examples in docs/ directory (device detection, runtime config, model loading)
-- [ ] T105 Verify all user-facing strings are in Brazilian Portuguese (pt-BR)
+- [x] T102 Update README.md with feature overview and usage examples
+- [x] T103 [P] Update inline comments in all refactored modules to explain design decisions (English)
+- [x] T104 [P] Create code examples in docs/ directory (device detection, runtime config, model loading)
+- [x] T105 Verify all user-facing strings are in Brazilian Portuguese (pt-BR)
 
 ### Testing & Quality
 
-- [ ] T106 Run full test suite: `bun test tests/**/*.test.ts`
-- [ ] T107 [P] Check test coverage: `bun test tests/**/*.test.ts --coverage`
-- [ ] T108 [P] Target: ≥80% coverage on shared/device and shared/ai modules
-- [ ] T109 Run linting: `bun run lint`
-- [ ] T110 Fix any linting violations in refactored code
+- [x] T106 Run full test suite: `bun test tests/**/*.test.ts`
+- [x] T107 [P] Check test coverage: `bun test tests/**/*.test.ts --coverage`
+- [x] T108 [P] Target: ≥80% coverage on shared/device and shared/ai modules
+- [x] T109 Run linting: `bun run lint`
+- [x] T110 Fix any linting violations in refactored code
 
 ### Performance Verification
 
-- [ ] T111 Benchmark device detection performance (target: <100ms)
-- [ ] T112 [P] Benchmark runtime config generation (target: <50ms)
-- [ ] T113 [P] Benchmark memory evaluation (target: <10ms)
-- [ ] T114 [P] Benchmark pre-flight check (target: <1s)
-- [ ] T115 Create performance report in docs/performance-benchmarks.md
+- [x] T111 Benchmark device detection performance (target: <100ms)
+- [x] T112 [P] Benchmark runtime config generation (target: <50ms)
+- [x] T113 [P] Benchmark memory evaluation (target: <10ms)
+- [x] T114 [P] Benchmark pre-flight check (target: <1s)
+- [x] T115 Create performance report in docs/performance-benchmarks.md
 
 ### Edge Case Handling
 
-- [ ] T116 Test device with <1GB available RAM (edge case from spec)
-- [ ] T117 [P] Test OS overhead calculation resulting in negative available RAM
-- [ ] T118 [P] Test model requiring more memory than device total RAM
-- [ ] T119 [P] Test unknown GPU vendor detection
-- [ ] T120 Document edge case handling in docs/architecture/
+- [x] T116 Test device with <1GB available RAM (edge case from spec)
+- [x] T117 [P] Test OS overhead calculation resulting in negative available RAM
+- [x] T118 [P] Test model requiring more memory than device total RAM
+- [x] T119 [P] Test unknown GPU vendor detection
+- [x] T120 Document edge case handling in docs/architecture/
 
 ### Code Review Preparation
 
-- [ ] T121 Run Copilot code review on all refactored modules
-- [ ] T122 [P] Address any review feedback
-- [ ] T123 [P] Update CHANGELOG.md with feature summary
+- [x] T121 Run Copilot code review on all refactored modules
+- [x] T122 [P] Address any review feedback
+- [x] T123 [P] Update CHANGELOG.md with feature summary
 
 ---
 

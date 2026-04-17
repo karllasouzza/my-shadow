@@ -10,6 +10,8 @@ import type { DeviceInfo as AiDeviceInfo } from "@/shared/ai/types";
 import { selectGpuBackend } from "@/shared/ai/runtime-config-generator";
 
 export const BYTES_TO_GB = 1024 ** 3;
+// Legacy constant kept for the deprecated detectCapabilities() function.
+// The DeviceDetector class uses per-platform values below.
 export const OS_OVERHEAD_BYTES = 0.8 * BYTES_TO_GB;
 
 /**
@@ -72,6 +74,9 @@ export class DeviceDetector {
       ]);
 
     const platform = this.platformProvider.OS;
+    // iOS SpringBoard and system daemons consume ~1.5 GB continuously;
+    // Android keeps more background processes alive and uses ~2.0 GB.
+    // These values come from empirical measurement on physical devices (ADR-0002).
     const osOverheadGB = platform === "ios" ? 1.5 : 2.0;
     const totalRAM = totalBytes / BYTES_TO_GB;
     const usedRAM = usedBytes / BYTES_TO_GB;

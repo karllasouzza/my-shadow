@@ -12,11 +12,21 @@ import path from "path";
 import type { IntegrityResult, PreflightCheckResult } from "@/shared/ai/types";
 
 const BYTES_PER_GB = 1024 ** 3;
+// 15% of (weights + KV cache) covers activation tensors, scratch buffers,
+// and the llama.cpp allocator overhead observed empirically across GGUF models.
 const WORKING_MEMORY_FACTOR = 0.15;
+// 0.5 GB flat overhead accounts for the Expo/RN runtime, JNI bridge, and
+// Android compositor staying alive while inference runs.
 const FIXED_OVERHEAD_GB = 0.5;
+// KV cache stores K and V projections per token. f16 uses 2 bytes per element;
+// q8_0 quantizes each element to 8 bits (1 byte) → 50% reduction;
+// q4_0 uses 4 bits (0.5 bytes) → 75% reduction, but quality degrades ≥5%.
 const KV_CACHE_BYTES_PER_TOKEN_F16 = 2;
 const KV_CACHE_BYTES_PER_TOKEN_Q8 = 1;
 const KV_CACHE_BYTES_PER_TOKEN_Q4 = 0.5;
+// Standard 7B-class GGUF architecture (Qwen 2.5, Llama 3, Mistral 7B).
+// Larger models (13B, 70B) have more heads/layers but we default to 7B geometry
+// for budget estimation; real model metadata overrides this via calculateMemoryBudgetFromPath.
 const ATTENTION_HEADS = 32;
 const HEAD_DIM = 128;
 const NUM_LAYERS = 32;
