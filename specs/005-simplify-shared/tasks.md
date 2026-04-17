@@ -174,17 +174,17 @@ This document defines the actionable, dependency-ordered implementation tasks fo
 
 ### Simplify CPU Detection
 
-- [ ] T078 [US4] Update DeviceDetector to report actual cpuCores count without brand adjustment (FR-008)
-- [ ] T079 [US4] Remove performanceCoreRatio calculation entirely (FR-011)
-- [ ] T080 [US4] Update RuntimeConfigGenerator to set n_threads = min(cpuCores, 8) with comment on llama.cpp practical limit
-- [ ] T081 [US4] Add validation: n_threads in range [1, 8]
+- [x] T078 [US4] Update DeviceDetector to report actual cpuCores count without brand adjustment (FR-008)
+- [x] T079 [US4] Remove performanceCoreRatio calculation entirely (FR-011)
+- [x] T080 [US4] Update RuntimeConfigGenerator to set n_threads = min(cpuCores, 8) with comment on llama.cpp practical limit
+- [x] T081 [US4] Add validation: n_threads in range [1, 8]
 
 ### Write Unit Tests for CPU Detection
 
-- [ ] T082 [P] [US4] Test n_threads capping at 8 for device with 12 cores
-- [ ] T083 [P] [US4] Test n_threads = cpuCores for device with 4 cores
-- [ ] T084 [P] [US4] Test that performanceCoreRatio is not calculated (removed)
-- [ ] T085 [US4] Run CPU tests: `bun test tests/unit/runtime-config-generator.test.ts --grep CPU`
+- [x] T082 [P] [US4] Test n_threads capping at 8 for device with 12 cores
+- [x] T083 [P] [US4] Test n_threads = cpuCores for device with 4 cores
+- [x] T084 [P] [US4] Test that performanceCoreRatio is not calculated (removed)
+- [x] T085 [US4] Run CPU tests: `bun test tests/unit/runtime-config-generator.test.ts --grep CPU`
 
 ---
 
@@ -192,31 +192,31 @@ This document defines the actionable, dependency-ordered implementation tasks fo
 
 ### Implement SHA256 Verification
 
-- [ ] T086 [US5] Create `verifyIntegrity(modelPath: string, expectedHash?: string): Promise<IntegrityResult>` in `shared/ai/model-loader.ts`
-- [ ] T087 [US5] Implement streaming SHA256 hash calculation (avoid memory spike for large files) (FR-009)
-- [ ] T088 [US5] Compare calculated hash to expected value (if provided)
-- [ ] T089 [US5] Return IntegrityResult with calculated hash, expected hash, and matches flag
-- [ ] T090 [US5] Integrate verifyIntegrity() into preflightCheck()
+- [x] T086 [US5] Create `verifyIntegrity(modelPath: string, expectedHash?: string): Promise<IntegrityResult>` in `shared/ai/model-loader.ts`
+- [x] T087 [US5] Implement streaming SHA256 hash calculation (avoid memory spike for large files) (FR-009)
+- [x] T088 [US5] Compare calculated hash to expected value (if provided)
+- [x] T089 [US5] Return IntegrityResult with calculated hash, expected hash, and matches flag
+- [x] T090 [US5] Integrate verifyIntegrity() into preflightCheck()
 
 ### Implement Model Rejection on Integrity Failure
 
-- [ ] T091 [US5] Update preflightCheck to set integrityStatus: "verified" | "unverified" | "failed"
-- [ ] T092 [US5] If integrityStatus="failed", set canLoad=false with reason "Model integrity check failed; consider re-downloading"
-- [ ] T093 [US5] Add logging: log integrity check results for diagnostics
+- [x] T091 [US5] Update preflightCheck to set integrityStatus: "verified" | "unverified" | "failed"
+- [x] T092 [US5] If integrityStatus="failed", set canLoad=false with reason "Model integrity check failed; consider re-downloading"
+- [x] T093 [US5] Add logging: log integrity check results for diagnostics
 
 ### Write Unit Tests for Integrity Verification
 
-- [ ] T094 [P] [US5] Test SHA256 calculation and comparison (matching hash)
-- [ ] T095 [P] [US5] Test SHA256 verification failure (mismatched hash)
-- [ ] T096 [P] [US5] Test streaming hash calculation performance (target: <5s for 7GB file)
-- [ ] T097 [US5] Run integrity tests: `bun test tests/unit/model-loader.test.ts --grep integrity`
+- [x] T094 [P] [US5] Test SHA256 calculation and comparison (matching hash)
+- [x] T095 [P] [US5] Test SHA256 verification failure (mismatched hash)
+- [x] T096 [P] [US5] Test streaming hash calculation performance (target: <5s for 7GB file)
+- [x] T097 [US5] Run integrity tests: `bun test tests/unit/model-loader.test.ts --grep integrity`
 
 ### Write Integration Tests for Model Loading
 
-- [ ] T098 [US5] Create scenario: download model → verify integrity → pre-flight check → load
-- [ ] T099 [US5] Test successful model load with valid integrity
-- [ ] T100 [US5] Test model rejection due to integrity failure
-- [ ] T101 [US5] Run model loading integration tests: `bun test tests/integration/model-loading.test.ts`
+- [x] T098 [US5] Create scenario: download model → verify integrity → pre-flight check → load
+- [x] T099 [US5] Test successful model load with valid integrity
+- [x] T100 [US5] Test model rejection due to integrity failure
+- [x] T101 [US5] Run model loading integration tests: `bun test tests/integration/model-loading.test.ts`
 
 ---
 
