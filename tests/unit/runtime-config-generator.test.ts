@@ -2,6 +2,8 @@ import {
   RuntimeConfigGenerator,
   validateCacheType,
   validateRuntimeConfig,
+  selectGpuBackend,
+  probeGpuBackend,
 } from "@/shared/ai/runtime-config-generator";
 import {
   mockBudgetDevice,
@@ -365,5 +367,93 @@ describe("RuntimeConfigGenerator.validateCacheConfig", () => {
   test("flash_attn disabled on CPU-only devices", () => {
     const device = mockBudgetDevice();
     expect(device.gpuBackend).toBeNull();
+  });
+});
+
+describe("selectGpuBackend", () => {
+  test("iOS always returns Metal", () => {
+    expect(selectGpuBackend("17.0", "Apple", "ios")).toBe("Metal");
+  });
+
+  test("Android 13+ Snapdragon returns Vulkan", () => {
+    expect(selectGpuBackend("13.0", "Snapdragon 8 Gen 2", "android")).toBe(
+      "Vulkan",
+    );
+  });
+
+  test("Android 12 Snapdragon returns OpenCL (not Vulkan)", () => {
+    expect(selectGpuBackend("12.0", "Snapdragon 888", "android")).toBe(
+      "OpenCL",
+    );
+  });
+
+  test("Android 13 non-Snapdragon (Samsung Exynos) returns OpenCL", () => {
+    expect(
+      selectGpuBackend("13.0", "Samsung Exynos 2200", "android"),
+    ).toBe("OpenCL");
+  });
+
+  test("Android unknown GPU vendor returns OpenCL", () => {
+    expect(selectGpuBackend("13.0", "MediaTek Helio G99", "android")).toBe(
+      "OpenCL",
+    );
+  });
+
+  test("Android 13 with Adreno (Qualcomm) returns Vulkan", () => {
+    expect(selectGpuBackend("13.0", "Qualcomm Adreno 740", "android")).toBe(
+      "Vulkan",
+    );
+  });
+});
+
+describe("probeGpuBackend", () => {
+  test("returns false for 'none'", async () => {
+    const result = await probeGpuBackend("none");
+    expect(result).toBe(false);
+  });
+
+  test("returns true for valid backend (simulated success)", async () => {
+    const result = await probeGpuBackend("Metal");
+    expect(result).toBe(true);
+  });
+
+  test("returns true for Vulkan backend", async () => {
+    const result = await probeGpuBackend("Vulkan");
+    expect(result).toBe(true);
+  });
+
+  test("returns true for OpenCL backend", async () => {
+    const result = await probeGpuBackend("OpenCL");
+    expect(result).toBe(true);
+  });
+});
+
+describe("flash_attn configuration", () => {
+  const generator = new RuntimeConfigGenerator();
+
+  test("iOS Metal device gets flash_attn=true", () => {
+    const config = generator.generateRuntimeConfig(
+      mockPremiumDevice(),
+      MODEL_PATH,
+    );
+    expect(config.flash_attn).toBe(true);
+  });
+
+  test("Android device gets flash_attn=false", () => {
+    const config = generator.generateRuntimeConfig(
+      mockMidRangeDevice(),
+      MODEL_PATH,
+    );
+    expect(config.flash_attn).toBe(false);
+  });
+
+  test("iOS device without GPU gets flash_attn=false", () => {
+    const device = mockDeviceInfo({
+      platform: "ios",
+      hasGPU: false,
+      gpuBackend: null,
+    });
+    const config = generator.generateRuntimeConfig(device, MODEL_PATH);
+    expect(config.flash_attn).toBe(false);
   });
 });

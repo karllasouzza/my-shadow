@@ -7,6 +7,7 @@ import {
   IPlatformProvider,
 } from "./adapters";
 import type { DeviceInfo as AiDeviceInfo } from "@/shared/ai/types";
+import { selectGpuBackend } from "@/shared/ai/runtime-config-generator";
 
 export const BYTES_TO_GB = 1024 ** 3;
 export const OS_OVERHEAD_BYTES = 0.8 * BYTES_TO_GB;
@@ -76,8 +77,11 @@ export class DeviceDetector {
     const usedRAM = usedBytes / BYTES_TO_GB;
     const availableRAM = Math.max(0, totalRAM - osOverheadGB - usedRAM);
 
-    let gpuBackend: AiDeviceInfo["gpuBackend"] =
-      platform === "ios" ? "Metal" : "none";
+    let gpuBackend: AiDeviceInfo["gpuBackend"] = selectGpuBackend(
+      osVersion,
+      brand ?? "",
+      platform,
+    );
     let hasGPU = gpuBackend !== "none";
 
     // T016: insufficient available RAM disables GPU acceleration

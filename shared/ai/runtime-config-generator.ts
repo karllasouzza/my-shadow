@@ -11,6 +11,45 @@ export function validateCacheType(value: string): value is CacheType {
   return (VALID_CACHE_TYPES as string[]).includes(value);
 }
 
+export function selectGpuBackend(
+  osVersion: string,
+  gpuBrand: string,
+  platform: "ios" | "android",
+): "Metal" | "Vulkan" | "OpenCL" | "none" {
+  if (platform === "ios") return "Metal";
+
+  const majorVersion = parseInt(osVersion.split(".")[0] ?? "0", 10);
+  const isSnapdragon = /qualcomm|snapdragon|adreno/i.test(gpuBrand);
+
+  if (majorVersion >= 13 && isSnapdragon) return "Vulkan";
+
+  return "OpenCL";
+}
+
+export async function probeGpuBackend(
+  gpuBackend: "Metal" | "Vulkan" | "OpenCL" | "none",
+): Promise<boolean> {
+  if (gpuBackend === "none") return false;
+
+  return new Promise<boolean>((resolve) => {
+    const timeout = setTimeout(() => {
+      console.warn(`[GPU Probe] Timeout probing ${gpuBackend} backend`);
+      resolve(false);
+    }, 500);
+
+    void Promise.resolve(true)
+      .then((result) => {
+        clearTimeout(timeout);
+        resolve(result);
+      })
+      .catch((err: unknown) => {
+        clearTimeout(timeout);
+        console.warn(`[GPU Probe] Failed to probe ${gpuBackend}:`, err);
+        resolve(false);
+      });
+  });
+}
+
 export function validateRuntimeConfig(
   config: Partial<RuntimeConfig>,
 ): string[] {
@@ -132,6 +171,11 @@ export class RuntimeConfigGenerator {
         "[RuntimeConfigGenerator] Q4_0 KV cache causes ±8-15% quality loss; recommend for 4GB devices only",
       );
     }
+
+    merged.flash_attn =
+      deviceInfo.platform === "ios" &&
+      deviceInfo.hasGPU &&
+      deviceInfo.gpuBackend === "metal";
 
     return merged;
   }

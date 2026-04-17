@@ -36,6 +36,7 @@ export interface RuntimeConfig {
   use_mlock: boolean;
   cache_type_k: CacheType;
   cache_type_v: CacheType;
+  flash_attn?: boolean;
   n_predict?: number;
   n_parallel?: number;
   temperature?: number;

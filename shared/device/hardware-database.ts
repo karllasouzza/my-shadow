@@ -104,10 +104,16 @@ export function resolveGpuProfile(
 ): GpuProfile {
   if (platform === "ios") return GPU_PROFILES.ios;
 
-  const key = Object.keys(GPU_PROFILES).find((k) =>
-    brand?.toLowerCase().includes(k),
-  );
-  return key
-    ? GPU_PROFILES[key]
-    : { type: "unknown", backend: null, vramFraction: 0.3 };
+  const lower = brand?.toLowerCase() ?? "";
+  if (
+    lower.includes("qualcomm") ||
+    lower.includes("snapdragon") ||
+    lower.includes("adreno")
+  ) {
+    return GPU_PROFILES.adreno;
+  }
+  if (lower.includes("mali") || lower.includes("exynos")) {
+    return GPU_PROFILES.mali;
+  }
+  return { type: "unknown", backend: null, vramFraction: 0.3 };
 }
