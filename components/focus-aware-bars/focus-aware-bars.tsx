@@ -1,15 +1,21 @@
-import { useFocusEffect } from '@react-navigation/native';
-import { SystemBars } from 'react-native-edge-to-edge';
+import { useFocusEffect } from "@react-navigation/native";
+import { SystemBars } from "react-native-edge-to-edge";
 
-import { FocusAwareBarsProps } from './focus-aware-bars.types';
+import { useMemo } from "react";
+import { FocusAwareBarsProps } from "./focus-aware-bars.types";
 
 export const FocusAwareBars = ({ colorScheme }: FocusAwareBarsProps) => {
+  const inverseColorScheme = useMemo(
+    () => (colorScheme === "light" ? "dark" : "light"),
+    [colorScheme],
+  );
+
   useFocusEffect(() => {
     SystemBars.setStyle({
-      navigationBar: colorScheme || 'light',
-      statusBar: colorScheme || 'light',
+      navigationBar: inverseColorScheme || "light",
+      statusBar: inverseColorScheme || "light",
     });
   });
 
-  return <SystemBars style={colorScheme || 'light'} />;
+  return <SystemBars style={inverseColorScheme || "light"} />;
 };

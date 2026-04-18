@@ -27,6 +27,7 @@ import {
     SlideInDown,
     SlideOutDown,
     runOnJS,
+    runOnUI,
     useAnimatedStyle,
     useSharedValue,
     withSpring,
@@ -104,7 +105,10 @@ function AppModalContent({
   // Reset drag offset every time the modal opens
   React.useEffect(() => {
     if (modalCtx?.open) {
-      translateY.value = 0;
+      runOnUI(() => {
+        "worklet";
+        translateY.value = 0;
+      })();
     }
   }, [modalCtx?.open]);
 
