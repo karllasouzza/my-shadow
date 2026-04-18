@@ -1,4 +1,5 @@
 import { ChatMessage } from "@/database/chat/types";
+import { aiDebug, aiError, aiInfo } from "@/shared/ai/log";
 import { createError, err, ok, Result } from "@/shared/utils/app-error";
 import { initLlama, LlamaContext, TokenData } from "llama.rn";
 import { detectDevice, type DeviceInfo } from "../../device";
@@ -45,51 +46,144 @@ export class AIRuntime {
     path: string,
     fileSizeBytes: number,
   ): Promise<Result<{ id: string }>> {
-    // Just return if the same model is already loaded
-    if (this.modelId === modelId && this.context) {
+    const start = Date.now();
+    aiInfo("LOAD:start", `modelId=${modelId}`, {
+      modelId,
+      path,
+      fileSizeBytes,
+    });
+
+    try {
+      // Just return if the same model is already loaded
+      if (this.modelId === modelId && this.context) {
+        aiDebug("LOAD:skip", `model already loaded: ${modelId}`);
+        return ok({ id: modelId });
+      }
+
+      await this.unloadModel();
+
+      // Check memory: file * 1.5 for KV cache + activations
+      this.device ??= await detectDevice();
+      const device = this.device as DeviceInfo;
+      const requiredGB = (fileSizeBytes * 1.5) / 1024 ** 3;
+      aiDebug("LOAD:device-check", `requiredGB=${requiredGB.toFixed(2)}`, {
+        requiredGB,
+        device,
+      });
+      if (requiredGB > device.availableRAM * 0.75) {
+        const message = `Modelo precisa de ~${requiredGB.toFixed(1)}GB. Disponível: ${device.availableRAM.toFixed(1)}GB.`;
+        aiError("LOAD:insufficient-memory", message, {
+          requiredGB,
+          availableRAM: device.availableRAM,
+        });
+        return err(createError("INSUFFICIENT_MEMORY", message));
+      }
+
+      const config = buildConfig(device, path);
+      const hasGPU = device.hasGPU;
+
+      // Flash attention overhead may exceed benefits for small models (< 500MB)
+      const enableFlashAttn = hasGPU && fileSizeBytes > 500_000_000;
+
+      aiInfo("LOAD:initLlama:start", `modelId=${modelId}`, {
+        config: { ...config, model: undefined },
+        hasGPU,
+        flashAttention: enableFlashAttn,
+      });
+
+      this.context = await initLlama({
+        ...config,
+        flash_attn: enableFlashAttn,
+        flash_attn_type: enableFlashAttn ? "on" : "auto",
+      });
+
+      await this.context.parallel.enable({ n_parallel: 1 });
+
+      this.modelId = modelId;
+      this.config = config;
+
+      // Warm up the model to reduce TTFT on first inference
+      // This does a single token completion to initialize caches and JIT compilation
+      await this._warmupModel().catch((err: unknown) => {
+        aiDebug("LOAD:warmup:skip", `error=${(err as Error)?.message}`);
+      });
+
+      const duration = Date.now() - start;
+      aiInfo("LOAD:done", `modelId=${modelId} duration_ms=${duration}`, {
+        modelId,
+        duration,
+        config,
+        device,
+      });
+
       return ok({ id: modelId });
-    }
-
-    await this.unloadModel();
-
-    // Check memory: file * 1.5 for KV cache + activations
-    this.device ??= await detectDevice();
-    const device = this.device;
-    const requiredGB = (fileSizeBytes * 1.5) / 1024 ** 3;
-    if (requiredGB > device.availableRAM * 0.75) {
+    } catch (error) {
+      const duration = Date.now() - start;
+      aiError("LOAD:error", `modelId=${modelId} duration_ms=${duration}`, {
+        modelId,
+        duration,
+        error: (error as Error)?.message,
+      });
       return err(
         createError(
-          "INSUFFICIENT_MEMORY",
-          `Modelo precisa de ~${requiredGB.toFixed(1)}GB. Disponível: ${device.availableRAM.toFixed(1)}GB.`,
+          "UNKNOWN_ERROR",
+          "Falha ao carregar modelo.",
+          {},
+          error as Error,
         ),
       );
     }
-
-    const config = buildConfig(device, path);
-    const hasGPU = device.hasGPU;
-
-    this.context = await initLlama({
-      ...config,
-      flash_attn: hasGPU,
-      flash_attn_type: hasGPU ? "on" : "auto",
-    });
-
-    await this.context.parallel.enable({ n_parallel: 1 });
-
-    this.modelId = modelId;
-    this.config = config;
-
-    return ok({ id: modelId });
   }
 
   async unloadModel(): Promise<Result<void>> {
-    await this.cancelGeneration();
-    await this.context?.parallel?.disable?.().catch(() => {});
-    await this.context?.release?.().catch(() => {});
-    this.context = null;
-    this.modelId = null;
-    this.config = null;
-    return ok(undefined);
+    const start = Date.now();
+    aiInfo("UNLOAD:start", `modelId=${this.modelId}`);
+    try {
+      await this.cancelGeneration();
+      await this.context?.parallel?.disable?.().catch(() => {});
+      await this.context?.release?.().catch(() => {});
+      this.context = null;
+      this.modelId = null;
+      this.config = null;
+      const duration = Date.now() - start;
+      aiInfo("UNLOAD:done", `duration_ms=${duration}`);
+      return ok(undefined);
+    } catch (error) {
+      const duration = Date.now() - start;
+      aiError("UNLOAD:error", `duration_ms=${duration}`, {
+        error: (error as Error)?.message,
+      });
+      return err(
+        createError(
+          "UNKNOWN_ERROR",
+          "Falha ao descarregar modelo.",
+          {},
+          error as Error,
+        ),
+      );
+    }
+  }
+
+  private async _warmupModel(): Promise<void> {
+    if (!this.context) return;
+    aiDebug("LOAD:warmup:start", "warming up model");
+    const start = Date.now();
+    try {
+      const { promise } = await this.context.parallel.completion(
+        {
+          messages: [{ role: "user", content: "Hi" }],
+          n_predict: 1,
+          temperature: 0.0,
+        },
+        () => {},
+      );
+      await promise;
+      const duration = Date.now() - start;
+      aiDebug("LOAD:warmup:done", `duration_ms=${duration}`);
+    } catch (error) {
+      aiDebug("LOAD:warmup:error", `${(error as Error)?.message}`);
+      throw error;
+    }
   }
 
   async streamCompletion(
@@ -102,6 +196,13 @@ export class AIRuntime {
     }
 
     const enableThinking = !!options?.enableThinking;
+    // Disable thinking mode for very small models (< 800MB) as overhead may exceed benefits
+    const actualEnableThinking =
+      enableThinking &&
+      this.config &&
+      (this.config.model?.includes?.("7b") ||
+        this.config.model?.includes?.("13b") ||
+        this.config.model?.includes?.("70b"));
     const signal = options?.abortSignal;
     const filteredMessages = messages.map((m) => ({
       role: m.role,
@@ -118,13 +219,21 @@ export class AIRuntime {
       signal.addEventListener("abort", () => abortController.abort());
     }
 
+    const inferenceStart = Date.now();
+    aiInfo("INFERENCE:start", `modelId=${this.modelId}`, {
+      modelId: this.modelId,
+      messageCount: messages.length,
+    });
+
+    let firstTokenAt: number | null = null;
+
     try {
       const { promise, stop } = await this.context.parallel.completion(
         {
           messages: filteredMessages,
           jinja: true,
-          enable_thinking: enableThinking,
-          thinking_forced_open: enableThinking,
+          enable_thinking: actualEnableThinking,
+          thinking_forced_open: actualEnableThinking,
           n_predict: options?.maxTokens ?? this.config?.n_predict ?? 2048,
           temperature: options?.temperature ?? 0.7,
           stop: STOP_WORDS,
@@ -139,6 +248,17 @@ export class AIRuntime {
           let token = data.token ?? "";
           const reasoningChunk = data.reasoning_content ?? "";
           let reasoningToSend = "";
+
+          // capture first token time-to-first-token
+          if (!firstTokenAt && (token || reasoningChunk)) {
+            firstTokenAt = Date.now();
+            const ttf = firstTokenAt - inferenceStart;
+            aiInfo(
+              "INFERENCE:first-token",
+              `modelId=${this.modelId} ttf_ms=${ttf}`,
+              { ttf_ms: ttf, preview: (token || reasoningChunk).slice(0, 8) },
+            );
+          }
 
           if (enableThinking && !reasoningChunk) {
             if (token.includes("<think>")) {
@@ -182,6 +302,13 @@ export class AIRuntime {
         return err(createError("EMPTY", "Resposta vazia."));
       }
 
+      const duration = Date.now() - inferenceStart;
+      aiInfo(
+        "INFERENCE:end",
+        `modelId=${this.modelId} duration_ms=${duration}`,
+        { duration_ms: duration, timings: result.timings },
+      );
+
       return ok({
         text,
         reasoning: reasoning || undefined,
@@ -205,6 +332,11 @@ export class AIRuntime {
         return this.streamCompletion(messages, options, _retryCount + 1);
       }
 
+      aiError(
+        "INFERENCE:error",
+        `modelId=${this.modelId} error=${(error as Error)?.message}`,
+        { error: (error as Error)?.message },
+      );
       return err(
         createError(
           "GENERATION_FAILED",
@@ -219,6 +351,7 @@ export class AIRuntime {
   }
 
   async cancelGeneration(): Promise<void> {
+    aiInfo("INFERENCE:cancel", `modelId=${this.modelId}`);
     await this.stopFn?.();
     this.stopFn = null;
   }
