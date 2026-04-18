@@ -5,29 +5,30 @@ import { useCallback, useMemo } from "react";
 import { toast } from "sonner-native";
 
 export function useHistory() {
-  const conversationsMap = useValue(chatState$.conversations) ?? new Map();
+  const conversationsRecord = useValue(chatState$.conversations) ?? {};
 
-  // Convert Map to sorted array and keep reactive
+  // Convert Record to sorted array and keep reactive
   const conversations = useMemo(() => {
-    const list = Array.from(conversationsMap.values());
+    const list = Object.values(conversationsRecord);
     return list.sort(
       (a, b) =>
         new Date(b.updatedAt || b.createdAt).getTime() -
         new Date(a.updatedAt || a.createdAt).getTime(),
     );
-  }, [conversationsMap]);
+  }, [conversationsRecord]);
 
   const deleteConversation = useCallback((id: string): boolean => {
     try {
-      const exists = chatState$.conversations.peek()?.has(id);
+      const exists = chatState$.conversations.peek()?.[id];
       if (!exists) {
         toast.error("Conversa não encontrada.");
         return false;
       }
 
       chatState$.conversations.set((prev) => {
-        prev.delete(id);
-        return prev;
+        const newPrev = { ...prev };
+        delete newPrev[id];
+        return newPrev;
       });
 
       toast.success("Conversa deletada com sucesso.");
@@ -49,13 +50,18 @@ export function useHistory() {
         let result: ChatConversation | null = null;
 
         chatState$.conversations.set((prev) => {
-          const conv = prev.get(id);
+          const conv = prev[id];
           if (conv) {
-            conv.title = newTitle.trim();
-            conv.updatedAt = new Date().toISOString();
-            result = conv;
+            // Create a new object reference to ensure Legend State detects the change
+            const updated: ChatConversation = {
+              ...conv,
+              title: newTitle.trim(),
+              updatedAt: new Date().toISOString(),
+            };
+            prev[id] = updated;
+            result = updated;
           }
-          return prev;
+          return { ...prev };
         });
 
         if (!result) {

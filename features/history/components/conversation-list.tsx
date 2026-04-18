@@ -7,12 +7,16 @@ interface ConversationListProps {
   conversations: ChatConversation[];
   onPress: (id: string) => void;
   onLongPress?: (conv: ChatConversation) => void;
+  onRename?: (conv: ChatConversation) => void;
+  onDelete?: (conv: ChatConversation) => void;
 }
 
 export function ConversationList({
   conversations,
   onPress,
   onLongPress,
+  onRename,
+  onDelete,
 }: ConversationListProps) {
   return (
     <FlatList
@@ -23,6 +27,8 @@ export function ConversationList({
           conversation={item}
           onPress={onPress}
           onLongPress={onLongPress}
+          onRename={onRename}
+          onDelete={onDelete}
         />
       )}
     />

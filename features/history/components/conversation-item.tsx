@@ -1,40 +1,57 @@
 import { ChatConversation } from "@/database/chat/types";
 import React from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import { Text, Pressable, View } from "react-native";
+import ConversationDropdownMenu from "@/components/ui/conversation-dropdown-menu";
 
 interface ConversationItemProps {
   conversation: ChatConversation;
   onPress: (id: string) => void;
   onLongPress?: (conversation: ChatConversation) => void;
+  onRename?: (conversation: ChatConversation) => void;
+  onDelete?: (conversation: ChatConversation) => void;
 }
 
 export function ConversationItem({
   conversation,
   onPress,
   onLongPress,
+  onRename,
+  onDelete,
 }: ConversationItemProps) {
   return (
-    <TouchableOpacity
+    <Pressable
       onPress={() => onPress(conversation.id)}
       onLongPress={() => onLongPress?.(conversation)}
       accessible
       accessibilityLabel={`Conversa: ${conversation.title}`}
-      accessibilityHint={`Última atualização: ${formatRelativeDate(conversation.updatedAt || conversation.createdAt)}`}
+      accessibilityHint={`Última atualização: ${formatRelativeDate(
+        conversation.updatedAt || conversation.createdAt,
+      )}`}
       accessibilityRole="button"
-      className="px-5 py-4 flex gap-1 flex-col border-b border-border bg-card active:bg-muted"
+      className="px-5 py-4 border-b border-border bg-card active:bg-muted"
     >
-      <Text className="text-foreground text-base font-medium" numberOfLines={1}>
+      <Text className="text-foreground text-base font-medium mb-1" numberOfLines={1}>
         {conversation.title}
       </Text>
-      <View className="flex flex-row justify-between">
-        <Text className="text-foreground/75 text-xs truncate" numberOfLines={1}>
+
+      <View className="flex flex-row items-center justify-between">
+        <Text className="text-foreground/75 text-xs truncate flex-1 pr-3" numberOfLines={1}>
           {conversation.lastMessage}
         </Text>
-        <Text className="text-muted-foreground/55 text-xs">
-          {formatRelativeDate(conversation.updatedAt || conversation.createdAt)}
-        </Text>
+
+        <View className="flex-row items-center gap-2">
+          <Text className="text-muted-foreground/55 text-xs">
+            {formatRelativeDate(conversation.updatedAt || conversation.createdAt)}
+          </Text>
+
+          <ConversationDropdownMenu
+            conversation={conversation}
+            onRename={(c) => onRename?.(c)}
+            onDelete={(c) => onDelete?.(c)}
+          />
+        </View>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 

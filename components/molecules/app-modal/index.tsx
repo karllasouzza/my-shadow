@@ -121,6 +121,7 @@ function AppModalContent({
       <AppModalOverlay>
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 32}
           style={{ flex: 1, justifyContent: "flex-end" }}
         >
           {/* Backdrop: tapping the dark area closes the modal */}
