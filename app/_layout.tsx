@@ -1,4 +1,5 @@
 import UserPreferencesProvider from "@/context/user-preferences/provider";
+import "@/lib/reanimated-config";
 import { PortalHost } from "@rn-primitives/portal";
 import { Stack } from "expo-router";
 import React from "react";

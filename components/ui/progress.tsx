@@ -1,13 +1,12 @@
-import { cn } from '@/lib/utils';
-import * as ProgressPrimitive from '@rn-primitives/progress';
-import { Platform, View } from 'react-native';
+import { cn } from "@/lib/utils";
+import * as ProgressPrimitive from "@rn-primitives/progress";
+import * as React from "react";
+import { Platform, View } from "react-native";
 import Animated, {
-  Extrapolation,
-  interpolate,
   useAnimatedStyle,
-  useDerivedValue,
+  useSharedValue,
   withSpring,
-} from 'react-native-reanimated';
+} from "react-native-reanimated";
 
 function Progress({
   className,
@@ -19,8 +18,12 @@ function Progress({
 }) {
   return (
     <ProgressPrimitive.Root
-      className={cn('bg-primary/20 relative h-2 w-full overflow-hidden rounded-full', className)}
-      {...props}>
+      className={cn(
+        "bg-primary/20 relative h-2 w-full overflow-hidden rounded-full",
+        className,
+      )}
+      {...props}
+    >
       <Indicator value={value} className={indicatorClassName} />
     </ProgressPrimitive.Root>
   );
@@ -40,38 +43,47 @@ type IndicatorProps = {
 };
 
 function WebIndicator({ value, className }: IndicatorProps) {
-  if (Platform.OS !== 'web') {
+  if (Platform.OS !== "web") {
     return null;
   }
 
   return (
     <View
-      className={cn('bg-primary h-full w-full flex-1 transition-all', className)}
-      style={{ transform: `translateX(-${100 - (value ?? 0)}%)` }}>
-      <ProgressPrimitive.Indicator className={cn('h-full w-full', className)} />
+      className={cn(
+        "bg-primary h-full w-full flex-1 transition-all",
+        className,
+      )}
+      style={{ transform: `translateX(-${100 - (value ?? 0)}%)` }}
+    >
+      <ProgressPrimitive.Indicator className={cn("h-full w-full", className)} />
     </View>
   );
 }
 
 function NativeIndicator({ value, className }: IndicatorProps) {
-  const progress = useDerivedValue(() => value ?? 0);
+  const widthShared = useSharedValue(1);
+
+  React.useEffect(() => {
+    const target = Math.max(1, Math.min(100, value ?? 0));
+    widthShared.value = withSpring(target, { overshootClamping: true });
+  }, [value]);
 
   const indicator = useAnimatedStyle(() => {
     return {
-      width: withSpring(
-        `${interpolate(progress.value, [0, 100], [1, 100], Extrapolation.CLAMP)}%`,
-        { overshootClamping: true }
-      ),
+      width: `${widthShared.value}%`,
     };
-  }, [value]);
+  }, []);
 
-  if (Platform.OS === 'web') {
+  if (Platform.OS === "web") {
     return null;
   }
 
   return (
     <ProgressPrimitive.Indicator asChild>
-      <Animated.View style={indicator} className={cn('bg-foreground h-full', className)} />
+      <Animated.View
+        style={indicator}
+        className={cn("bg-foreground h-full", className)}
+      />
     </ProgressPrimitive.Indicator>
   );
 }

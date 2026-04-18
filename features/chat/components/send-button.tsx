@@ -9,10 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import React, { useEffect, useRef } from "react";
 import Animated, {
-    Easing,
-    useAnimatedStyle,
-    useSharedValue,
-    withTiming,
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
 } from "react-native-reanimated";
 
 const AnimatedButton = Animated.createAnimatedComponent(Button);
@@ -68,7 +68,7 @@ export function SendButton({
         {isGenerating ? (
           <Icon
             as={require("lucide-react-native").Square}
-            className="text-destructive size-5"
+            className="text-destructive-foreground size-5"
           />
         ) : (
           <Icon
