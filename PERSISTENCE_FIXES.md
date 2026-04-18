@@ -92,6 +92,46 @@ return {
 };
 ```
 
+#### 4. `renameConversation()` - Lines 52-63 (History Module)
+**File**: `features/history/view-model/use-history.ts`
+
+**Before**: Direct mutation preventing sync
+```typescript
+chatState$.conversations.set((prev) => {
+  const conv = prev[id];
+  if (conv) {
+    const updated: ChatConversation = {
+      ...conv,
+      title: newTitle.trim(),
+      updatedAt: new Date().toISOString(),
+    };
+    prev[id] = updated;              // ❌ Direct mutation
+    result = updated;
+  }
+  return { ...prev };                // ❌ Same object references
+});
+```
+
+**After**: Immutable pattern triggers sync
+```typescript
+chatState$.conversations.set((prev) => {
+  const conv = prev[id];
+  if (conv) {
+    const updated: ChatConversation = {
+      ...conv,
+      title: newTitle.trim(),
+      updatedAt: new Date().toISOString(),
+    };
+    result = updated;
+    return {
+      ...prev,
+      [id]: updated,                 // ✅ New object reference triggers sync
+    };
+  }
+  return prev;                       // ✅ No change if conversation not found
+});
+```
+
 ### Phase 2: Debug Logging (Observability)
 
 **File**: `features/chat/view-model/hooks/useConversation.ts`
@@ -163,15 +203,22 @@ See `PERSISTENCE_TEST_GUIDE.md` for:
 
 1. **`features/chat/view-model/hooks/useConversation.ts`**
    - Lines 1-8: Added `aiDebug` import
+   - Lines 33-48: Fixed `create()` immutability
    - Lines 50-106: Fixed `addMessage()` immutability + logging
    - Lines 108-134: Fixed `updateLastUserError()` immutability
    - Lines 136-165: Fixed `removeLastAssistant()` immutability
 
-2. **`database/chat/index.ts`**
+2. **`features/history/view-model/use-history.ts`**
+   - Lines 28-35: Fixed `deleteConversation()` - Already using immutable pattern
+   - Lines 52-63: **NEWLY FIXED** `renameConversation()` - Changed from direct mutation to immutable pattern
+     - **Before**: `prev[id] = updated; return { ...prev };` (same object reference)
+     - **After**: `return { ...prev, [id]: updated };` (new object reference triggers sync)
+
+3. **`database/chat/index.ts`**
    - Verified persistence config is correct
    - No changes needed (config already valid)
 
-3. **`PERSISTENCE_TEST_GUIDE.md`** (NEW)
+4. **`PERSISTENCE_TEST_GUIDE.md`** (NEW)
    - Complete manual testing guide
    - Debugging patterns
    - Expected log outputs
