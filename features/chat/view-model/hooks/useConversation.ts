@@ -18,7 +18,7 @@ export function useConversation() {
     const convFallback = createChatConversation("Nova conversa");
 
     if (conversationId) {
-      const existing = chatState$.conversations.get()?.get(conversationId);
+      const existing = chatState$.conversations.get()?.[conversationId];
       if (existing) {
         setId(existing.id);
         setTitle(existing.title);
@@ -37,8 +37,8 @@ export function useConversation() {
     );
 
     chatState$.conversations.set((prev) => {
-      prev.set(newConversation.id, newConversation);
-      return prev;
+      prev[newConversation.id] = newConversation;
+      return { ...prev };
     });
     chatState$.lastModelId.set(modelId);
 
@@ -50,13 +50,13 @@ export function useConversation() {
   const addMessage = useCallback((convId: string, message: ChatMessage) => {
     let success = false;
 
-    if (chatState$.conversations.get()?.has(convId) === false) {
+    if (!chatState$.conversations.get()?.[convId]) {
       const newConvId = create(message.modelId!, "Nova conversa");
       convId = newConvId;
     }
 
     chatState$.conversations.set((prev) => {
-      const conv = prev.get(convId);
+      const conv = prev[convId];
       if (!conv) return prev;
 
       conv.messages.push(message);
@@ -73,7 +73,7 @@ export function useConversation() {
       }
 
       success = true;
-      return prev;
+      return { ...prev };
     });
 
     chatState$.lastModelId.set(message.modelId ?? null);
@@ -84,7 +84,7 @@ export function useConversation() {
   const updateLastUserError = useCallback(
     (convId: string, errorCode?: string) => {
       chatState$.conversations.set((prev) => {
-        const conv = prev.get(convId);
+        const conv = prev[convId];
         if (!conv) return prev;
 
         const lastUserIdx = conv.messages.findLastIndex(
@@ -96,7 +96,7 @@ export function useConversation() {
           conv.updatedAt = new Date().toISOString();
         }
 
-        return prev;
+        return { ...prev };
       });
     },
     [],
@@ -106,7 +106,7 @@ export function useConversation() {
     let success = false;
 
     chatState$.conversations.set((prev) => {
-      const conv = prev.get(convId);
+      const conv = prev[convId];
       if (!conv) return prev;
 
       const lastUserIdx = conv.messages.findLastIndex(
@@ -125,15 +125,15 @@ export function useConversation() {
         success = true;
       }
 
-      return prev;
+      return { ...prev };
     });
 
     return success;
   }, []);
 
   const getMessages = useCallback((convId: string): ChatMessage[] => {
-    const conv = chatState$.conversations.get(convId);
-    return conv ? conv.get().messages : [];
+    const conv = chatState$.conversations.get()?.[convId];
+    return conv ? conv.messages : [];
   }, []);
 
   const clearError = useCallback(() => {
@@ -141,8 +141,8 @@ export function useConversation() {
   }, []);
 
   const getLastModelUsedId = useCallback((convId: string): string | null => {
-    const conv = chatState$.conversations.get(convId);
-    return conv ? (conv.get().lastModelUsedId ?? null) : null;
+    const conv = chatState$.conversations.get()?.[convId];
+    return conv ? (conv.lastModelUsedId ?? null) : null;
   }, []);
 
   return useMemo(

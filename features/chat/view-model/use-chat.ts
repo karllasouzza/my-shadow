@@ -1,4 +1,5 @@
 import chatState$ from "@/database/chat";
+import { aiError, aiInfo } from "@/shared/ai/log";
 import { getAIRuntime } from "@/shared/ai/text-generation/runtime";
 import { useValue } from "@legendapp/state/react";
 import { useCallback, useMemo } from "react";
@@ -106,10 +107,19 @@ export function useChat() {
 
       const messages = conversation.getMessages(conversationId);
 
+      aiInfo(
+        "INFERENCE:start",
+        `conversationId=${conversationId} modelId=${currentModelId}`,
+        { conversationId, modelId: currentModelId },
+      );
       await stream.generate(messages, {
         modelId: currentModelId,
         enableThinking: reasoningEnabled,
         onComplete: (text, reasoning, messageId, timings) => {
+          aiInfo(
+            "INFERENCE:start",
+            `conversationId=${conversationId} modelId=${currentModelId}`,
+          );
           const assistantMessage = createChatMessage(
             "assistant",
             text,
@@ -124,11 +134,20 @@ export function useChat() {
           if (timings) {
             (assistantMessage as any).timings = timings;
           }
+          aiInfo(
+            "INFERENCE:end",
+            `conversationId=${conversationId} modelId=${currentModelId}`,
+            { conversationId, modelId: currentModelId, timings },
+          );
           conversation.addMessage(conversationId, assistantMessage);
           // Clear streaming state after saving to Legend State for smooth transition
           stream.clearStreamingState();
         },
         onError: (code, partialText, partialReasoning, messageId) => {
+          aiError(
+            "INFERENCE:error",
+            `conversationId=${conversationId} modelId=${currentModelId} code=${code}`,
+          );
           handleGenerationError(
             conversationId,
             currentModelId,
@@ -166,6 +185,11 @@ export function useChat() {
 
     const currentModelId = resolveCurrentModelId();
 
+    aiInfo(
+      "INFERENCE:start",
+      `conversationId=${conversationId} modelId=${currentModelId}`,
+      { conversationId, modelId: currentModelId },
+    );
     await stream.generate(messages, {
       modelId: currentModelId,
       enableThinking: reasoningEnabled,

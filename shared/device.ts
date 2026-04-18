@@ -1,3 +1,4 @@
+import { aiInfo } from "@/shared/ai/log";
 import { Platform } from "react-native";
 import DeviceInfo from "react-native-device-info";
 
@@ -19,14 +20,27 @@ export async function detectDevice(): Promise<DeviceInfo> {
   ]);
 
   const isIOS = Platform.OS === "ios";
-  const availableRAM = Math.max(0, (total - used) / GB - (isIOS ? 1.5 : 2.0));
+  const totalGB = total / GB;
+  
+  // Adaptive RAM buffer: larger devices need less buffer percentage
+  // This prevents over-conservative memory reporting on modern devices
+  const buffer = totalGB > 8 ? 0.8 : totalGB > 6 ? 1.0 : 1.5;
+  const availableRAM = Math.max(0, (total - used) / GB - buffer);
 
-  return {
-    totalRAM: total / GB,
+  const deviceInfo: DeviceInfo = {
+    totalRAM: totalGB,
     availableRAM,
+    // TODO: Implement proper CPU core detection for better performance
+    // Currently hardcoded to 4, but modern phones have 6-8+ cores
     cpuCores: 4,
     hasGPU: isIOS,
     gpuBackend: isIOS ? "Metal" : "none",
     platform: isIOS ? "iOS" : "Android",
   };
+
+  aiInfo("DEVICE:detect", `platform=${deviceInfo.platform}`, {
+    device: deviceInfo,
+  });
+
+  return deviceInfo;
 }

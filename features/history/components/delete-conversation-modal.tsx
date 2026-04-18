@@ -1,5 +1,6 @@
 import {
     AppModal,
+    AppModalContent,
     AppModalFooter,
     AppModalHandle,
     AppModalHeader,
@@ -24,24 +25,32 @@ export function DeleteConversationModal({
 }: DeleteConversationModalProps) {
   return (
     <AppModal open={open} onOpenChange={onOpenChange}>
-      <AppModalHandle />
-      <AppModalHeader title="Excluir Conversa" />
-      <View className="px-6 gap-4">
-        <Text className="text-muted-foreground">
-          Tem certeza que deseja excluir "{conversation?.title}"? Esta ação não
-          pode ser desfeita.
-        </Text>
-      </View>
-      <AppModalFooter
-        onCancel={() => onOpenChange(false)}
-        cancelLabel="Cancelar"
-        onConfirm={() => {
-          onConfirm();
-          onOpenChange(false);
-        }}
-        confirmLabel="Excluir"
-        confirmVariant="destructive"
-      />
+      <AppModalContent>
+        <AppModalHandle />
+        <AppModalHeader
+          title={
+            conversation?.title
+              ? `Excluir: ${conversation.title}`
+              : "Excluir Conversa"
+          }
+        />
+        <View className="px-6 gap-4">
+          <Text className="text-muted-foreground">
+            Tem certeza que deseja excluir "{conversation?.title}"? Esta ação
+            não pode ser desfeita.
+          </Text>
+        </View>
+        <AppModalFooter
+          onCancel={() => onOpenChange(false)}
+          cancelLabel="Cancelar"
+          onConfirm={() => {
+            onConfirm();
+            onOpenChange(false);
+          }}
+          confirmLabel="Excluir"
+          confirmVariant="destructive"
+        />
+      </AppModalContent>
     </AppModal>
   );
 }

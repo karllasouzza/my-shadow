@@ -4,7 +4,6 @@ import { Icon } from "@/components/ui/icon";
 import { Text } from "@/components/ui/text";
 import { ChatConversation } from "@/database/chat/types";
 import { ConversationList } from "@/features/history/components/conversation-list";
-import { ConversationMenuModal } from "@/features/history/components/conversation-menu-modal";
 import { DeleteConversationModal } from "@/features/history/components/delete-conversation-modal";
 import { EmptyHistory } from "@/features/history/components/empty-history";
 import { RenameConversationModal } from "@/features/history/components/rename-conversation-modal";
@@ -31,13 +30,7 @@ const HistoryScreenInner = observer(function HistoryScreenInner() {
     renameValue: "",
   });
 
-  const [menuOpen, setMenuOpen] = useState<{
-    open: boolean;
-    conversation: ChatConversation | null;
-  }>({
-    open: false,
-    conversation: null,
-  });
+  // per-item dropdown menu will be used; no global menuOpen state required
 
   const handleConversationPress = useCallback((id: string) => {
     router.push({
@@ -86,9 +79,7 @@ const HistoryScreenInner = observer(function HistoryScreenInner() {
     });
   }, [dialogState, deleteConversation]);
 
-  const closeMenuModal = useCallback(() => {
-    setMenuOpen({ open: false, conversation: null });
-  }, []);
+  // no global closeMenuModal needed when using per-item dropdown
 
   const closeRenameModal = useCallback(() => {
     setDialogState({
@@ -126,26 +117,18 @@ const HistoryScreenInner = observer(function HistoryScreenInner() {
         <ConversationList
           conversations={conversations}
           onPress={handleConversationPress}
-          onLongPress={(conv) => {
-            setMenuOpen({ open: true, conversation: conv });
-          }}
+          onRename={openRenameDialog}
+          onDelete={openDeleteDialog}
         />
       )}
-
-      <ConversationMenuModal
-        open={menuOpen.open}
-        conversation={menuOpen.conversation}
-        onOpenChange={closeMenuModal}
-        onRename={openRenameDialog}
-        onDelete={openDeleteDialog}
-      />
+      {/* per-item dropdown menu is used; ConversationMenuModal removed */}
 
       <RenameConversationModal
         open={dialogState.type === "rename"}
         conversation={dialogState.conversation}
         renameValue={dialogState.renameValue}
         onRenameValueChange={(value) =>
-          setDialogState((prev) => ({
+          setDialogState((prev: DialogState) => ({
             ...prev,
             renameValue: value,
           }))

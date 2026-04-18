@@ -1,4 +1,5 @@
 import { ChatMessage } from "@/database/chat/types";
+import { aiDebug, aiError, aiInfo } from "@/shared/ai/log";
 import { getAIRuntime } from "@/shared/ai/text-generation/runtime";
 import { generateUUID } from "@/shared/random-id";
 import type { NativeCompletionResultTimings } from "llama.rn";
@@ -62,6 +63,11 @@ export function useStreamingGeneration() {
       setStreaming(initialMessage);
       setIsGenerating(true);
 
+      aiInfo("INFERENCE:ui:start", `messageId=${initialMessage.id}`, {
+        modelId: options.modelId,
+        messageId: initialMessage.id,
+      });
+
       const result = await getAIRuntime().streamCompletion(messages, {
         enableThinking: options.enableThinking,
         abortSignal: abortController.signal,
@@ -79,12 +85,17 @@ export function useStreamingGeneration() {
 
           setStreaming(updatedMessage);
           options.onUpdate?.(contentRef.current, reasoningRef.current);
+
+          aiDebug("INFERENCE:ui:chunk", `messageId=${initialMessage.id}`, {
+            tokenPreview: (chunk.token || "").slice(0, 12),
+          });
         },
       });
 
       abortRef.current = null;
 
       if (abortController.signal.aborted) {
+        aiInfo("INFERENCE:ui:aborted", `messageId=${initialMessage.id}`);
         clearStreamingState();
         options.onError?.(
           "ABORTED",
@@ -96,6 +107,10 @@ export function useStreamingGeneration() {
       }
 
       if (!result.success) {
+        aiError(
+          "INFERENCE:ui:error",
+          `messageId=${initialMessage.id} code=${result.error?.code}`,
+        );
         clearStreamingState();
         options.onError?.(
           result.error?.code ?? "GENERATION_FAILED",
@@ -120,6 +135,10 @@ export function useStreamingGeneration() {
       };
 
       clearStreamingState();
+      aiInfo("INFERENCE:ui:complete", `messageId=${initialMessage.id}`, {
+        messageId: initialMessage.id,
+        timings: result.data.timings,
+      });
       options.onComplete?.(
         finalMessage.content,
         finalMessage.reasoning_content,
