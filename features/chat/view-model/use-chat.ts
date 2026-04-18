@@ -221,6 +221,26 @@ export function useChat() {
     conversation.init(null);
   }, [conversation, stream]);
 
+  const handleLoadModelForConversation = useCallback(
+    async (conversationId: string | null) => {
+      if (!conversationId) {
+        // New conversation - load the last used model globally
+        await model.autoLoad();
+        return;
+      }
+
+      // Existing conversation - try to load the model that was used before
+      const lastModelId = conversation.getLastModelUsedId(conversationId);
+      if (lastModelId) {
+        await model.load(lastModelId);
+      } else {
+        // Fallback to last used model globally
+        await model.autoLoad();
+      }
+    },
+    [conversation, model],
+  );
+
   const displayMessages = useMemo(() => {
     const messages = conversation.id
       ? conversation.getMessages(conversation.id)
@@ -265,6 +285,7 @@ export function useChat() {
       handleLoadModel: model.load,
       handleUnloadModel: model.unload,
       handleAutoLoadLastModel: model.autoLoad,
+      handleLoadModelForConversation,
       refreshModelsOnFocus: model.refresh,
     }),
     [
@@ -294,6 +315,7 @@ export function useChat() {
       resetChatState,
       retryLastUserMessage,
       conversation.clearError,
+      handleLoadModelForConversation,
     ],
   );
 }

@@ -1,17 +1,13 @@
-import {
-  AppModal,
-  AppModalFooter,
-  AppModalHandle,
-  AppModalHeader,
-} from "@/components/molecules/app-modal";
 import { TopBar } from "@/components/top-bar";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
-import { Input } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
 import { ChatConversation } from "@/database/chat/types";
 import { ConversationList } from "@/features/history/components/conversation-list";
+import { ConversationMenuModal } from "@/features/history/components/conversation-menu-modal";
+import { DeleteConversationModal } from "@/features/history/components/delete-conversation-modal";
 import { EmptyHistory } from "@/features/history/components/empty-history";
+import { RenameConversationModal } from "@/features/history/components/rename-conversation-modal";
 import { useHistory } from "@/features/history/view-model/use-history";
 import { observer } from "@legendapp/state/react";
 import { Link, router } from "expo-router";
@@ -51,7 +47,6 @@ const HistoryScreenInner = observer(function HistoryScreenInner() {
   }, []);
 
   const openRenameDialog = useCallback((conv: ChatConversation) => {
-    setMenuOpen({ open: false, conversation: null });
     setDialogState({
       type: "rename",
       conversation: conv,
@@ -60,7 +55,6 @@ const HistoryScreenInner = observer(function HistoryScreenInner() {
   }, []);
 
   const openDeleteDialog = useCallback((conv: ChatConversation) => {
-    setMenuOpen({ open: false, conversation: null });
     setDialogState({
       type: "delete",
       conversation: conv,
@@ -71,41 +65,45 @@ const HistoryScreenInner = observer(function HistoryScreenInner() {
   const handleRenameConfirm = useCallback(() => {
     if (!dialogState.conversation) return;
 
-    const hasRenamed = renameConversation(
-      dialogState.conversation.id,
-      dialogState.renameValue,
-    );
+    renameConversation(dialogState.conversation.id, dialogState.renameValue);
 
-    if (hasRenamed) {
-      setDialogState({
-        type: null,
-        conversation: null,
-        renameValue: "",
-      });
-    }
-  }, [dialogState, renameConversation]);
-
-  const handleDeleteConfirm = useCallback(() => {
-    if (!dialogState.conversation) return;
-
-    const hasDeleted = deleteConversation(dialogState.conversation.id);
-
-    if (hasDeleted) {
-      setDialogState({
-        type: null,
-        conversation: null,
-        renameValue: "",
-      });
-    }
-  }, [dialogState, deleteConversation]);
-
-  const closeDialogs = useCallback(() => {
     setDialogState({
       type: null,
       conversation: null,
       renameValue: "",
     });
+  }, [dialogState, renameConversation]);
+
+  const handleDeleteConfirm = useCallback(() => {
+    if (!dialogState.conversation) return;
+
+    deleteConversation(dialogState.conversation.id);
+
+    setDialogState({
+      type: null,
+      conversation: null,
+      renameValue: "",
+    });
+  }, [dialogState, deleteConversation]);
+
+  const closeMenuModal = useCallback(() => {
     setMenuOpen({ open: false, conversation: null });
+  }, []);
+
+  const closeRenameModal = useCallback(() => {
+    setDialogState({
+      type: null,
+      conversation: null,
+      renameValue: "",
+    });
+  }, []);
+
+  const closeDeleteModal = useCallback(() => {
+    setDialogState({
+      type: null,
+      conversation: null,
+      renameValue: "",
+    });
   }, []);
 
   return (
@@ -134,105 +132,34 @@ const HistoryScreenInner = observer(function HistoryScreenInner() {
         />
       )}
 
-      {/* Menu Options Modal */}
-      <AppModal
+      <ConversationMenuModal
         open={menuOpen.open}
-        onOpenChange={(open) => {
-          if (!open) {
-            setMenuOpen({ open: false, conversation: null });
-          }
-        }}
-      >
-        <AppModalHandle />
-        <AppModalHeader
-          title={menuOpen.conversation?.title || ""}
-          titleClassName="text-lg"
-        />
-        <View className="px-6">
-          <View className="gap-3 flex-col">
-            <Button
-              variant="outline"
-              onPress={() => {
-                if (menuOpen.conversation) {
-                  openRenameDialog(menuOpen.conversation);
-                }
-              }}
-            >
-              <Text>Renomear</Text>
-            </Button>
-            <Button
-              variant="destructive"
-              onPress={() => {
-                if (menuOpen.conversation) {
-                  openDeleteDialog(menuOpen.conversation);
-                }
-              }}
-            >
-              <Text>Excluir</Text>
-            </Button>
-          </View>
-        </View>
-        <AppModalFooter
-          onCancel={closeDialogs}
-          cancelLabel="Cancelar"
-          onConfirm={closeDialogs}
-          confirmLabel="Fechar"
-        />
-      </AppModal>
+        conversation={menuOpen.conversation}
+        onOpenChange={closeMenuModal}
+        onRename={openRenameDialog}
+        onDelete={openDeleteDialog}
+      />
 
-      {/* Rename Modal */}
-      <AppModal
+      <RenameConversationModal
         open={dialogState.type === "rename"}
-        onOpenChange={(open) => {
-          if (!open) closeDialogs();
-        }}
-      >
-        <AppModalHandle />
-        <AppModalHeader title="Renomear Conversa" />
-        <View className="px-6 gap-4">
-          <Input
-            value={dialogState.renameValue}
-            onChangeText={(text) =>
-              setDialogState((prev) => ({
-                ...prev,
-                renameValue: text,
-              }))
-            }
-            placeholder="Digite o novo título"
-            editable={dialogState.type === "rename"}
-          />
-        </View>
-        <AppModalFooter
-          onCancel={closeDialogs}
-          cancelLabel="Cancelar"
-          onConfirm={handleRenameConfirm}
-          confirmLabel="Salvar"
-        />
-      </AppModal>
+        conversation={dialogState.conversation}
+        renameValue={dialogState.renameValue}
+        onRenameValueChange={(value) =>
+          setDialogState((prev) => ({
+            ...prev,
+            renameValue: value,
+          }))
+        }
+        onOpenChange={closeRenameModal}
+        onConfirm={handleRenameConfirm}
+      />
 
-      {/* Delete Confirmation Modal */}
-      <AppModal
+      <DeleteConversationModal
         open={dialogState.type === "delete"}
-        onOpenChange={(open) => {
-          if (!open) closeDialogs();
-        }}
-      >
-        <AppModalHandle />
-        <AppModalHeader title="Excluir Conversa" />
-        <View className="px-6 gap-4">
-          <Text className="text-muted-foreground">
-            Tem certeza que deseja excluir "{dialogState.conversation?.title}"?
-            Esta ação não pode ser desfeita.
-          </Text>
-        </View>
-        <AppModalFooter
-          onCancel={closeDialogs}
-          cancelLabel="Cancelar"
-          onConfirm={handleDeleteConfirm}
-          confirmLabel="Excluir"
-          confirmVariant="destructive"
-        />
-      </AppModal>
+        conversation={dialogState.conversation}
+        onOpenChange={closeDeleteModal}
+        onConfirm={handleDeleteConfirm}
+      />
     </View>
   );
 });

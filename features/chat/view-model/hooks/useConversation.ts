@@ -1,8 +1,8 @@
 import chatState$ from "@/database/chat";
 import { ChatConversation, ChatMessage } from "@/database/chat/types";
 import {
-  autoGenerateTitle,
-  createChatConversation,
+    autoGenerateTitle,
+    createChatConversation,
 } from "@/features/chat/model/chat-conversation";
 
 import { useCallback, useMemo, useState } from "react";
@@ -140,6 +140,11 @@ export function useConversation() {
     setError(null);
   }, []);
 
+  const getLastModelUsedId = useCallback((convId: string): string | null => {
+    const conv = chatState$.conversations.get(convId);
+    return conv ? (conv.get().lastModelUsedId ?? null) : null;
+  }, []);
+
   return useMemo(
     () => ({
       id,
@@ -152,6 +157,7 @@ export function useConversation() {
       removeLastAssistant,
       getMessages,
       clearError,
+      getLastModelUsedId,
     }),
     [
       id,
@@ -164,6 +170,7 @@ export function useConversation() {
       removeLastAssistant,
       getMessages,
       clearError,
+      getLastModelUsedId,
     ],
   );
 }
