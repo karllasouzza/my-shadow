@@ -58,10 +58,13 @@ export function useHistory() {
               title: newTitle.trim(),
               updatedAt: new Date().toISOString(),
             };
-            prev[id] = updated;
             result = updated;
+            return {
+              ...prev,
+              [id]: updated,
+            };
           }
-          return { ...prev };
+          return prev;
         });
 
         if (!result) {
