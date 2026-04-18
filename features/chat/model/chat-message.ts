@@ -1,5 +1,5 @@
 import { ChatMessage, MessageRole } from "@/database/chat/types";
-import crypto from "expo-crypto";
+import { generateUUID } from "@/shared/random-id";
 
 /** Create a ChatMessage with defaults */
 export function createChatMessage(
@@ -10,7 +10,7 @@ export function createChatMessage(
   errorCode?: string,
 ): ChatMessage {
   return {
-    id: crypto.randomUUID(),
+    id: generateUUID(),
     role,
     content,
     reasoning_content: reasoning_content ?? undefined,

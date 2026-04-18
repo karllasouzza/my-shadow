@@ -1,5 +1,5 @@
 import { ChatConversation } from "@/database/chat/types";
-import crypto from "expo-crypto";
+import { generateUUID } from "@/shared/random-id";
 
 const HISTORY_PREVIEW_SUFFIX_PATTERN =
   /\s*\[(?:cancelado|erro na geração)\]\s*$/i;
@@ -11,10 +11,10 @@ export function autoGenerateTitle(firstUserMessage: string): string {
 
 export function createChatConversation(
   title: string,
-  modelId: string,
+  modelId?: string,
 ): ChatConversation {
   return {
-    id: crypto.randomUUID(),
+    id: generateUUID(),
     title,
     messages: [],
     lastModelUsedId: modelId,
