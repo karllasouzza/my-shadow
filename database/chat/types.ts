@@ -12,6 +12,7 @@ export interface ChatMessage {
   errorCode?: string;
   createdAt: string;
   updatedAt?: string;
+  _isStreaming?: boolean;
 }
 
 export interface ChatConversation {
