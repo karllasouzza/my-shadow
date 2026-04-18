@@ -38,8 +38,10 @@ export function useConversation() {
     );
 
     chatState$.conversations.set((prev) => {
-      prev[newConversation.id] = newConversation;
-      return { ...prev };
+      return {
+        ...prev,
+        [newConversation.id]: newConversation,
+      };
     });
     chatState$.lastModelId.set(modelId);
 
