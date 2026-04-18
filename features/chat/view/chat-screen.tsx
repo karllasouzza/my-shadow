@@ -128,9 +128,9 @@ const ChatScreenInner = observer(function ChatScreenInner() {
           handleModelSelect={chat.handleLoadModel}
           modelError={chat.modelError}
           hasContent={chat.hasContent}
-          // Thinking toggle props
-          thinkingEnabled={chat.thinkingEnabled}
-          toggleThinking={chat.toggleThinking}
+          // Reasoning toggle props
+          reasoningEnabled={chat.reasoningEnabled}
+          toggleReasoning={chat.toggleReasoning}
         />
       </ScreenContainer>
     </View>
