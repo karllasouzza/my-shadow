@@ -98,6 +98,7 @@ export function ModelSelector({
         variant="outline"
         accessibilityRole="button"
         accessibilityLabel="Selecionar modelo"
+        id="mode-selector"
       >
         <Text className="text-foreground text-sm font-medium" numberOfLines={1}>
           {isLoading ? "Carregando modelo" : displayText}
