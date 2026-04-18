@@ -1,6 +1,6 @@
 import { ChatMessage } from "@/database/chat/types";
 import { createError, err, ok, Result } from "@/shared/utils/app-error";
-import { initLlama, loadLlamaModelInfo } from "llama.rn";
+import { initLlama, LlamaContext } from "llama.rn";
 import { detectDevice, type DeviceInfo } from "../../device";
 import { buildConfig } from "./config";
 import { STOP_WORDS } from "./constants";
@@ -10,7 +10,7 @@ import { CompletionOutput, StreamCompletionOptions } from "./types";
 let instance: AIRuntime | null = null;
 
 export class AIRuntime {
-  private context: any = null;
+  private context: LlamaContext | null = null;
   private modelId: string | null = null;
   private stopFn: (() => Promise<void>) | null = null;
   private loadingPromise: Promise<any> | null = null;
@@ -53,9 +53,10 @@ export class AIRuntime {
     await this.unloadModel();
 
     // Check memory: file * 1.5 for KV cache + activations
-    const device = await detectDevice();
+    this.device ??= await detectDevice();
+    const device = this.device;
     const requiredGB = (fileSizeBytes * 1.5) / 1024 ** 3;
-    if (requiredGB > device.availableRAM * 0.6) {
+    if (requiredGB > device.availableRAM * 0.75) {
       return err(
         createError(
           "INSUFFICIENT_MEMORY",
@@ -64,26 +65,25 @@ export class AIRuntime {
       );
     }
 
-    await loadLlamaModelInfo(path);
-
     const config = buildConfig(device, path);
-    const hasGPU = device.hasGPU && device.gpuBackend === "Metal";
+    const hasGPU = device.hasGPU;
 
     console.log("[AIRuntime] Loading model with config", {
       ...config,
       flash_attn: hasGPU,
-      flash_attn_type: hasGPU ? "on" : undefined,
+      flash_attn_type: hasGPU ? "on" : "auto",
     });
 
     this.context = await initLlama({
       ...config,
       flash_attn: hasGPU,
-      flash_attn_type: hasGPU ? "on" : undefined,
+      flash_attn_type: hasGPU ? "on" : "auto",
     });
+
+    await this.context.parallel.enable({ n_parallel: 1 });
 
     this.modelId = modelId;
     this.config = config;
-    this.device = device;
 
     return ok({ id: modelId });
   }
@@ -91,6 +91,7 @@ export class AIRuntime {
   async unloadModel(): Promise<Result<void>> {
     await this.cancelGeneration();
     await this.context?.parallel?.disable?.().catch(() => {});
+    await this.context?.release?.().catch(() => {});
     this.context = null;
     this.modelId = null;
     this.config = null;
@@ -100,6 +101,7 @@ export class AIRuntime {
   async streamCompletion(
     messages: ChatMessage[],
     options?: StreamCompletionOptions,
+    _retryCount = 0,
   ): Promise<Result<CompletionOutput>> {
     if (!this.context || !this.modelId) {
       return err(createError("NOT_READY", "Nenhum modelo carregado."));
@@ -123,8 +125,6 @@ export class AIRuntime {
     }
 
     try {
-      await this.context.parallel.enable({ n_parallel: 1 });
-
       const { promise, stop } = await this.context.parallel.completion(
         {
           messages: filteredMessages,
@@ -136,6 +136,8 @@ export class AIRuntime {
           stop: STOP_WORDS,
           top_k: this.config?.top_k ?? 40,
           top_p: this.config?.top_p ?? 0.9,
+          penalty_freq: 0.5,
+          penalty_last_n: 64,
         },
         (_: number, data: any) => {
           if (abortController.signal.aborted) return;
@@ -196,14 +198,14 @@ export class AIRuntime {
         return err(createError("ABORTED", "Geração cancelada."));
       }
 
-      // OOM recovery: try degrading the context size and retrying once
-      if (isLikelyOOMError(error) && this.config) {
+      // OOM recovery: degrade context size and retry once
+      if (isLikelyOOMError(error) && this.config && _retryCount < 1) {
         const degraded = {
           ...this.config,
           n_ctx: Math.floor(this.config.n_ctx / 2),
         };
         this.config = degraded;
-        return this.streamCompletion(messages, options);
+        return this.streamCompletion(messages, options, _retryCount + 1);
       }
 
       return err(
@@ -216,7 +218,6 @@ export class AIRuntime {
       );
     } finally {
       this.stopFn = null;
-      await this.context?.parallel?.disable?.().catch(() => {});
     }
   }
 

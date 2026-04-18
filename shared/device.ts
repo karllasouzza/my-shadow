@@ -13,10 +13,9 @@ export interface DeviceInfo {
 const GB = 1024 ** 3;
 
 export async function detectDevice(): Promise<DeviceInfo> {
-  const [total, used, cores] = await Promise.all([
+  const [total, used] = await Promise.all([
     DeviceInfo.getTotalMemory().catch(() => 4 * GB),
     DeviceInfo.getUsedMemory().catch(() => 0),
-    DeviceInfo.getMaxMemory().catch(() => 4),
   ]);
 
   const isIOS = Platform.OS === "ios";
@@ -25,7 +24,7 @@ export async function detectDevice(): Promise<DeviceInfo> {
   return {
     totalRAM: total / GB,
     availableRAM,
-    cpuCores: Math.min(cores || 4, 8),
+    cpuCores: 4,
     hasGPU: isIOS,
     gpuBackend: isIOS ? "Metal" : "none",
     platform: isIOS ? "iOS" : "Android",
