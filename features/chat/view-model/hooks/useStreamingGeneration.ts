@@ -1,4 +1,3 @@
-import chatState$ from "@/database/chat";
 import { ChatMessage } from "@/database/chat/types";
 import { getAIRuntime } from "@/shared/ai/text-generation/runtime";
 import { generateUUID } from "@/shared/random-id";
@@ -34,11 +33,7 @@ export function useStreamingGeneration() {
   }, []);
 
   const generate = useCallback(
-    async (
-      conversationId: string,
-      messages: ChatMessage[],
-      options: GenerateOptions,
-    ) => {
+    async (messages: ChatMessage[], options: GenerateOptions) => {
       const abortController = new AbortController();
       abortRef.current = abortController;
       contentRef.current = "";
@@ -104,20 +99,11 @@ export function useStreamingGeneration() {
         content: result.data.text || contentRef.current,
         reasoning_content:
           result.data.reasoning || reasoningRef.current || undefined,
+        timings: result.data.timings,
         modelId: options.modelId,
         createdAt: initialMessage.createdAt,
         updatedAt: new Date().toISOString(),
       };
-
-      // Update legend state
-      chatState$.conversations.set((prev) => {
-        const conv = prev.get(conversationId);
-        if (conv) {
-          conv.messages.push(finalMessage);
-          conv.updatedAt = new Date().toISOString();
-        }
-        return prev;
-      });
 
       clearStreamingState();
       options.onComplete?.(

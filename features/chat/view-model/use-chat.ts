@@ -98,7 +98,7 @@ export function useChat() {
 
       const messages = conversation.getMessages(conversationId);
 
-      await stream.generate(conversationId, messages, {
+      await stream.generate(messages, {
         modelId: currentModelId,
         enableThinking: reasoningEnabled,
         onComplete: (text, reasoning) => {
@@ -147,7 +147,7 @@ export function useChat() {
 
     const currentModelId = resolveCurrentModelId();
 
-    await stream.generate(conversationId, messages, {
+    await stream.generate(messages, {
       modelId: currentModelId,
       enableThinking: reasoningEnabled,
       onComplete: (text, reasoning) => {
