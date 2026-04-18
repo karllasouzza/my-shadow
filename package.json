@@ -81,6 +81,7 @@
     "react-native-device-info": "^15.0.2",
     "react-native-edge-to-edge": "^1.8.1",
     "react-native-gesture-handler": "~2.30.0",
+    "react-native-get-random-values": "^2.0.0",
     "react-native-keyboard-controller": "1.20.7",
     "react-native-markdown-stream": "^0.1.4",
     "react-native-mmkv": "^4.3.1",
@@ -93,6 +94,7 @@
     "sonner-native": "^0.24.0",
     "tailwind-merge": "^3.5.0",
     "tailwindcss-animate": "^1.0.7",
+    "uuid": "^13.0.0",
     "zod": "^4.3.6"
   },
   "op-sqlite": {
