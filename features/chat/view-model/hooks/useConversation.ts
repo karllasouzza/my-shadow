@@ -4,7 +4,7 @@ import {
   autoGenerateTitle,
   createChatConversation,
 } from "@/features/chat/model/chat-conversation";
-import crypto from "expo-crypto";
+
 import { useCallback, useMemo, useState } from "react";
 
 export function useConversation() {
@@ -15,28 +15,24 @@ export function useConversation() {
   const init = useCallback((conversationId: string | null) => {
     setError(null);
 
-    const convId = conversationId || crypto.randomUUID();
-    setId(convId);
+    const convFallback = createChatConversation("Nova conversa");
 
-    chatState$.conversations.set((prev) => {
-      if (!prev.has(convId)) {
-        const newConv = createChatConversation(
-          "Nova conversa",
-          "defaultModelId",
-        );
-        prev.set(convId, newConv);
-        setTitle(newConv.title);
-      } else {
-        const conv = prev.get(convId);
-        if (conv) setTitle(conv.title);
+    if (conversationId) {
+      const existing = chatState$.conversations.get()?.get(conversationId);
+      if (existing) {
+        setId(existing.id);
+        setTitle(existing.title);
+        return;
       }
-      return prev;
-    });
+    }
+
+    setId(null);
+    setTitle(convFallback.title);
   }, []);
 
-  const create = useCallback((modelId: string) => {
+  const create = useCallback((modelId: string, title?: string) => {
     const newConversation: ChatConversation = createChatConversation(
-      "Nova conversa",
+      title ?? "Nova conversa",
       modelId,
     );
 
@@ -54,11 +50,18 @@ export function useConversation() {
   const addMessage = useCallback((convId: string, message: ChatMessage) => {
     let success = false;
 
+    if (chatState$.conversations.get()?.has(convId) === false) {
+      const newConvId = create(message.modelId!, "Nova conversa");
+      convId = newConvId;
+    }
+
     chatState$.conversations.set((prev) => {
       const conv = prev.get(convId);
       if (!conv) return prev;
 
       conv.messages.push(message);
+      conv.lastMessage = message.content;
+      conv.lastModelUsedId = message.modelId ?? conv.lastModelUsedId;
       conv.updatedAt = new Date().toISOString();
 
       if (
@@ -72,6 +75,8 @@ export function useConversation() {
       success = true;
       return prev;
     });
+
+    chatState$.lastModelId.set(message.modelId ?? null);
 
     return success;
   }, []);
@@ -115,6 +120,8 @@ export function useConversation() {
       if (lastAssistantIdx > lastUserIdx) {
         conv.messages.splice(lastAssistantIdx, 1);
         conv.updatedAt = new Date().toISOString();
+        conv.lastMessage = conv.messages[conv.messages.length - 1].content;
+        conv.lastModelUsedId = conv.messages[conv.messages.length - 1].modelId;
         success = true;
       }
 
@@ -125,9 +132,8 @@ export function useConversation() {
   }, []);
 
   const getMessages = useCallback((convId: string): ChatMessage[] => {
-    const conversations = chatState$.conversations.get();
-    const conv = conversations.get(convId);
-    return conv ? conv.messages : [];
+    const conv = chatState$.conversations.get(convId);
+    return conv ? conv.get().messages : [];
   }, []);
 
   const clearError = useCallback(() => {

@@ -1,7 +1,7 @@
 import chatState$ from "@/database/chat";
 import { ChatMessage } from "@/database/chat/types";
 import { getAIRuntime } from "@/shared/ai/text-generation/runtime";
-import crypto from "expo-crypto";
+import { generateUUID } from "@/shared/random-id";
 import { useCallback, useMemo, useRef, useState } from "react";
 
 export interface StreamingMessage extends ChatMessage {
@@ -46,7 +46,7 @@ export function useStreamingGeneration() {
 
       // Create initial streaming message
       const initialMessage: StreamingMessage = {
-        id: crypto.randomUUID(),
+        id: generateUUID(),
         role: "assistant",
         content: "",
         reasoning_content: "",
