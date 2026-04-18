@@ -1,105 +1,133 @@
-import * as Database from "@/database/chat";
-import { autoGenerateTitle } from "@/features/chat/model/chat-conversation";
-import type { ChatMessage } from "@/shared/ai/types/chat";
+import chatState$ from "@/database/chat";
+import { ChatConversation, ChatMessage } from "@/database/chat/types";
+import {
+  autoGenerateTitle,
+  createChatConversation,
+} from "@/features/chat/model/chat-conversation";
+import crypto from "expo-crypto";
 import { useCallback, useMemo, useState } from "react";
 
 export function useConversation() {
   const [id, setId] = useState<string | null>(null);
-  const [title, setTitle] = useState("Nova conversa");
+  const [title, setTitle] = useState<string>("Nova conversa");
   const [error, setError] = useState<string | null>(null);
 
   const init = useCallback((conversationId: string | null) => {
     setError(null);
 
-    if (!conversationId) {
-      setId(null);
-      setTitle("Nova conversa");
-      return;
-    }
+    const convId = conversationId || crypto.randomUUID();
+    setId(convId);
 
-    const result = Database.loadConversation(conversationId);
-    if (!result.success || !result.data) {
-      setId(null);
-      setTitle("Nova conversa");
-      setError("Conversa não encontrada");
-      return;
-    }
-
-    setId(conversationId);
-    setTitle(result.data.title || "Nova conversa");
+    chatState$.conversations.set((prev) => {
+      if (!prev.has(convId)) {
+        const newConv = createChatConversation(
+          "Nova conversa",
+          "defaultModelId",
+        );
+        prev.set(convId, newConv);
+        setTitle(newConv.title);
+      } else {
+        const conv = prev.get(convId);
+        if (conv) setTitle(conv.title);
+      }
+      return prev;
+    });
   }, []);
 
   const create = useCallback((modelId: string) => {
-    const conv = Database.createConversation(modelId);
-    Database.saveConversation(conv);
-    setId(conv.id);
-    setTitle(conv.title);
-    return conv.id;
+    const newConversation: ChatConversation = createChatConversation(
+      "Nova conversa",
+      modelId,
+    );
+
+    chatState$.conversations.set((prev) => {
+      prev.set(newConversation.id, newConversation);
+      return prev;
+    });
+    chatState$.lastModelId.set(modelId);
+
+    setId(newConversation.id);
+    setTitle(newConversation.title);
+    return newConversation.id;
   }, []);
 
   const addMessage = useCallback((convId: string, message: ChatMessage) => {
-    const result = Database.loadConversation(convId);
-    if (!result.success || !result.data) return false;
+    let success = false;
 
-    const conv = result.data;
-    conv.messages.push(message);
-    conv.updatedAt = new Date().toISOString();
+    chatState$.conversations.set((prev) => {
+      const conv = prev.get(convId);
+      if (!conv) return prev;
 
-    if (
-      message.role === "user" &&
-      conv.messages.filter((m) => m.role === "user").length === 1
-    ) {
-      conv.title = autoGenerateTitle(message.content);
-      setTitle(conv.title);
-    }
+      conv.messages.push(message);
+      conv.updatedAt = new Date().toISOString();
 
-    Database.saveConversation(conv);
-    return true;
+      if (
+        message.role === "user" &&
+        conv.messages.filter((m) => m.role === "user").length === 1
+      ) {
+        conv.title = autoGenerateTitle(message.content);
+        setTitle(conv.title);
+      }
+
+      success = true;
+      return prev;
+    });
+
+    return success;
   }, []);
 
   const updateLastUserError = useCallback(
     (convId: string, errorCode?: string) => {
-      const result = Database.loadConversation(convId);
-      if (!result.success || !result.data) return;
+      chatState$.conversations.set((prev) => {
+        const conv = prev.get(convId);
+        if (!conv) return prev;
 
-      const lastUserIdx = result.data.messages.findLastIndex(
-        (message) => message.role === "user",
-      );
+        const lastUserIdx = conv.messages.findLastIndex(
+          (message) => message.role === "user",
+        );
 
-      if (lastUserIdx >= 0) {
-        result.data.messages[lastUserIdx].errorCode = errorCode;
-        result.data.updatedAt = new Date().toISOString();
-        Database.saveConversation(result.data);
-      }
+        if (lastUserIdx >= 0) {
+          conv.messages[lastUserIdx].errorCode = errorCode;
+          conv.updatedAt = new Date().toISOString();
+        }
+
+        return prev;
+      });
     },
     [],
   );
 
   const removeLastAssistant = useCallback((convId: string) => {
-    const result = Database.loadConversation(convId);
-    if (!result.success || !result.data) return false;
+    let success = false;
 
-    const lastUserIdx = result.data.messages.findLastIndex(
-      (message) => message.role === "user",
-    );
+    chatState$.conversations.set((prev) => {
+      const conv = prev.get(convId);
+      if (!conv) return prev;
 
-    const lastAssistantIdx = result.data.messages.findLastIndex(
-      (message, index) => message.role === "assistant" && index > lastUserIdx,
-    );
+      const lastUserIdx = conv.messages.findLastIndex(
+        (message) => message.role === "user",
+      );
 
-    if (lastAssistantIdx > lastUserIdx) {
-      result.data.messages.splice(lastAssistantIdx, 1);
-      result.data.updatedAt = new Date().toISOString();
-      Database.saveConversation(result.data);
-      return true;
-    }
+      const lastAssistantIdx = conv.messages.findLastIndex(
+        (message, index) => message.role === "assistant" && index > lastUserIdx,
+      );
 
-    return false;
+      if (lastAssistantIdx > lastUserIdx) {
+        conv.messages.splice(lastAssistantIdx, 1);
+        conv.updatedAt = new Date().toISOString();
+        success = true;
+      }
+
+      return prev;
+    });
+
+    return success;
   }, []);
 
   const getMessages = useCallback((convId: string): ChatMessage[] => {
-    const result = Database.loadConversation(convId);
-    return result.success && result.data ? result.data.messages : [];
+    const conversations = chatState$.conversations.get();
+    const conv = conversations.get(convId);
+    return conv ? conv.messages : [];
   }, []);
 
   const clearError = useCallback(() => {

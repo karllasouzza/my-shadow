@@ -1,12 +1,12 @@
+import { isModelDownloaded } from "@/shared/ai/manager";
 import {
-    autoLoadLastModel,
-    getAvailableModels,
-    getSelectedModelId,
-    isModelDownloaded,
-    loadModel,
-    unloadModel,
+  autoLoadLastModel,
+  getAvailableModels,
+  getSelectedModelId,
+  loadModel,
+  unloadModel,
 } from "@/shared/ai/model-loader";
-import { getAIRuntime } from "@/shared/ai/runtime";
+import { getAIRuntime } from "@/shared/ai/text-generation/runtime";
 import type { AvailableModel } from "@/shared/ai/types/model-loader";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -68,6 +68,7 @@ export function useModelManager() {
   const autoLoad = useCallback(async () => {
     const runtime = getAIRuntime();
 
+    // Check if a model is already loaded
     if (runtime.isModelLoaded()) {
       setCurrentId(runtime.getCurrentModel()?.id ?? null);
       setIsReady(true);
@@ -80,7 +81,7 @@ export function useModelManager() {
     const result = await autoLoadLastModel();
     setIsLoading(false);
 
-    if (result?.success) {
+    if (result.success) {
       setCurrentId(runtime.getCurrentModel()?.id ?? null);
       setIsReady(true);
       setError(null);
@@ -88,7 +89,7 @@ export function useModelManager() {
       return true;
     }
 
-    if (result?.error) {
+    if (result.error) {
       setError(result.error);
     }
 
