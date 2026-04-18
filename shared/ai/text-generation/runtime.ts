@@ -167,7 +167,6 @@ export class AIRuntime {
         {
           messages: [{ role: "user", content: "." }],
           n_predict: 1,
-
           temperature: 0.0,
         },
         () => {},
