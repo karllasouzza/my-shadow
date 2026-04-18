@@ -1,9 +1,9 @@
 import {
-  AppModal,
-  AppModalContent,
-  AppModalFooter,
-  AppModalHandle,
-  AppModalHeader,
+    AppModal,
+    AppModalContent,
+    AppModalFooter,
+    AppModalHandle,
+    AppModalHeader,
 } from "@/components/molecules/app-modal";
 import { Input } from "@/components/ui/input";
 import { ChatConversation } from "@/database/chat/types";
@@ -31,7 +31,13 @@ export function RenameConversationModal({
     <AppModal open={open} onOpenChange={onOpenChange}>
       <AppModalContent>
         <AppModalHandle />
-        <AppModalHeader title={conversation?.title ? `Renomear: ${conversation.title}` : "Renomear Conversa"} />
+        <AppModalHeader
+          title={
+            conversation?.title
+              ? `Renomear: ${conversation.title}`
+              : "Renomear Conversa"
+          }
+        />
         <View className="px-6 gap-4">
           <Input
             value={renameValue}

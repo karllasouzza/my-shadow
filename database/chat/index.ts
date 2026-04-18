@@ -5,7 +5,7 @@ import { synced } from "@legendapp/state/sync";
 import { ChatConversation } from "./types";
 
 interface IChatState {
-  conversations: Map<string, ChatConversation>;
+  conversations: Record<string, ChatConversation>;
   lastModelId: string | null;
   isReasoningEnabled?: boolean;
 }
@@ -13,7 +13,7 @@ interface IChatState {
 const chatState$: Observable<IChatState> = observable(
   synced({
     initial: {
-      conversations: new Map<string, ChatConversation>(),
+      conversations: {},
       lastModelId: null,
       isReasoningEnabled: false,
     },

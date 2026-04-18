@@ -1,7 +1,7 @@
+import ConversationDropdownMenu from "@/components/ui/conversation-dropdown-menu";
 import { ChatConversation } from "@/database/chat/types";
 import React from "react";
-import { Text, Pressable, View } from "react-native";
-import ConversationDropdownMenu from "@/components/ui/conversation-dropdown-menu";
+import { Pressable, Text, View } from "react-native";
 
 interface ConversationItemProps {
   conversation: ChatConversation;
@@ -30,18 +30,26 @@ export function ConversationItem({
       accessibilityRole="button"
       className="px-5 py-4 border-b border-border bg-card active:bg-muted"
     >
-      <Text className="text-foreground text-base font-medium mb-1" numberOfLines={1}>
+      <Text
+        className="text-foreground text-base font-medium mb-1"
+        numberOfLines={1}
+      >
         {conversation.title}
       </Text>
 
       <View className="flex flex-row items-center justify-between">
-        <Text className="text-foreground/75 text-xs truncate flex-1 pr-3" numberOfLines={1}>
+        <Text
+          className="text-foreground/75 text-xs truncate flex-1 pr-3"
+          numberOfLines={1}
+        >
           {conversation.lastMessage}
         </Text>
 
         <View className="flex-row items-center gap-2">
           <Text className="text-muted-foreground/55 text-xs">
-            {formatRelativeDate(conversation.updatedAt || conversation.createdAt)}
+            {formatRelativeDate(
+              conversation.updatedAt || conversation.createdAt,
+            )}
           </Text>
 
           <ConversationDropdownMenu
