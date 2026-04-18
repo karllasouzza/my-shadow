@@ -1,4 +1,4 @@
-import type { Model } from "./types/model";
+import { Model } from "../types/model";
 
 export const MODEL_CATALOG: Model[] = [
   // Periquito e Sabiá
@@ -158,7 +158,6 @@ export const MODEL_CATALOG: Model[] = [
     estimatedRamBytes: 1600 * 1024 * 1024,
     bytes: "1B",
     tags: ["ultra-leve"],
-    supportsReasoning: true,
   },
   {
     id: "gemma-3-4b-it",
@@ -172,7 +171,6 @@ export const MODEL_CATALOG: Model[] = [
     estimatedRamBytes: 4500 * 1024 * 1024,
     bytes: "4B",
     tags: ["alta-qualidade"],
-    supportsReasoning: true,
   },
 
   // DeepSeek R1 Destilado (Distilled)
@@ -188,7 +186,6 @@ export const MODEL_CATALOG: Model[] = [
     estimatedRamBytes: 2400 * 1024 * 1024,
     bytes: "1.5B",
     tags: ["equilibrado"],
-    supportsReasoning: true,
   },
   {
     id: "deepseek-r1-distill-qwen-7b",

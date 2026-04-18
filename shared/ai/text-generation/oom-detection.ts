@@ -1,4 +1,3 @@
-// Utility to heuristically detect out-of-memory conditions from errors
 export function isLikelyOOMError(error: unknown): boolean {
   if (!error) return false;
   try {
@@ -27,7 +26,7 @@ export function isLikelyOOMError(error: unknown): boolean {
       if (name.includes(p) || message.includes(p)) return true;
     }
 
-    // Check well-known codes/errno
+    // Check well-known codes/errors for OOM
     if (code === "ENOMEM" || code.toLowerCase() === "enomem") return true;
     if (errno === "ENOMEM" || errno === -12) return true;
   } catch {

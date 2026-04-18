@@ -1,58 +1,55 @@
-import {
-    getLastUsedModelId,
-    setLastUsedModelId,
-} from "@/database/chat/actions/last-model";
-import DeviceInfo from "react-native-device-info";
-import { findModelById, getAllModels } from "./catalog";
-import {
-    getDownloadedModels,
-    getModelLocalPath,
-    isModelDownloaded,
-    removeDownloadedModel,
-} from "./manager";
-import { getAIRuntime } from "./runtime";
-import type { AvailableModel, ModelLoadResult } from "./types/model-loader";
-
-export { isModelDownloaded, removeDownloadedModel };
-
-const toMB = (bytes: number) => Math.round(bytes / 1024 / 1024);
+import chatState$ from "@/database/chat";
+import { getDownloadedModels, getModelLocalPath } from "./manager";
+import { findModelById, getAllModels } from "./text-generation/catalog";
+import { getAIRuntime } from "./text-generation/runtime";
+import { AvailableModel, ModelLoadResult } from "./types/model-loader";
 
 export async function loadModel(modelId: string): Promise<ModelLoadResult> {
   const model = findModelById(modelId);
-  if (!model) return { success: false, error: "Modelo não encontrado." };
+  if (!model) return { success: false, error: "Modelo não encontrado" };
 
   const path = await getModelLocalPath(modelId);
-  if (!path) return { success: false, error: "Modelo não baixado." };
+  if (!path) return { success: false, error: "Modelo não baixado" };
 
-  const [total, used] = await Promise.all([
-    DeviceInfo.getTotalMemory(),
-    DeviceInfo.getUsedMemory(),
-  ]);
+  const runtime = getAIRuntime();
 
-  const free = total - used;
-  if (free < model.estimatedRamBytes) {
-    return {
-      success: false,
-      error: `RAM insuficiente: ${toMB(free)}MB livre, ${toMB(model.estimatedRamBytes)}MB necessário.`,
-    };
+  const result = await runtime.loadModel(modelId, path, model.fileSizeBytes);
+
+  if (!result.success) {
+    return { success: false, error: result.error.message };
   }
 
-  const result = await getAIRuntime().loadModel(modelId, path);
-  if (!result.success) return { success: false, error: result.error.message };
+  // Save last loaded model
+  chatState$.lastModelId.set(modelId);
 
-  await setLastUsedModelId(modelId);
   return { success: true };
 }
 
 export async function unloadModel(): Promise<ModelLoadResult> {
   const result = await getAIRuntime().unloadModel();
+
+  if (result.success) {
+    // Clear last model when unloading
+    chatState$.lastModelId.set(null);
+  }
+
   return result.success
     ? { success: true }
-    : { success: false, error: result.error.message };
+    : { success: false, error: result.error?.message };
 }
 
 export function getSelectedModelId(): string | null {
   return getAIRuntime().getCurrentModel()?.id ?? null;
+}
+
+export async function autoLoadLastModel(): Promise<ModelLoadResult> {
+  const lastModelId = chatState$.lastModelId.get();
+
+  if (!lastModelId) {
+    return { success: false, error: "Nenhum modelo anterior encontrado" };
+  }
+
+  return loadModel(lastModelId);
 }
 
 export async function getAvailableModels(): Promise<AvailableModel[]> {
@@ -72,14 +69,4 @@ export async function getAvailableModels(): Promise<AvailableModel[]> {
       };
     })
     .sort((a, b) => a.displayName.localeCompare(b.displayName));
-}
-
-export async function autoLoadLastModel(): Promise<ModelLoadResult | null> {
-  const runtime = getAIRuntime();
-  if (runtime.isModelLoaded()) return null;
-
-  const lastId = getLastUsedModelId();
-  if (!lastId || !(await isModelDownloaded(lastId))) return null;
-
-  return loadModel(lastId);
 }
