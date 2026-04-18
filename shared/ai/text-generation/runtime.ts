@@ -54,12 +54,6 @@ export class AIRuntime {
     });
 
     try {
-      // Just return if the same model is already loaded
-      if (this.modelId === modelId && this.context) {
-        aiDebug("LOAD:skip", `model already loaded: ${modelId}`);
-        return ok({ id: modelId });
-      }
-
       await this.unloadModel();
 
       // Check memory: file * 1.5 for KV cache + activations
@@ -171,8 +165,9 @@ export class AIRuntime {
     try {
       const { promise } = await this.context.parallel.completion(
         {
-          messages: [{ role: "user", content: "Hi" }],
+          messages: [{ role: "user", content: "." }],
           n_predict: 1,
+
           temperature: 0.0,
         },
         () => {},
