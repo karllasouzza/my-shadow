@@ -1,116 +1,110 @@
 import { TopBar } from "@/components/top-bar";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
-import type { ChatConversationIndex } from "@/features/chat/model/chat-conversation";
+import { Text } from "@/components/ui/text";
+import { ChatConversation } from "@/database/chat/types";
 import { ConversationList } from "@/features/history/components/conversation-list";
+import { ConversationMenuModal } from "@/features/history/components/conversation-menu-modal";
+import { DeleteConversationModal } from "@/features/history/components/delete-conversation-modal";
 import { EmptyHistory } from "@/features/history/components/empty-history";
+import { RenameConversationModal } from "@/features/history/components/rename-conversation-modal";
 import { useHistory } from "@/features/history/view-model/use-history";
 import { observer } from "@legendapp/state/react";
-import { Link, router, useFocusEffect } from "expo-router";
-import React, { memo, useCallback } from "react";
-import { ActivityIndicator, Alert, Text, View } from "react-native";
+import { Link, router } from "expo-router";
+import { Plus } from "lucide-react-native";
+import React, { memo, useCallback, useState } from "react";
+import { View } from "react-native";
+
+type DialogState = {
+  type: "delete" | "rename" | null;
+  conversation: ChatConversation | null;
+  renameValue: string;
+};
 
 const HistoryScreenInner = observer(function HistoryScreenInner() {
-  const {
-    conversations,
-    isLoading,
-    errorMessage,
-    loadConversations,
-    deleteConversation,
-    renameConversation,
-  } = useHistory();
+  const { conversations, deleteConversation, renameConversation } =
+    useHistory();
 
-  const handleConversationPress = useCallback(async (id: string) => {
+  const [dialogState, setDialogState] = useState<DialogState>({
+    type: null,
+    conversation: null,
+    renameValue: "",
+  });
+
+  const [menuOpen, setMenuOpen] = useState<{
+    open: boolean;
+    conversation: ChatConversation | null;
+  }>({
+    open: false,
+    conversation: null,
+  });
+
+  const handleConversationPress = useCallback((id: string) => {
     router.push({
       pathname: "/",
       params: { conversationId: id },
     });
   }, []);
 
-  const handleRename = useCallback(
-    async (conv: ChatConversationIndex) => {
-      Alert.prompt(
-        "Renomear Conversa",
-        "Novo título:",
-        async (newTitle) => {
-          if (newTitle && newTitle.trim()) {
-            const result = await renameConversation(conv.id, newTitle.trim());
-            if (!result.success) {
-              Alert.alert("Erro", result.error.message);
-            }
-          }
-        },
-        "plain-text",
-        conv.title,
-      );
-    },
-    [renameConversation],
-  );
+  const openRenameDialog = useCallback((conv: ChatConversation) => {
+    setDialogState({
+      type: "rename",
+      conversation: conv,
+      renameValue: conv.title,
+    });
+  }, []);
 
-  const handleDelete = useCallback(
-    async (conv: ChatConversationIndex) => {
-      Alert.alert(
-        "Excluir Conversa",
-        `Tem certeza que deseja excluir "${conv.title}"?`,
-        [
-          { text: "Cancelar", style: "cancel" },
-          {
-            text: "Excluir",
-            style: "destructive",
-            onPress: async () => {
-              const result = await deleteConversation(conv.id);
-              if (!result.success) {
-                Alert.alert("Erro", result.error.message);
-              }
-            },
-          },
-        ],
-      );
-    },
-    [deleteConversation],
-  );
+  const openDeleteDialog = useCallback((conv: ChatConversation) => {
+    setDialogState({
+      type: "delete",
+      conversation: conv,
+      renameValue: "",
+    });
+  }, []);
 
-  const handleLongPress = useCallback(
-    (conv: ChatConversationIndex) => {
-      Alert.alert(conv.title, "O que deseja fazer?", [
-        { text: "Cancelar", style: "cancel" },
-        { text: "Renomear", onPress: () => handleRename(conv) },
-        {
-          text: "Excluir",
-          style: "destructive",
-          onPress: () => handleDelete(conv),
-        },
-      ]);
-    },
-    [handleRename, handleDelete],
-  );
+  const handleRenameConfirm = useCallback(() => {
+    if (!dialogState.conversation) return;
 
-  const refreshList = useCallback(async () => {
-    await loadConversations();
-  }, [loadConversations]);
+    renameConversation(dialogState.conversation.id, dialogState.renameValue);
 
-  useFocusEffect(
-    useCallback(() => {
-      refreshList();
-    }, [refreshList]),
-  );
+    setDialogState({
+      type: null,
+      conversation: null,
+      renameValue: "",
+    });
+  }, [dialogState, renameConversation]);
 
-  if (isLoading && conversations.length === 0) {
-    return (
-      <View className="flex-1 items-center justify-center">
-        <ActivityIndicator size="large" color="#3b82f6" />
-        <Text className="text-muted text-sm mt-3">Carregando...</Text>
-      </View>
-    );
-  }
+  const handleDeleteConfirm = useCallback(() => {
+    if (!dialogState.conversation) return;
 
-  if (errorMessage && conversations.length === 0) {
-    return (
-      <View className="flex-1 items-center justify-center p-8">
-        <Text className="text-destructive text-center">{errorMessage}</Text>
-      </View>
-    );
-  }
+    deleteConversation(dialogState.conversation.id);
+
+    setDialogState({
+      type: null,
+      conversation: null,
+      renameValue: "",
+    });
+  }, [dialogState, deleteConversation]);
+
+  const closeMenuModal = useCallback(() => {
+    setMenuOpen({ open: false, conversation: null });
+  }, []);
+
+  const closeRenameModal = useCallback(() => {
+    setDialogState({
+      type: null,
+      conversation: null,
+      renameValue: "",
+    });
+  }, []);
+
+  const closeDeleteModal = useCallback(() => {
+    setDialogState({
+      type: null,
+      conversation: null,
+      renameValue: "",
+    });
+  }, []);
 
   return (
     <View className="flex-1 bg-background">
@@ -120,10 +114,7 @@ const HistoryScreenInner = observer(function HistoryScreenInner() {
           <Link href="/?new=1" asChild>
             <Button variant="outline" className="!border-primary">
               <Text className="text-primary">Nova Conversa</Text>
-              <Icon
-                as={require("lucide-react-native").Plus}
-                className="size-5 text-primary p-0 stroke-2"
-              />
+              <Icon as={Plus} className="size-5 text-primary p-0 stroke-2" />
             </Button>
           </Link>
         }
@@ -134,12 +125,41 @@ const HistoryScreenInner = observer(function HistoryScreenInner() {
       ) : (
         <ConversationList
           conversations={conversations}
-          isLoading={isLoading}
-          onRefresh={refreshList}
           onPress={handleConversationPress}
-          onLongPress={handleLongPress}
+          onLongPress={(conv) => {
+            setMenuOpen({ open: true, conversation: conv });
+          }}
         />
       )}
+
+      <ConversationMenuModal
+        open={menuOpen.open}
+        conversation={menuOpen.conversation}
+        onOpenChange={closeMenuModal}
+        onRename={openRenameDialog}
+        onDelete={openDeleteDialog}
+      />
+
+      <RenameConversationModal
+        open={dialogState.type === "rename"}
+        conversation={dialogState.conversation}
+        renameValue={dialogState.renameValue}
+        onRenameValueChange={(value) =>
+          setDialogState((prev) => ({
+            ...prev,
+            renameValue: value,
+          }))
+        }
+        onOpenChange={closeRenameModal}
+        onConfirm={handleRenameConfirm}
+      />
+
+      <DeleteConversationModal
+        open={dialogState.type === "delete"}
+        conversation={dialogState.conversation}
+        onOpenChange={closeDeleteModal}
+        onConfirm={handleDeleteConfirm}
+      />
     </View>
   );
 });

@@ -1,9 +1,9 @@
-import { useTheme } from "@/context/themes";
+import { useUserPreferences } from "@/context/user-preferences/context";
+import { ChatMessage } from "@/database/chat/types";
 import { StreamingIndicator } from "@/features/chat/components/streaming-indicator";
 import { ThinkingSection } from "@/features/chat/components/thinking-section";
-import type { ChatMessage } from "@/features/chat/model/chat-message";
-import { getAllModels } from "@/shared/ai/catalog";
-import type { CompletionOutput } from "@/shared/ai/types/runtime";
+import { getAllModels } from "@/shared/ai/text-generation/catalog";
+import { CompletionOutput } from "@/shared/ai/text-generation/types";
 import * as Clipboard from "expo-clipboard";
 import { useMemo } from "react";
 import { Text, View } from "react-native";
@@ -23,7 +23,7 @@ export function AIBubble({
   onRetry,
   isReasonEnabled,
 }: AIBubbleProps) {
-  const { colorScheme } = useTheme();
+  const { colorScheme } = useUserPreferences();
   const content = message.content ?? "";
   const reasoning = message.reasoning_content ?? "";
 
@@ -43,9 +43,7 @@ export function AIBubble({
       message.modelId)
     : null;
 
-  const timings = (message as any).timings as
-    | CompletionOutput["timings"]
-    | undefined;
+  const timings = message.timings as CompletionOutput["timings"] | undefined;
 
   const textColor = colorScheme === "dark" ? "#e4e4e7" : "#18181b";
   const mutedColor = colorScheme === "dark" ? "#71717a" : "#52525b";
@@ -58,12 +56,7 @@ export function AIBubble({
   const handleCopy = async () => {
     const text = reasoning || content;
     if (!text) return;
-    try {
-      await Clipboard.setStringAsync(text);
-    } catch {
-      if (navigator.clipboard?.writeText)
-        await navigator.clipboard.writeText(text);
-    }
+    await Clipboard.setStringAsync(text);
   };
 
   return (
@@ -114,7 +107,7 @@ export function AIBubble({
       {!isStreaming && (
         <AIBubbleFooter
           modelDisplayName={modelDisplayName}
-          timestamp={message.timestamp}
+          createdAt={message.createdAt}
           timings={timings}
           onRetry={onRetry}
           onCopy={handleCopy}

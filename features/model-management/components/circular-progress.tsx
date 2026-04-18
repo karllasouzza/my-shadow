@@ -1,10 +1,10 @@
 import React, { useEffect, useRef } from "react";
 import { View } from "react-native";
 import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
+    Easing,
+    useAnimatedStyle,
+    useSharedValue,
+    withTiming,
 } from "react-native-reanimated";
 
 interface CircularProgressProps {
@@ -35,7 +35,7 @@ export function CircularProgress({
   trackColor = "rgba(153, 159, 243, 0.15)",
   strokeColor = "#999ff3",
 }: CircularProgressProps) {
-  const progressValue = useSharedValue(progress);
+  const progressValue = useSharedValue(0);
   const prevProgress = useRef(progress);
 
   useEffect(() => {

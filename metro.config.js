@@ -3,11 +3,9 @@ const { withNativeWind } = require("nativewind/metro");
 
 const config = getDefaultConfig(__dirname);
 
-// Add SVG transformer support
 config.transformer.babelTransformerPath =
   require.resolve("react-native-svg-transformer");
 
-// Adjust assetExts and sourceExts
 const { assetExts, sourceExts } = config.resolver;
 config.resolver.assetExts = assetExts.filter((ext) => ext !== "svg");
 config.resolver.sourceExts = [...sourceExts, "svg"];

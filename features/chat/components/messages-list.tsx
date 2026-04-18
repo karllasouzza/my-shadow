@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { ChatMessage } from "@/database/chat/types";
 import { AIBubble } from "@/features/chat/components/ai-bubble";
 import { ConversationErrorState } from "@/features/chat/components/conversation-error-state";
 import { EmptyState } from "@/features/chat/components/empty-state";
@@ -11,15 +12,26 @@ import { Link, router } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Text, View } from "react-native";
 
-type Props = {
-  chat: any;
-};
+interface MessagesListProps {
+  chat: {
+    displayMessages: ChatMessage[];
+    isGenerating: boolean;
+    conversationError: string | null;
+    hasContent: boolean;
+    isModelReady: boolean;
+    availableModels: any[];
+    reasoningEnabled: boolean;
+    retryLastUserMessage?: () => void;
+    clearConversationError: () => void;
+  };
+}
 
-export const MessagesList = observer(function MessagesList({ chat }: Props) {
+export const MessagesList = observer(function MessagesList({
+  chat,
+}: MessagesListProps) {
   const flatListRef = useRef<any>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
 
-  // Auto-scroll when user is near bottom
   useEffect(() => {
     if (
       chat.displayMessages.length > 0 &&
@@ -37,7 +49,7 @@ export const MessagesList = observer(function MessagesList({ chat }: Props) {
   }, [
     chat.displayMessages.length,
     showScrollButton,
-    chat.displayMessages[chat.displayMessages.length - 1]?.timestamp,
+    chat.displayMessages[chat.displayMessages.length - 1]?.createdAt,
     chat.isGenerating,
   ]);
 
@@ -115,7 +127,7 @@ export const MessagesList = observer(function MessagesList({ chat }: Props) {
           return msg._isStreaming ? (
             <StreamingBubble
               message={msg}
-              isReasonEnabled={chat.thinkingEnabled}
+              isReasonEnabled={chat.reasoningEnabled}
             />
           ) : msg.role === "user" ? (
             <UserBubble
@@ -126,13 +138,12 @@ export const MessagesList = observer(function MessagesList({ chat }: Props) {
             <AIBubble
               message={msg}
               onRetry={() => chat.retryLastUserMessage?.()}
-              isReasonEnabled={chat.thinkingEnabled}
+              isReasonEnabled={chat.reasoningEnabled}
             />
           );
         }}
         keyExtractor={(item, index) =>
-          (item as any)._key ??
-          `msg-${(item as any).timestamp ?? index}-${index}`
+          (item as any)._key ?? `msg-${(item as any).id ?? index}`
         }
         contentContainerClassName="px-4 pt-6 pb-2"
         onScroll={handleScroll}

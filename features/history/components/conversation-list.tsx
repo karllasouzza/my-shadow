@@ -1,25 +1,16 @@
-/**
- * T054: Conversation list component
- *
- * FlatList of ConversationItem components with pull-to-refresh.
- */
-import type { ChatConversationIndex } from "@/features/chat/model/chat-conversation";
+import { ChatConversation } from "@/database/chat/types";
 import { ConversationItem } from "@/features/history/components/conversation-item";
 import React from "react";
-import { FlatList, RefreshControl } from "react-native";
+import { FlatList } from "react-native";
 
 interface ConversationListProps {
-  conversations: ChatConversationIndex[];
-  isLoading: boolean;
-  onRefresh: () => void;
+  conversations: ChatConversation[];
   onPress: (id: string) => void;
-  onLongPress?: (conv: ChatConversationIndex) => void;
+  onLongPress?: (conv: ChatConversation) => void;
 }
 
 export function ConversationList({
   conversations,
-  isLoading,
-  onRefresh,
   onPress,
   onLongPress,
 }: ConversationListProps) {
@@ -34,14 +25,6 @@ export function ConversationList({
           onLongPress={onLongPress}
         />
       )}
-      refreshControl={
-        <RefreshControl
-          refreshing={isLoading}
-          onRefresh={onRefresh}
-          tintColor="#3b82f6"
-          colors={["#3b82f6"]}
-        />
-      }
     />
   );
 }

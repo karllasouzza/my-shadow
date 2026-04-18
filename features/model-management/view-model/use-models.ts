@@ -1,9 +1,9 @@
-import { findModelById, getAllModels } from "@/shared/ai/catalog";
 import {
   downloadModelById,
   getDownloadedModels,
   removeDownloadedModel,
 } from "@/shared/ai/manager";
+import { findModelById, getAllModels } from "@/shared/ai/text-generation/catalog";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ModelItemStatus } from "./types";
 

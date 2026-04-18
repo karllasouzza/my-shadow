@@ -1,12 +1,11 @@
-import * as Database from "@/database/chat";
-import { getAIRuntime } from "@/shared/ai/runtime";
-import type { ChatMessage } from "@/shared/ai/types/chat";
-import type { CompletionOutput } from "@/shared/ai/types/runtime";
+import { ChatMessage } from "@/database/chat/types";
+import { getAIRuntime } from "@/shared/ai/text-generation/runtime";
+import { generateUUID } from "@/shared/random-id";
+import type { NativeCompletionResultTimings } from "llama.rn";
 import { useCallback, useMemo, useRef, useState } from "react";
 
 export interface StreamingMessage extends ChatMessage {
   _isStreaming: true;
-  _key: string;
 }
 
 interface GenerateOptions {
@@ -16,218 +15,135 @@ interface GenerateOptions {
   onComplete?: (
     content: string,
     reasoning?: string,
-    timings?: CompletionOutput["timings"],
+    messageId?: string,
+    timings?: NativeCompletionResultTimings,
   ) => void;
   onError?: (
     code: string,
     partialContent?: string,
     partialReasoning?: string,
+    messageId?: string,
   ) => void;
 }
-
-const STREAMING_PERSIST_THROTTLE_MS = 300;
 
 export function useStreamingGeneration() {
   const [streaming, setStreaming] = useState<StreamingMessage | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [showCancel, setShowCancel] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
-  const streamingRef = useRef<StreamingMessage | null>(null);
   const contentRef = useRef("");
   const reasoningRef = useRef("");
 
-  const keyCounterRef = useRef(0);
-  const makeKey = useCallback(
-    () => `msg-${Date.now()}-${++keyCounterRef.current}`,
-    [],
-  );
-
-  const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const persist = useCallback(
-    (conversationId: string, message: StreamingMessage) => {
-      if (persistTimerRef.current) {
-        clearTimeout(persistTimerRef.current);
-      }
-
-      persistTimerRef.current = setTimeout(() => {
-        Database.upsertStreamingMessage(conversationId, {
-          ...message,
-          reasoning_content: message.reasoning_content || undefined,
-        });
-        persistTimerRef.current = null;
-      }, STREAMING_PERSIST_THROTTLE_MS);
-    },
-    [],
-  );
-
-  const flushPersist = useCallback((conversationId?: string) => {
-    if (persistTimerRef.current) {
-      clearTimeout(persistTimerRef.current);
-      persistTimerRef.current = null;
-    }
-
-    if (conversationId) {
-      Database.clearStreamingMessage(conversationId);
-    }
-  }, []);
-
   const clearStreamingState = useCallback(() => {
-    streamingRef.current = null;
     setStreaming(null);
     setIsGenerating(false);
-    setShowCancel(false);
   }, []);
 
-  const restorePersisted = useCallback(
-    (message: ChatMessage) => {
-      const restored: StreamingMessage = {
-        ...message,
-        reasoning_content: message.reasoning_content ?? "",
-        _isStreaming: true,
-        _key: makeKey(),
-      };
-
-      contentRef.current = restored.content;
-      reasoningRef.current = restored.reasoning_content ?? "";
-      streamingRef.current = restored;
-      setStreaming(restored);
-      setIsGenerating(false);
-      setShowCancel(false);
-    },
-    [makeKey],
-  );
-
   const generate = useCallback(
-    async (
-      conversationId: string,
-      messages: ChatMessage[],
-      options: GenerateOptions,
-    ) => {
+    async (messages: ChatMessage[], options: GenerateOptions) => {
       const abortController = new AbortController();
       abortRef.current = abortController;
       contentRef.current = "";
       reasoningRef.current = "";
 
-      const stableKey = makeKey();
+      // Create initial streaming message with fixed timestamp
+      const createdAtTimestamp = new Date().toISOString();
       const initialMessage: StreamingMessage = {
+        id: generateUUID(),
         role: "assistant",
         content: "",
         reasoning_content: "",
         modelId: options.modelId,
-        timestamp: new Date().toISOString(),
+        createdAt: createdAtTimestamp,
+        updatedAt: createdAtTimestamp,
         _isStreaming: true,
-        _key: stableKey,
       };
 
-      streamingRef.current = initialMessage;
       setStreaming(initialMessage);
       setIsGenerating(true);
-      setShowCancel(false);
 
-      Database.upsertStreamingMessage(conversationId, initialMessage);
-
-      let fullResponse = "";
-      let fullReasoning = "";
       const result = await getAIRuntime().streamCompletion(messages, {
         enableThinking: options.enableThinking,
         abortSignal: abortController.signal,
         onStreamChunk: (chunk) => {
           if (abortController.signal.aborted) return;
 
-          if (chunk.token) {
-            contentRef.current += chunk.token;
-          }
-
-          if (chunk.reasoning) {
-            reasoningRef.current += chunk.reasoning;
-          }
-
-          fullResponse = contentRef.current;
-          fullReasoning = reasoningRef.current;
+          if (chunk.token) contentRef.current += chunk.token;
+          if (chunk.reasoning) reasoningRef.current += chunk.reasoning;
 
           const updatedMessage: StreamingMessage = {
-            role: "assistant",
-            content: fullResponse,
-            reasoning_content: fullReasoning,
-            modelId: options.modelId,
-            timestamp: new Date().toISOString(),
-            _isStreaming: true,
-            _key: stableKey,
+            ...initialMessage,
+            content: contentRef.current,
+            reasoning_content: reasoningRef.current,
           };
 
-          streamingRef.current = updatedMessage;
           setStreaming(updatedMessage);
-          setShowCancel(true);
-
-          persist(conversationId, updatedMessage);
-          options.onUpdate?.(fullResponse, fullReasoning);
+          options.onUpdate?.(contentRef.current, reasoningRef.current);
         },
       });
 
       abortRef.current = null;
-      setShowCancel(false);
-      flushPersist();
 
       if (abortController.signal.aborted) {
-        const partialContent = contentRef.current;
-        const partialReasoning = reasoningRef.current;
-        clearStreamingState();
-        options.onError?.("ABORTED", partialContent, partialReasoning);
-        return;
-      }
-
-      if (!result.success) {
-        const partialContent = contentRef.current;
-        const partialReasoning = reasoningRef.current;
         clearStreamingState();
         options.onError?.(
-          result.error?.code ?? "GENERATION_FAILED",
-          partialContent,
-          partialReasoning,
+          "ABORTED",
+          contentRef.current,
+          reasoningRef.current,
+          initialMessage.id,
         );
         return;
       }
 
-      const text = result.data.text ?? contentRef.current ?? fullResponse;
-      const reasoning =
-        result.data.reasoning ?? reasoningRef.current ?? fullReasoning;
+      if (!result.success) {
+        clearStreamingState();
+        options.onError?.(
+          result.error?.code ?? "GENERATION_FAILED",
+          contentRef.current,
+          reasoningRef.current,
+          initialMessage.id,
+        );
+        return;
+      }
+
+      // Save final message to state
+      const finalMessage: ChatMessage = {
+        id: initialMessage.id,
+        role: "assistant",
+        content: result.data.text || contentRef.current,
+        reasoning_content:
+          result.data.reasoning || reasoningRef.current || undefined,
+        timings: result.data.timings,
+        modelId: options.modelId,
+        createdAt: initialMessage.createdAt,
+        updatedAt: new Date().toISOString(),
+      };
 
       clearStreamingState();
-      options.onComplete?.(text, reasoning || undefined, result.data.timings);
+      options.onComplete?.(
+        finalMessage.content,
+        finalMessage.reasoning_content,
+        finalMessage.id,
+        finalMessage.timings,
+      );
     },
-    [clearStreamingState, flushPersist, makeKey, persist],
+    [clearStreamingState],
   );
 
   const cancel = useCallback(() => {
     abortRef.current?.abort();
     abortRef.current = null;
-    setStreaming(null);
-    setIsGenerating(false);
-    setShowCancel(false);
-  }, []);
+    clearStreamingState();
+  }, [clearStreamingState]);
 
   return useMemo(
     () => ({
       streaming,
       isGenerating,
-      showCancel,
       generate,
       cancel,
-      flushPersist,
-      restorePersisted,
       clearStreamingState,
     }),
-    [
-      streaming,
-      isGenerating,
-      showCancel,
-      generate,
-      cancel,
-      flushPersist,
-      restorePersisted,
-      clearStreamingState,
-    ],
+    [streaming, isGenerating, generate, cancel, clearStreamingState],
   );
 }

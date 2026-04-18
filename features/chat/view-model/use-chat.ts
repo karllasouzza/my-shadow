@@ -1,45 +1,22 @@
-import {
-    getThinkingEnabled,
-    setThinkingEnabled,
-} from "@/database/actions/chat/think-mode";
-import * as DatabaseChat from "@/database/chat";
-import {
-    createChatMessage,
-    validateChatMessage,
-} from "@/features/chat/model/chat-message";
-import { getAIRuntime } from "@/shared/ai/runtime";
-import type { ChatMessage } from "@/shared/ai/types/chat";
-import { useCallback, useMemo, useState } from "react";
+import chatState$ from "@/database/chat";
+import { getAIRuntime } from "@/shared/ai/text-generation/runtime";
+import { useValue } from "@legendapp/state/react";
+import { useCallback, useMemo } from "react";
+import { createChatMessage } from "../model/chat-message";
 import { useConversation } from "./hooks/useConversation";
 import { useModelManager } from "./hooks/useModelManager";
 import { useStreamingGeneration } from "./hooks/useStreamingGeneration";
 
-function toRuntimeMessages(messages: ChatMessage[]): ChatMessage[] {
-  return messages.map((message) => {
-    const runtimeMessage: ChatMessage = {
-      role:
-        message.role === "tool"
-          ? "assistant"
-          : (message.role as "system" | "user" | "assistant"),
-      content: message.content,
-    };
-
-    if (message.reasoning_content) {
-      runtimeMessage.reasoning_content = message.reasoning_content;
-    }
-
-    return runtimeMessage;
-  });
+/** Simple message validation */
+function validateChatMessage(content: string) {
+  return { isValid: content.trim().length > 0 };
 }
 
 export function useChat() {
   const conversation = useConversation();
   const model = useModelManager();
   const stream = useStreamingGeneration();
-
-  const [thinkingEnabled, setThinkingEnabledState] = useState(() =>
-    getThinkingEnabled(),
-  );
+  const reasoningEnabled = useValue(chatState$.isReasoningEnabled) ?? false;
 
   const resolveCurrentModelId = useCallback(() => {
     return (
@@ -54,40 +31,46 @@ export function useChat() {
       errorCode: string,
       partialContent?: string,
       partialReasoning?: string,
+      messageId?: string,
     ) => {
-      DatabaseChat.clearStreamingMessage(conversationId);
-
       const hasPartial = !!partialContent?.trim() || !!partialReasoning?.trim();
 
       if (errorCode === "ABORTED") {
         if (hasPartial) {
-          conversation.addMessage(
-            conversationId,
-            createChatMessage(
-              "assistant",
-              `${partialContent ?? ""} [cancelado]`,
-              partialReasoning,
-              modelId,
-            ),
+          const partialMessage = createChatMessage(
+            "assistant",
+            `${partialContent ?? ""} [cancelado]`,
+            partialReasoning,
+            modelId,
           );
+          if (messageId) {
+            (partialMessage as any).id = messageId;
+            (partialMessage as any)._isStreaming = true;
+          }
+          conversation.addMessage(conversationId, partialMessage);
         }
+        stream.clearStreamingState();
         return;
       }
 
       if (!hasPartial) {
         conversation.updateLastUserError(conversationId, errorCode);
+        stream.clearStreamingState();
         return;
       }
 
-      conversation.addMessage(
-        conversationId,
-        createChatMessage(
-          "assistant",
-          `${partialContent ?? ""} [erro na geração]`,
-          partialReasoning,
-          modelId,
-        ),
+      const errorMessage = createChatMessage(
+        "assistant",
+        `${partialContent ?? ""} [erro na geração]`,
+        partialReasoning,
+        modelId,
       );
+      if (messageId) {
+        (errorMessage as any).id = messageId;
+        (errorMessage as any)._isStreaming = true;
+      }
+      conversation.addMessage(conversationId, errorMessage);
+      stream.clearStreamingState();
     },
     [conversation],
   );
@@ -95,16 +78,7 @@ export function useChat() {
   const initChat = useCallback(
     async (id: string | null) => {
       stream.clearStreamingState();
-      setThinkingEnabledState(getThinkingEnabled());
       conversation.init(id);
-
-      if (id) {
-        const persisted = DatabaseChat.loadStreamingMessage(id);
-        if (persisted.success && persisted.data) {
-          stream.restorePersisted(persisted.data);
-        }
-      }
-
       await model.sync();
     },
     [conversation, model, stream],
@@ -130,35 +104,38 @@ export function useChat() {
 
       conversation.updateLastUserError(conversationId, undefined);
 
-      const messages = toRuntimeMessages(
-        conversation.getMessages(conversationId),
-      );
+      const messages = conversation.getMessages(conversationId);
 
-      await stream.generate(conversationId, messages, {
+      await stream.generate(messages, {
         modelId: currentModelId,
-        enableThinking: thinkingEnabled,
-        onComplete: (text, reasoning, timings) => {
-          DatabaseChat.clearStreamingMessage(conversationId);
+        enableThinking: reasoningEnabled,
+        onComplete: (text, reasoning, messageId, timings) => {
           const assistantMessage = createChatMessage(
             "assistant",
             text,
             reasoning,
             currentModelId,
           );
-
+          // Preserve the streaming message ID for smooth transition
+          if (messageId) {
+            (assistantMessage as any).id = messageId;
+          }
+          // Add timings if available
           if (timings) {
             (assistantMessage as any).timings = timings;
           }
-
           conversation.addMessage(conversationId, assistantMessage);
+          // Clear streaming state after saving to Legend State for smooth transition
+          stream.clearStreamingState();
         },
-        onError: (code, partialText, partialReasoning) => {
+        onError: (code, partialText, partialReasoning, messageId) => {
           handleGenerationError(
             conversationId,
             currentModelId,
             code,
             partialText,
             partialReasoning,
+            messageId,
           );
         },
       });
@@ -169,7 +146,7 @@ export function useChat() {
       model.isReady,
       resolveCurrentModelId,
       stream,
-      thinkingEnabled,
+      reasoningEnabled,
     ],
   );
 
@@ -189,32 +166,36 @@ export function useChat() {
 
     const currentModelId = resolveCurrentModelId();
 
-    await stream.generate(conversationId, toRuntimeMessages(messages), {
+    await stream.generate(messages, {
       modelId: currentModelId,
-      enableThinking: thinkingEnabled,
-      onComplete: (text, reasoning, timings) => {
-        DatabaseChat.clearStreamingMessage(conversationId);
-
+      enableThinking: reasoningEnabled,
+      onComplete: (text, reasoning, messageId, timings) => {
         const assistantMessage = createChatMessage(
           "assistant",
           text,
           reasoning,
           currentModelId,
         );
-
+        // Preserve the streaming message ID for smooth transition
+        if (messageId) {
+          (assistantMessage as any).id = messageId;
+        }
+        // Add timings if available
         if (timings) {
           (assistantMessage as any).timings = timings;
         }
-
         conversation.addMessage(conversationId, assistantMessage);
+        // Clear streaming state after saving to Legend State for smooth transition
+        stream.clearStreamingState();
       },
-      onError: (code, partialText, partialReasoning) => {
+      onError: (code, partialText, partialReasoning, messageId) => {
         handleGenerationError(
           conversationId,
           currentModelId,
           code,
           partialText,
           partialReasoning,
+          messageId,
         );
       },
     });
@@ -223,47 +204,53 @@ export function useChat() {
     handleGenerationError,
     resolveCurrentModelId,
     stream,
-    thinkingEnabled,
+    reasoningEnabled,
   ]);
 
   const cancelGeneration = useCallback(() => {
     stream.cancel();
-    if (conversation.id) {
-      stream.flushPersist(conversation.id);
-    } else {
-      stream.flushPersist();
-    }
-  }, [conversation.id, stream]);
+  }, [stream]);
 
-  const toggleThinking = useCallback(() => {
-    setThinkingEnabledState((prev) => {
-      const next = !prev;
-      setThinkingEnabled(next);
-      return next;
-    });
+  const toggleReasoning = useCallback(() => {
+    chatState$.isReasoningEnabled.set((prev) => !prev);
   }, []);
 
   const resetChatState = useCallback(() => {
     stream.cancel();
-    if (conversation.id) {
-      stream.flushPersist(conversation.id);
-    } else {
-      stream.flushPersist();
-    }
     stream.clearStreamingState();
     conversation.init(null);
   }, [conversation, stream]);
+
+  const handleLoadModelForConversation = useCallback(
+    async (conversationId: string | null) => {
+      if (!conversationId) {
+        // New conversation - load the last used model globally
+        await model.autoLoad();
+        return;
+      }
+
+      // Existing conversation - try to load the model that was used before
+      const lastModelId = conversation.getLastModelUsedId(conversationId);
+      if (lastModelId) {
+        await model.load(lastModelId);
+      } else {
+        // Fallback to last used model globally
+        await model.autoLoad();
+      }
+    },
+    [conversation, model],
+  );
 
   const displayMessages = useMemo(() => {
     const messages = conversation.id
       ? conversation.getMessages(conversation.id)
       : [];
     return stream.streaming ? [...messages, stream.streaming] : messages;
-  }, [conversation, stream.streaming]);
+  }, [conversation.id, stream.streaming]);
 
   const hasContent = useMemo(
     () => displayMessages.length > 0,
-    [displayMessages.length],
+    [displayMessages],
   );
 
   const selectedModelId = model.selectedId;
@@ -278,8 +265,7 @@ export function useChat() {
       streamingMessage: stream.streaming,
       modelError: model.error,
       conversationError: conversation.error,
-      showCancelOption: stream.showCancel && stream.isGenerating,
-      thinkingEnabled,
+      reasoningEnabled,
       displayMessages,
       hasContent,
       activeModelName,
@@ -291,7 +277,7 @@ export function useChat() {
       syncModelStatus: model.sync,
       sendMessage,
       cancelGeneration,
-      toggleThinking,
+      toggleReasoning,
       resetChatState,
       retryLastUserMessage,
       clearConversationError: conversation.clearError,
@@ -299,6 +285,7 @@ export function useChat() {
       handleLoadModel: model.load,
       handleUnloadModel: model.unload,
       handleAutoLoadLastModel: model.autoLoad,
+      handleLoadModelForConversation,
       refreshModelsOnFocus: model.refresh,
     }),
     [
@@ -316,8 +303,7 @@ export function useChat() {
       model.refresh,
       stream.isGenerating,
       stream.streaming,
-      stream.showCancel,
-      thinkingEnabled,
+      reasoningEnabled,
       displayMessages,
       hasContent,
       activeModelName,
@@ -325,10 +311,11 @@ export function useChat() {
       initChat,
       sendMessage,
       cancelGeneration,
-      toggleThinking,
+      toggleReasoning,
       resetChatState,
       retryLastUserMessage,
       conversation.clearError,
+      handleLoadModelForConversation,
     ],
   );
 }

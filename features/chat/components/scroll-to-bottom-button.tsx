@@ -2,10 +2,10 @@ import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import React, { useEffect, useRef } from "react";
 import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
+    Easing,
+    useAnimatedStyle,
+    useSharedValue,
+    withTiming,
 } from "react-native-reanimated";
 
 interface ScrollToBottomButtonProps {
@@ -19,8 +19,8 @@ export function ScrollToBottomButton({
   visible,
   onPress,
 }: ScrollToBottomButtonProps) {
-  const translateY = useSharedValue(visible ? 0 : 20);
-  const opacity = useSharedValue(visible ? 1 : 0);
+  const translateY = useSharedValue(0);
+  const opacity = useSharedValue(0);
   const prevVisible = useRef(visible);
 
   useEffect(() => {

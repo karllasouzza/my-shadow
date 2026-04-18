@@ -98,12 +98,9 @@ My Shadow automatically adapts to your device's hardware. No configuration neede
 ### Key Optimizations
 
 - **40–50% RAM reduction** via KV cache quantization (q8_0) on budget/mid-range devices
-- **Crash rate reduced from ~35% → <1%** on 4 GB devices through adaptive context sizing
-- **+20–50% throughput** via performance-core threading and adaptive batch sizing
-- **-50% first-inference latency** with post-load model warm-up
+- **Crash rate reduced from ~35% → ~3%** on 4 GB devices through adaptive context sizing
 - **Automatic OOM fallback**: if inference fails due to memory pressure, context is halved and retried automatically
 - **mmap model loading** on budget devices reduces cold-start memory by 40–60%
-- **3 GB+ device support** (previously required 6 GB+)
 
 ### Transparent by Default
 
@@ -119,6 +116,39 @@ For details, see:
 - [Device Profile Reference](docs/runtime/device-profiles.md)
 - [Troubleshooting Guide](docs/runtime/optimization-troubleshooting.md)
 - [Research Notes](docs/research/kv-cache-optimization-research.md)
+
+## AI Runtime Architecture
+
+The `shared/ai` and `shared/device` modules implement the runtime optimization pipeline. All services follow the Dependency Injection pattern so they can be tested without native modules.
+
+### Modules
+
+| Module                   | Location                             | Responsibility                                                                                    |
+| ------------------------ | ------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| `DeviceDetector`         | `shared/device`                      | Detects device capabilities: total RAM, available RAM (after OS overhead), CPU cores, GPU backend |
+| `RuntimeConfigGenerator` | `shared/ai/runtime-config-generator` | Generates optimal llama.rn config (n_ctx, n_threads, gpu_layers, flash_attn) from device profile  |
+| `MemoryMonitor`          | `shared/ai/memory-monitor`           | Monitors runtime memory pressure; triggers callback at >85% utilization                           |
+| `model-budget`           | `shared/ai/model-budget`             | `calculateMemoryBudget`, `preflightCheck`, `verifyIntegrity` — pure RAM math + optional SHA-256   |
+
+### Device Tiers
+
+| Tier      | Available RAM | KV Cache             | GPU              |
+| --------- | ------------- | -------------------- | ---------------- |
+| Budget    | < 5 GB        | q8_0 (50% reduction) | CPU-only         |
+| Mid-Range | 5–7 GB        | q8_0                 | 50 GPU layers    |
+| Premium   | ≥ 7 GB        | f16 (full precision) | Full GPU offload |
+
+### GPU Backends
+
+- **Metal** — iOS (all devices)
+- **Vulkan** — Android 13+ with Snapdragon/Adreno chipsets
+- **OpenCL** — Android fallback (older OS or non-Snapdragon)
+
+### OS RAM Overhead
+
+iOS reserves 1.5 GB; Android reserves 2.0 GB. Available RAM = total − overhead − currently used.
+
+See [Usage Examples](docs/usage-examples.md) for code samples.
 
 ## Learn more
 

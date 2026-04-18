@@ -1,6 +1,6 @@
 import { Result, createError, err, ok } from "@/shared/utils/app-error";
 import * as FileSystem from "expo-file-system/legacy";
-import { getAIRuntime } from "./runtime";
+import { getAIRuntime } from "./text-generation/runtime";
 import { OnDownloadProgress } from "./types/manager";
 
 const MODELS_DIR = `${FileSystem.documentDirectory}models/`;

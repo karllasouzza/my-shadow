@@ -1,76 +1,84 @@
-import * as DatabaseChat from "@/database/chat";
-import type {
-  ChatConversation,
-  ChatConversationIndex,
-} from "@/features/chat/model/chat-conversation";
-import type { Result } from "@/shared/utils/app-error";
-import { useCallback, useMemo, useState } from "react";
+import chatState$ from "@/database/chat";
+import { ChatConversation } from "@/database/chat/types";
+import { useValue } from "@legendapp/state/react";
+import { useCallback, useMemo } from "react";
+import { toast } from "sonner-native";
 
 export function useHistory() {
-  const [conversations, setConversations] = useState<ChatConversationIndex[]>(
-    [],
-  );
-  const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const conversationsMap = useValue(chatState$.conversations) ?? new Map();
 
-  const loadConversations = useCallback(async (): Promise<
-    Result<ChatConversationIndex[]>
-  > => {
-    setIsLoading(true);
-    setErrorMessage(null);
+  // Convert Map to sorted array and keep reactive
+  const conversations = useMemo(() => {
+    const list = Array.from(conversationsMap.values());
+    return list.sort(
+      (a, b) =>
+        new Date(b.updatedAt || b.createdAt).getTime() -
+        new Date(a.updatedAt || a.createdAt).getTime(),
+    );
+  }, [conversationsMap]);
 
-    const result = DatabaseChat.listConversations();
-    if (result.success) {
-      setConversations(result.data);
-    } else {
-      setErrorMessage(result.error.message);
+  const deleteConversation = useCallback((id: string): boolean => {
+    try {
+      const exists = chatState$.conversations.peek()?.has(id);
+      if (!exists) {
+        toast.error("Conversa não encontrada.");
+        return false;
+      }
+
+      chatState$.conversations.set((prev) => {
+        prev.delete(id);
+        return prev;
+      });
+
+      toast.success("Conversa deletada com sucesso.");
+      return true;
+    } catch (error) {
+      toast.error("Falha ao deletar conversa.");
+      return false;
     }
-
-    setIsLoading(false);
-    return result;
   }, []);
 
-  const deleteConversation = useCallback(
-    async (id: string): Promise<Result<void>> => {
-      const result = DatabaseChat.deleteConversation(id);
-      if (result.success) {
-        await loadConversations();
-      }
-      return result;
-    },
-    [loadConversations],
-  );
-
   const renameConversation = useCallback(
-    async (
-      id: string,
-      newTitle: string,
-    ): Promise<Result<ChatConversation | null>> => {
-      const result = DatabaseChat.renameConversation(id, newTitle);
-      if (result.success) {
-        await loadConversations();
+    (id: string, newTitle: string): boolean => {
+      try {
+        if (!newTitle?.trim()) {
+          toast.error("O título não pode ser vazio.");
+          return false;
+        }
+
+        let result: ChatConversation | null = null;
+
+        chatState$.conversations.set((prev) => {
+          const conv = prev.get(id);
+          if (conv) {
+            conv.title = newTitle.trim();
+            conv.updatedAt = new Date().toISOString();
+            result = conv;
+          }
+          return prev;
+        });
+
+        if (!result) {
+          toast.error("Conversa não encontrada.");
+          return false;
+        }
+
+        toast.success("Conversa renomeada com sucesso.");
+        return true;
+      } catch (error) {
+        toast.error("Falha ao renomear conversa.");
+        return false;
       }
-      return result;
     },
-    [loadConversations],
+    [],
   );
 
   return useMemo(
     () => ({
       conversations,
-      isLoading,
-      errorMessage,
-      loadConversations,
       deleteConversation,
       renameConversation,
     }),
-    [
-      conversations,
-      isLoading,
-      errorMessage,
-      loadConversations,
-      deleteConversation,
-      renameConversation,
-    ],
+    [conversations, deleteConversation, renameConversation],
   );
 }

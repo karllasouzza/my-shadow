@@ -5,8 +5,8 @@ import React, { useCallback } from "react";
 import { Platform, View } from "react-native";
 import { ModelSelector } from "./model-selector";
 import QuickActions from "./quick-actions";
+import { ReasoningToggle } from "./reasoning-toggle";
 import { SendButton } from "./send-button";
-import { ThinkingToggle } from "./thinking-toggle";
 
 interface ChatBottomBarProps {
   value: string;
@@ -24,8 +24,8 @@ interface ChatBottomBarProps {
   modelError: string | null;
   handleModelSelect: (modelId: string) => void;
 
-  thinkingEnabled: boolean;
-  toggleThinking: () => void;
+  reasoningEnabled: boolean;
+  toggleReasoning: () => void;
 }
 
 function ChatBottomBar({
@@ -46,8 +46,8 @@ function ChatBottomBar({
   modelError,
   handleModelSelect,
 
-  thinkingEnabled,
-  toggleThinking,
+  reasoningEnabled,
+  toggleReasoning,
 }: ChatBottomBarProps) {
   const isDisabled = !isModelReady || isGenerating || !value.trim();
 
@@ -100,9 +100,9 @@ function ChatBottomBar({
                 onSelect={handleModelSelect}
               />
               {modelSupportsReasoning && (
-                <ThinkingToggle
-                  enabled={thinkingEnabled}
-                  onToggle={toggleThinking}
+                <ReasoningToggle
+                  enabled={reasoningEnabled}
+                  onToggle={toggleReasoning}
                 />
               )}
             </View>

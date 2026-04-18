@@ -35,14 +35,16 @@ const ChatScreenInner = observer(function ChatScreenInner() {
         if (isNew) {
           // Reset chat state to create a brand-new conversation
           chat.resetChatState();
-          await chat.handleAutoLoadLastModel();
+          await chat.handleLoadModelForConversation(null);
           await chat.syncModelStatus();
           chat.refreshModelsOnFocus();
           return;
         }
 
         await chat.initChat(params.conversationId ?? null);
-        await chat.handleAutoLoadLastModel();
+        await chat.handleLoadModelForConversation(
+          params.conversationId ?? null,
+        );
         await chat.syncModelStatus();
         chat.refreshModelsOnFocus();
       };
@@ -128,9 +130,9 @@ const ChatScreenInner = observer(function ChatScreenInner() {
           handleModelSelect={chat.handleLoadModel}
           modelError={chat.modelError}
           hasContent={chat.hasContent}
-          // Thinking toggle props
-          thinkingEnabled={chat.thinkingEnabled}
-          toggleThinking={chat.toggleThinking}
+          // Reasoning toggle props
+          reasoningEnabled={chat.reasoningEnabled}
+          toggleReasoning={chat.toggleReasoning}
         />
       </ScreenContainer>
     </View>

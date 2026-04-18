@@ -1,18 +1,11 @@
-/**
- * T055: Conversation item component
- *
- * Shows title + formatted relative date (e.g., "2h atrás", "3d atrás").
- * Tap → switch to Chat tab + load conversation.
- * Long-press → action sheet for rename/delete (Phase 6).
- */
-import type { ChatConversationIndex } from "@/features/chat/model/chat-conversation";
+import { ChatConversation } from "@/database/chat/types";
 import React from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 
 interface ConversationItemProps {
-  conversation: ChatConversationIndex;
+  conversation: ChatConversation;
   onPress: (id: string) => void;
-  onLongPress?: (conversation: ChatConversationIndex) => void;
+  onLongPress?: (conversation: ChatConversation) => void;
 }
 
 export function ConversationItem({
@@ -26,7 +19,7 @@ export function ConversationItem({
       onLongPress={() => onLongPress?.(conversation)}
       accessible
       accessibilityLabel={`Conversa: ${conversation.title}`}
-      accessibilityHint={`Última atualização: ${formatRelativeDate(conversation.updatedAt)}`}
+      accessibilityHint={`Última atualização: ${formatRelativeDate(conversation.updatedAt || conversation.createdAt)}`}
       accessibilityRole="button"
       className="px-5 py-4 flex gap-1 flex-col border-b border-border bg-card active:bg-muted"
     >
@@ -35,10 +28,10 @@ export function ConversationItem({
       </Text>
       <View className="flex flex-row justify-between">
         <Text className="text-foreground/75 text-xs truncate" numberOfLines={1}>
-          {conversation.lastMessageSnippet}
+          {conversation.lastMessage}
         </Text>
         <Text className="text-muted-foreground/55 text-xs">
-          {formatRelativeDate(conversation.updatedAt)}
+          {formatRelativeDate(conversation.updatedAt || conversation.createdAt)}
         </Text>
       </View>
     </TouchableOpacity>

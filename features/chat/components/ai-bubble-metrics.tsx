@@ -6,8 +6,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { CompletionOutput } from "@/shared/ai/types/runtime";
-import { Clock, Hash, Play, Zap } from "lucide-react-native";
+import { CompletionOutput } from "@/shared/ai/text-generation/types";
 import React from "react";
 import { View } from "react-native";
 
@@ -45,7 +44,10 @@ export function AIBubbleMetrics({ timings }: MetricsProps) {
             variant="outline"
             className="flex-row items-center gap-1.5 py-1"
           >
-            <Icon as={Hash} className="size-3.5 text-muted-foreground" />
+            <Icon
+              as={require("lucide-react-native").Hash}
+              className="size-3.5 text-muted-foreground"
+            />
             <Text className="text-muted-foreground text-xs">
               {generatedTokens} tok
             </Text>
@@ -62,7 +64,10 @@ export function AIBubbleMetrics({ timings }: MetricsProps) {
             variant="outline"
             className="flex-row items-center gap-1.5 py-1"
           >
-            <Icon as={Hash} className="size-3.5 text-muted-foreground" />
+            <Icon
+              as={require("lucide-react-native").Hash}
+              className="size-3.5 text-muted-foreground"
+            />
             <Text className="text-muted-foreground text-xs">
               {cacheTokens} tok cache
             </Text>
@@ -79,7 +84,10 @@ export function AIBubbleMetrics({ timings }: MetricsProps) {
             variant="outline"
             className="flex-row items-center gap-1.5 py-1"
           >
-            <Icon as={Hash} className="size-3.5 text-muted-foreground" />
+            <Icon
+              as={require("lucide-react-native").Hash}
+              className="size-3.5 text-muted-foreground"
+            />
             <Text className="text-muted-foreground text-xs">
               {promptTokens} tok prompt
             </Text>
@@ -96,7 +104,10 @@ export function AIBubbleMetrics({ timings }: MetricsProps) {
             variant="outline"
             className="flex-row items-center gap-1.5 py-1"
           >
-            <Icon as={Clock} className="size-3.5 text-muted-foreground" />
+            <Icon
+              as={require("lucide-react-native").Clock}
+              className="size-3.5 text-muted-foreground"
+            />
             <Text className="text-muted-foreground text-xs">
               {(totalDurationMs / 1000).toFixed(2)} s
             </Text>
@@ -113,16 +124,17 @@ export function AIBubbleMetrics({ timings }: MetricsProps) {
             variant="outline"
             className="flex-row items-center gap-1.5 py-1"
           >
-            <Icon as={Play} className="size-3.5 text-muted-foreground" />
+            <Icon
+              as={require("lucide-react-native").Play}
+              className="size-3.5 text-muted-foreground"
+            />
             <Text className="text-muted-foreground text-xs">
               {firstPhaseMs.toFixed(0)} ms
             </Text>
           </Badge>
         </TooltipTrigger>
         <TooltipContent side="top">
-          <Text>
-            Tempo de processamento do prompt (prompt_ms)
-          </Text>
+          <Text>Tempo de processamento do prompt (prompt_ms)</Text>
         </TooltipContent>
       </Tooltip>
 
@@ -132,7 +144,10 @@ export function AIBubbleMetrics({ timings }: MetricsProps) {
             variant="outline"
             className="flex-row items-center gap-1.5 py-1"
           >
-            <Icon as={Zap} className="size-3.5 text-muted-foreground" />
+            <Icon
+              as={require("lucide-react-native").Zap}
+              className="size-3.5 text-muted-foreground"
+            />
             <Text className="text-muted-foreground text-xs">
               {tokensPerSecond.toFixed(2)} tok/s
             </Text>
