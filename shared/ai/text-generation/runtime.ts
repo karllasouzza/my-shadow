@@ -1,6 +1,6 @@
 import { ChatMessage } from "@/database/chat/types";
 import { createError, err, ok, Result } from "@/shared/utils/app-error";
-import { initLlama, LlamaContext } from "llama.rn";
+import { initLlama, LlamaContext, TokenData } from "llama.rn";
 import { detectDevice, type DeviceInfo } from "../../device";
 import { buildConfig } from "./config";
 import { STOP_WORDS } from "./constants";
@@ -68,12 +68,6 @@ export class AIRuntime {
     const config = buildConfig(device, path);
     const hasGPU = device.hasGPU;
 
-    console.log("[AIRuntime] Loading model with config", {
-      ...config,
-      flash_attn: hasGPU,
-      flash_attn_type: hasGPU ? "on" : "auto",
-    });
-
     this.context = await initLlama({
       ...config,
       flash_attn: hasGPU,
@@ -139,11 +133,12 @@ export class AIRuntime {
           penalty_freq: 0.5,
           penalty_last_n: 64,
         },
-        (_: number, data: any) => {
+        (_: number, data: TokenData) => {
           if (abortController.signal.aborted) return;
 
           let token = data.token ?? "";
           const reasoningChunk = data.reasoning_content ?? "";
+          let reasoningToSend = "";
 
           if (enableThinking && !reasoningChunk) {
             if (token.includes("<think>")) {
@@ -152,10 +147,12 @@ export class AIRuntime {
             }
             if (inThinkTag && token.includes("</think>")) {
               const parts = token.split("</think>");
-              reasoning += parts[0];
+              reasoningToSend = parts[0];
+              reasoning += reasoningToSend;
               token = parts[1] ?? "";
               inThinkTag = false;
             } else if (inThinkTag) {
+              reasoningToSend = token;
               reasoning += token;
               token = "";
             }
@@ -164,10 +161,10 @@ export class AIRuntime {
           if (token) text += token;
           if (reasoningChunk) reasoning += reasoningChunk;
 
-          if (token || reasoningChunk) {
+          if (token || reasoningChunk || reasoningToSend) {
             options?.onStreamChunk?.({
               token,
-              reasoning: reasoningChunk || undefined,
+              reasoning: reasoningChunk || reasoningToSend || undefined,
             });
           }
         },
