@@ -30,7 +30,25 @@ Legend State's persistence depends on detecting object reference changes. Direct
 
 **File**: `features/chat/view-model/hooks/useConversation.ts`
 
-#### 1. `addMessage()` - Lines 50-106
+#### 1. `create()` - Lines 33-48
+**Before**: Direct mutations when creating conversation
+```typescript
+chatState$.conversations.set((prev) => {
+  prev[newConversation.id] = newConversation;  // Direct mutation
+  return { ...prev };                          // Same object references
+});
+```
+**After**: Immutable pattern
+```typescript
+chatState$.conversations.set((prev) => {
+  return {
+    ...prev,
+    [newConversation.id]: newConversation,  // New object reference triggers sync
+  };
+});
+```
+
+#### 2. `addMessage()` - Lines 50-106
 **Before**: Direct mutations with `push()`
 **After**: Immutable pattern with spread operator
 ```typescript
