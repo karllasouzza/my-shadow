@@ -8,7 +8,8 @@ const MODELS_DIR = `${FileSystem.documentDirectory}models/`;
 
 // In-memory cache for downloaded models to avoid frequent disk reads.
 // Cache is short-lived and updated on download/remove.
-let downloadedModelsCache: { ts: number; map: Record<string, string> } | null = null;
+let downloadedModelsCache: { ts: number; map: Record<string, string> } | null =
+  null;
 const CACHE_TTL_MS = 5000; // 5s
 
 export function invalidateDownloadedModelsCache() {
@@ -44,7 +45,10 @@ export async function downloadModelById(
     if (fileInfo.exists) {
       aiDebug("DOWNLOAD:skip", `model already exists: ${modelId}`, { destUri });
       // update cache
-      downloadedModelsCache = downloadedModelsCache ?? { ts: Date.now(), map: {} };
+      downloadedModelsCache = downloadedModelsCache ?? {
+        ts: Date.now(),
+        map: {},
+      };
       downloadedModelsCache.map[modelId] = destUri;
       downloadedModelsCache.ts = Date.now();
       return ok(destUri);
@@ -86,7 +90,10 @@ export async function downloadModelById(
       { modelId, destUri: result.uri, duration_ms: duration },
     );
     // update cache
-    downloadedModelsCache = downloadedModelsCache ?? { ts: Date.now(), map: {} };
+    downloadedModelsCache = downloadedModelsCache ?? {
+      ts: Date.now(),
+      map: {},
+    };
     downloadedModelsCache.map[modelId] = destUri;
     downloadedModelsCache.ts = Date.now();
 
@@ -115,8 +122,14 @@ export async function downloadModelById(
 export async function getDownloadedModels(): Promise<Record<string, string>> {
   try {
     // Return cache when fresh
-    if (downloadedModelsCache && Date.now() - downloadedModelsCache.ts < CACHE_TTL_MS) {
-      aiDebug("STORAGE:cache:hit", `found=${Object.keys(downloadedModelsCache.map).length}`);
+    if (
+      downloadedModelsCache &&
+      Date.now() - downloadedModelsCache.ts < CACHE_TTL_MS
+    ) {
+      aiDebug(
+        "STORAGE:cache:hit",
+        `found=${Object.keys(downloadedModelsCache.map).length}`,
+      );
       return downloadedModelsCache.map;
     }
 
@@ -159,7 +172,10 @@ export async function getModelLocalPath(
   modelId: string,
 ): Promise<string | null> {
   // Try cache first
-  if (downloadedModelsCache && Date.now() - downloadedModelsCache.ts < CACHE_TTL_MS) {
+  if (
+    downloadedModelsCache &&
+    Date.now() - downloadedModelsCache.ts < CACHE_TTL_MS
+  ) {
     const p = downloadedModelsCache.map[modelId];
     if (p) {
       const info = await FileSystem.getInfoAsync(p);
