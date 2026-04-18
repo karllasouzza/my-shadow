@@ -3,17 +3,17 @@ import { cn } from "@/lib/utils";
 import { Brain } from "lucide-react-native";
 import React, { useEffect, useRef } from "react";
 import Animated, {
-    useAnimatedStyle,
-    useSharedValue,
-    withSpring,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
 } from "react-native-reanimated";
 
-interface ThinkingToggleProps {
+interface ReasoningToggleProps {
   enabled: boolean;
   onToggle: () => void;
 }
 
-export function ThinkingToggle({ enabled, onToggle }: ThinkingToggleProps) {
+export function ReasoningToggle({ enabled, onToggle }: ReasoningToggleProps) {
   const fillOpacity = useSharedValue(enabled ? 1 : 0);
   const prevEnabled = useRef(enabled);
 

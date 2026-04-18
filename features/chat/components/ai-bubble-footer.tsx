@@ -5,7 +5,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Text } from "@/components/ui/text";
-import type { CompletionOutput } from "@/shared/ai/types/runtime";
+import { CompletionOutput } from "@/shared/ai/text-generation/types";
 import React from "react";
 import { View } from "react-native";
 import { AIBubbleAction } from "./ai-bubble-action";
@@ -15,7 +15,7 @@ type RuntimeTimings = CompletionOutput["timings"];
 
 type FooterProps = {
   modelDisplayName?: string | null;
-  timestamp?: string | undefined;
+  createdAt?: string | undefined;
   timings?: RuntimeTimings | undefined;
   onRetry?: () => void;
   onCopy?: () => void;
@@ -23,12 +23,12 @@ type FooterProps = {
 
 export function AIBubbleFooter({
   modelDisplayName,
-  timestamp,
+  createdAt,
   timings,
   onRetry,
   onCopy,
 }: FooterProps) {
-  const formattedTime = timestamp ? formatTime(timestamp) : undefined;
+  const formattedTime = createdAt ? formatTime(createdAt) : undefined;
   const itemValue = `${modelDisplayName ?? "model"}-${formattedTime ?? "no-time"}`;
 
   return (

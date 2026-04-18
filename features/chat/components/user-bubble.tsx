@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
-import type { ChatMessage } from "@/features/chat/model/chat-message";
+import { ChatMessage } from "@/database/chat/types";
 import { AlertCircle } from "lucide-react-native";
 import React from "react";
 import { Text, View } from "react-native";
@@ -53,7 +53,7 @@ export function UserBubble({ message, onRetry }: UserBubbleProps) {
       )}
 
       <Text className="text-muted-foreground/55 text-xs mt-1 self-end px-1">
-        {formatTime(message.timestamp ?? new Date().toISOString())}
+        {formatTime(message.createdAt ?? new Date().toISOString())}
       </Text>
     </View>
   );

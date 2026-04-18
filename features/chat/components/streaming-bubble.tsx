@@ -5,8 +5,8 @@
  * Usa ThinkingSection + AI Bubble com indicador de streaming.
  */
 
+import { ChatMessage } from "@/database/chat/types";
 import { AIBubble } from "@/features/chat/components/ai-bubble";
-import type { ChatMessage } from "@/features/chat/model/chat-message";
 import { observer } from "@legendapp/state/react";
 import React from "react";
 
