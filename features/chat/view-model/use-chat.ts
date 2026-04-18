@@ -31,38 +31,46 @@ export function useChat() {
       errorCode: string,
       partialContent?: string,
       partialReasoning?: string,
+      messageId?: string,
     ) => {
       const hasPartial = !!partialContent?.trim() || !!partialReasoning?.trim();
 
       if (errorCode === "ABORTED") {
         if (hasPartial) {
-          conversation.addMessage(
-            conversationId,
-            createChatMessage(
-              "assistant",
-              `${partialContent ?? ""} [cancelado]`,
-              partialReasoning,
-              modelId,
-            ),
+          const partialMessage = createChatMessage(
+            "assistant",
+            `${partialContent ?? ""} [cancelado]`,
+            partialReasoning,
+            modelId,
           );
+          if (messageId) {
+            (partialMessage as any).id = messageId;
+            (partialMessage as any)._isStreaming = true;
+          }
+          conversation.addMessage(conversationId, partialMessage);
         }
+        stream.clearStreamingState();
         return;
       }
 
       if (!hasPartial) {
         conversation.updateLastUserError(conversationId, errorCode);
+        stream.clearStreamingState();
         return;
       }
 
-      conversation.addMessage(
-        conversationId,
-        createChatMessage(
-          "assistant",
-          `${partialContent ?? ""} [erro na geração]`,
-          partialReasoning,
-          modelId,
-        ),
+      const errorMessage = createChatMessage(
+        "assistant",
+        `${partialContent ?? ""} [erro na geração]`,
+        partialReasoning,
+        modelId,
       );
+      if (messageId) {
+        (errorMessage as any).id = messageId;
+        (errorMessage as any)._isStreaming = true;
+      }
+      conversation.addMessage(conversationId, errorMessage);
+      stream.clearStreamingState();
     },
     [conversation],
   );
@@ -101,22 +109,33 @@ export function useChat() {
       await stream.generate(messages, {
         modelId: currentModelId,
         enableThinking: reasoningEnabled,
-        onComplete: (text, reasoning) => {
+        onComplete: (text, reasoning, messageId, timings) => {
           const assistantMessage = createChatMessage(
             "assistant",
             text,
             reasoning,
             currentModelId,
           );
+          // Preserve the streaming message ID for smooth transition
+          if (messageId) {
+            (assistantMessage as any).id = messageId;
+          }
+          // Add timings if available
+          if (timings) {
+            (assistantMessage as any).timings = timings;
+          }
           conversation.addMessage(conversationId, assistantMessage);
+          // Clear streaming state after saving to Legend State for smooth transition
+          stream.clearStreamingState();
         },
-        onError: (code, partialText, partialReasoning) => {
+        onError: (code, partialText, partialReasoning, messageId) => {
           handleGenerationError(
             conversationId,
             currentModelId,
             code,
             partialText,
             partialReasoning,
+            messageId,
           );
         },
       });
@@ -150,22 +169,33 @@ export function useChat() {
     await stream.generate(messages, {
       modelId: currentModelId,
       enableThinking: reasoningEnabled,
-      onComplete: (text, reasoning) => {
+      onComplete: (text, reasoning, messageId, timings) => {
         const assistantMessage = createChatMessage(
           "assistant",
           text,
           reasoning,
           currentModelId,
         );
+        // Preserve the streaming message ID for smooth transition
+        if (messageId) {
+          (assistantMessage as any).id = messageId;
+        }
+        // Add timings if available
+        if (timings) {
+          (assistantMessage as any).timings = timings;
+        }
         conversation.addMessage(conversationId, assistantMessage);
+        // Clear streaming state after saving to Legend State for smooth transition
+        stream.clearStreamingState();
       },
-      onError: (code, partialText, partialReasoning) => {
+      onError: (code, partialText, partialReasoning, messageId) => {
         handleGenerationError(
           conversationId,
           currentModelId,
           code,
           partialText,
           partialReasoning,
+          messageId,
         );
       },
     });
@@ -196,7 +226,7 @@ export function useChat() {
       ? conversation.getMessages(conversation.id)
       : [];
     return stream.streaming ? [...messages, stream.streaming] : messages;
-  }, [conversation.id, conversation, stream.streaming]);
+  }, [conversation.id, stream.streaming]);
 
   const hasContent = useMemo(
     () => displayMessages.length > 0,

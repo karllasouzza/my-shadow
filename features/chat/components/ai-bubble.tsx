@@ -43,9 +43,7 @@ export function AIBubble({
       message.modelId)
     : null;
 
-  const timings = (message as any).timings as
-    | CompletionOutput["timings"]
-    | undefined;
+  const timings = message.timings as CompletionOutput["timings"] | undefined;
 
   const textColor = colorScheme === "dark" ? "#e4e4e7" : "#18181b";
   const mutedColor = colorScheme === "dark" ? "#71717a" : "#52525b";

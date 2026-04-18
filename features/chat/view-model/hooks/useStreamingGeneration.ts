@@ -1,6 +1,7 @@
 import { ChatMessage } from "@/database/chat/types";
 import { getAIRuntime } from "@/shared/ai/text-generation/runtime";
 import { generateUUID } from "@/shared/random-id";
+import type { NativeCompletionResultTimings } from "llama.rn";
 import { useCallback, useMemo, useRef, useState } from "react";
 
 export interface StreamingMessage extends ChatMessage {
@@ -11,11 +12,17 @@ interface GenerateOptions {
   modelId: string;
   enableThinking: boolean;
   onUpdate?: (content: string, reasoning: string) => void;
-  onComplete?: (content: string, reasoning?: string) => void;
+  onComplete?: (
+    content: string,
+    reasoning?: string,
+    messageId?: string,
+    timings?: NativeCompletionResultTimings,
+  ) => void;
   onError?: (
     code: string,
     partialContent?: string,
     partialReasoning?: string,
+    messageId?: string,
   ) => void;
 }
 
@@ -39,14 +46,16 @@ export function useStreamingGeneration() {
       contentRef.current = "";
       reasoningRef.current = "";
 
-      // Create initial streaming message
+      // Create initial streaming message with fixed timestamp
+      const createdAtTimestamp = new Date().toISOString();
       const initialMessage: StreamingMessage = {
         id: generateUUID(),
         role: "assistant",
         content: "",
         reasoning_content: "",
         modelId: options.modelId,
-        createdAt: new Date().toISOString(),
+        createdAt: createdAtTimestamp,
+        updatedAt: createdAtTimestamp,
         _isStreaming: true,
       };
 
@@ -66,7 +75,6 @@ export function useStreamingGeneration() {
             ...initialMessage,
             content: contentRef.current,
             reasoning_content: reasoningRef.current,
-            updatedAt: new Date().toISOString(),
           };
 
           setStreaming(updatedMessage);
@@ -78,7 +86,12 @@ export function useStreamingGeneration() {
 
       if (abortController.signal.aborted) {
         clearStreamingState();
-        options.onError?.("ABORTED", contentRef.current, reasoningRef.current);
+        options.onError?.(
+          "ABORTED",
+          contentRef.current,
+          reasoningRef.current,
+          initialMessage.id,
+        );
         return;
       }
 
@@ -88,6 +101,7 @@ export function useStreamingGeneration() {
           result.error?.code ?? "GENERATION_FAILED",
           contentRef.current,
           reasoningRef.current,
+          initialMessage.id,
         );
         return;
       }
@@ -109,6 +123,8 @@ export function useStreamingGeneration() {
       options.onComplete?.(
         finalMessage.content,
         finalMessage.reasoning_content,
+        finalMessage.id,
+        finalMessage.timings,
       );
     },
     [clearStreamingState],
