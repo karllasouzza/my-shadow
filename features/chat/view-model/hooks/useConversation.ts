@@ -58,12 +58,17 @@ export function useConversation() {
       convId = newConvId;
     }
 
-    const prevConvCount = Object.keys(chatState$.conversations.peek() ?? {}).length;
-    
+    const prevConvCount = Object.keys(
+      chatState$.conversations.peek() ?? {},
+    ).length;
+
     chatState$.conversations.set((prev) => {
       const conv = prev[convId];
       if (!conv) {
-        aiDebug("CONVERSATION:addMessage:skip", `Conversation ${convId} not found`);
+        aiDebug(
+          "CONVERSATION:addMessage:skip",
+          `Conversation ${convId} not found`,
+        );
         return prev;
       }
 
@@ -90,7 +95,7 @@ export function useConversation() {
       aiDebug(
         "CONVERSATION:addMessage:updating",
         `convId=${convId} msgCount=${newMessages.length} role=${message.role}`,
-        { conversationId: convId, messageCount: newMessages.length }
+        { conversationId: convId, messageCount: newMessages.length },
       );
 
       success = true;
@@ -102,11 +107,13 @@ export function useConversation() {
 
     chatState$.lastModelId.set(message.modelId ?? null);
 
-    const newConvCount = Object.keys(chatState$.conversations.peek() ?? {}).length;
+    const newConvCount = Object.keys(
+      chatState$.conversations.peek() ?? {},
+    ).length;
     aiDebug(
       "CONVERSATION:addMessage:done",
       `success=${success} convCount=${prevConvCount}->${newConvCount}`,
-      { success, previousCount: prevConvCount, newCount: newConvCount }
+      { success, previousCount: prevConvCount, newCount: newConvCount },
     );
 
     return success;
@@ -125,9 +132,7 @@ export function useConversation() {
         if (lastUserIdx < 0) return prev;
 
         const newMessages = conv.messages.map((msg, idx) =>
-          idx === lastUserIdx
-            ? { ...msg, errorCode }
-            : msg
+          idx === lastUserIdx ? { ...msg, errorCode } : msg,
         );
 
         const updatedConversation: ChatConversation = {
