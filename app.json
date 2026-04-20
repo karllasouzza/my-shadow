@@ -48,8 +48,8 @@
         {
           "enableEntitlements": true,
           "forceCxx20": true,
-          "entitlementsProfile": "production",
-          "enableOpenCLAndHexagon": true
+          "enableOpenCLAndHexagon": true,
+          "entitlementsProfile": "production"
         }
       ],
       [
