@@ -3,6 +3,7 @@ import { aiDebug, aiError, aiInfo } from "@/shared/ai/log";
 import { createError, err, ok, Result } from "@/shared/utils/app-error";
 import { initLlama, LlamaContext, TokenData } from "llama.rn";
 import { detectDevice, type DeviceInfo } from "../../device";
+import { findModelById } from "./catalog";
 import { buildConfig } from "./config";
 import { STOP_WORDS } from "./constants";
 import { isLikelyOOMError } from "./oom-detection";
@@ -73,31 +74,39 @@ export class AIRuntime {
         return err(createError("INSUFFICIENT_MEMORY", message));
       }
 
-      const config = buildConfig(device, path);
-      const hasGPU = device.hasGPU;
+      const config = buildConfig(device, path, fileSizeBytes);
 
-      // Flash attention overhead may exceed benefits for small models (< 500MB)
-      const enableFlashAttn = hasGPU && fileSizeBytes > 500_000_000;
-
-      aiInfo("LOAD:initLlama:start", `modelId=${modelId}`, {
-        config: { ...config, model: undefined },
-        hasGPU,
-        flashAttention: enableFlashAttn,
-      });
+      aiInfo(
+        "LOAD:initLlama:start",
+        `modelId=${modelId} gpu=${device.hasGPU}`,
+        {
+          config: { ...config, model: undefined },
+          hasGPU: device.hasGPU,
+          gpuBackend: device.gpuBackend,
+          gpuModel: device.gpuModel,
+          n_gpu_layers: config.n_gpu_layers,
+        },
+      );
 
       this.context = await initLlama({
         ...config,
-        flash_attn: enableFlashAttn,
-        flash_attn_type: enableFlashAttn ? "on" : "auto",
       });
 
-      await this.context.parallel.enable({ n_parallel: 1 });
+      aiInfo("LOAD:initLlama:done", `modelId=${modelId}`, {
+        configuredGPULayers: config.n_gpu_layers,
+        gpuBackend: device.gpuBackend,
+        hasGPU: device.hasGPU,
+        batchSize: config.n_batch,
+        ubatchSize: config.n_ubatch,
+      });
+
+      await this.context.parallel.enable({
+        n_parallel: 1,
+      });
 
       this.modelId = modelId;
       this.config = config;
 
-      // Warm up the model to reduce TTFT on first inference
-      // This does a single token completion to initialize caches and JIT compilation
       await this._warmupModel().catch((err: unknown) => {
         aiDebug("LOAD:warmup:skip", `error=${(err as Error)?.message}`);
       });
@@ -108,6 +117,8 @@ export class AIRuntime {
         duration,
         config,
         device,
+        gpuBackend: device.gpuBackend,
+        gpuEnabled: device.hasGPU,
       });
 
       return ok({ id: modelId });
@@ -189,14 +200,10 @@ export class AIRuntime {
       return err(createError("NOT_READY", "Nenhum modelo carregado."));
     }
 
-    const enableThinking = !!options?.enableThinking;
-    // Disable thinking mode for very small models (< 800MB) as overhead may exceed benefits
-    const actualEnableThinking =
-      enableThinking &&
-      this.config &&
-      (this.config.model?.includes?.("7b") ||
-        this.config.model?.includes?.("13b") ||
-        this.config.model?.includes?.("70b"));
+    const enableThinking =
+      findModelById(this.modelId)?.supportsReasoning ??
+      !!options?.enableThinking;
+
     const signal = options?.abortSignal;
     const filteredMessages = messages.map((m) => ({
       role: m.role,
@@ -226,8 +233,8 @@ export class AIRuntime {
         {
           messages: filteredMessages,
           jinja: true,
-          enable_thinking: actualEnableThinking,
-          thinking_forced_open: actualEnableThinking,
+          enable_thinking: enableThinking,
+          thinking_forced_open: enableThinking,
           n_predict: options?.maxTokens ?? this.config?.n_predict ?? 2048,
           temperature: options?.temperature ?? 0.7,
           stop: STOP_WORDS,
