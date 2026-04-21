@@ -3,7 +3,10 @@ import {
   getDownloadedModels,
   removeDownloadedModel,
 } from "@/shared/ai/manager";
-import { findModelById, getAllModels } from "@/shared/ai/text-generation/catalog";
+import {
+  findModelById,
+  getAllModels,
+} from "@/shared/ai/text-generation/catalog";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ModelItemStatus } from "./types";
 
@@ -61,7 +64,7 @@ export function useModels() {
         (model) =>
           model.displayName.toLowerCase().includes(query) ||
           model.description.toLowerCase().includes(query) ||
-          model.bytes.toLowerCase().includes(query),
+          (model.bytes ?? "").toLowerCase().includes(query),
       );
 
       return filteredCatalog;
@@ -92,6 +95,7 @@ export function useModels() {
       const result = await downloadModelById(
         modelId,
         model.downloadLink,
+        model.modelType,
         (info) => {
           setDownloadProgress(Math.round(info.progress));
         },

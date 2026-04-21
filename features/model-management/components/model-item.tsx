@@ -36,7 +36,7 @@ export function ModelItem({
     fileSizeBytes,
     estimatedRamBytes,
     supportsReasoning,
-    tags,
+    tags = [],
     bytes,
   },
   itemStatus = DEFAULT_STATUS,
@@ -48,12 +48,12 @@ export function ModelItem({
   const sizeMB = Math.round(fileSizeBytes / 1024 / 1024);
   const ramMB = Math.round(estimatedRamBytes / 1024 / 1024);
   return (
-    <View className="px-5 py-4 border-b border-border/50">
-      <View className="flex-row items-start justify-between">
+    <View className="px-5 py-4 border-border/50 border-b">
+      <View className="flex-row justify-between items-start">
         <View className="flex flex-1 gap-3">
           <View className="flex flex-col items-start gap-0.5">
-            <View className="flex flex-row items-center justify-center gap-2">
-              <Text className="text-foreground text-base font-semibold">
+            <View className="flex flex-row justify-center items-center gap-2">
+              <Text className="font-semibold text-foreground text-base">
                 {displayName}
               </Text>
               <Text className="text-primary/75 text-base">{bytes}</Text>
@@ -92,7 +92,7 @@ export function ModelItem({
         {/* Action button based on status */}
         {itemStatus.status === "downloaded" ? (
           <Button onPress={onRemove} variant="destructive">
-            <Text className="text-destructive-foreground text-sm font-semibold">
+            <Text className="font-semibold text-destructive-foreground text-sm">
               Apagar
             </Text>
             <Icon
@@ -102,7 +102,7 @@ export function ModelItem({
           </Button>
         ) : itemStatus.status === "downloading" ? (
           <View className="flex flex-row items-center gap-2 px-3 py-2">
-            <Text className="text-blue-500 text-sm font-medium">
+            <Text className="font-medium text-blue-500 text-sm">
               {Math.round(itemStatus.progress)}%
             </Text>
           </View>
@@ -113,7 +113,7 @@ export function ModelItem({
             disabled={isLoading}
             variant="destructive"
           >
-            <Text className="text-white text-sm font-semibold sr-only">
+            <Text className="sr-only font-semibold text-white text-sm">
               Tentar novamente
             </Text>
             <Icon
@@ -122,7 +122,7 @@ export function ModelItem({
             />
           </Button>
         ) : itemStatus.isLowRam ? (
-          <View className="flex flex-row items-center gap-2 px-3 py-2 bg-yellow-500/10 rounded-lg">
+          <View className="flex flex-row items-center gap-2 bg-yellow-500/10 px-3 py-2 rounded-lg">
             <Text className="text-yellow-600 text-xs">RAM insuficiente</Text>
             <Icon
               as={require("lucide-react-native").AlertTriangle}
@@ -131,7 +131,7 @@ export function ModelItem({
           </View>
         ) : (
           <Button variant="default" disabled={isLoading} onPress={onDownload}>
-            <Text className="text-primary-foreground text-sm font-semibold">
+            <Text className="font-semibold text-primary-foreground text-sm">
               Baixar
             </Text>
             <Icon
