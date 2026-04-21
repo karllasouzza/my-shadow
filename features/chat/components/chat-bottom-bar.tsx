@@ -65,7 +65,7 @@ function ChatBottomBar({
   }, [selectedModel, availableModels])();
 
   return (
-    <View className={cn("flex w-full p-0 bg-transparent", className)}>
+    <View className={cn("flex w-full p-0 gap-6 bg-transparent", className)}>
       {!hasContent && <QuickActions />}
 
       <View className="flex w-full p-3 pt-0 bg-transparent">
