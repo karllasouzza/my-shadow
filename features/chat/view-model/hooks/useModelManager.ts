@@ -15,6 +15,7 @@ export function useModelManager() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentId, setCurrentId] = useState<string | null>(null);
+  const [currentWhisperId, setCurrentWhisperId] = useState<string | null>(null);
   const [available, setAvailable] = useState<AvailableModel[]>([]);
 
   const refresh = useCallback(async () => {
@@ -42,6 +43,26 @@ export function useModelManager() {
 
       setCurrentId(modelId);
       setIsReady(true);
+      await refresh();
+      return true;
+    },
+    [refresh],
+  );
+
+  const loadWhisper = useCallback(
+    async (modelId: string) => {
+      setIsLoading(true);
+      setError(null);
+
+      const result = await loadModel(modelId);
+      setIsLoading(false);
+
+      if (!result.success) {
+        setError(result.error ?? "Falha ao carregar modelo de voz.");
+        return false;
+      }
+
+      setCurrentWhisperId(modelId);
       await refresh();
       return true;
     },
@@ -118,6 +139,7 @@ export function useModelManager() {
     }
 
     setCurrentId(model?.id ?? null);
+    setCurrentWhisperId(getSelectedModelId("bin"));
     setIsReady(loaded);
     await refresh();
   }, [refresh]);
@@ -125,6 +147,11 @@ export function useModelManager() {
   const selectedId = useMemo(
     () => currentId ?? getSelectedModelId("gguf"),
     [currentId, isReady, available.length],
+  );
+
+  const selectedWhisperId = useMemo(
+    () => currentWhisperId ?? getSelectedModelId("bin"),
+    [currentWhisperId, available.length],
   );
 
   return useMemo(
@@ -135,7 +162,9 @@ export function useModelManager() {
       currentId,
       available,
       selectedId,
+      selectedWhisperId,
       load,
+      loadWhisper,
       unload,
       autoLoad,
       sync,
@@ -148,7 +177,9 @@ export function useModelManager() {
       currentId,
       available,
       selectedId,
+      selectedWhisperId,
       load,
+      loadWhisper,
       unload,
       autoLoad,
       sync,

@@ -74,7 +74,7 @@ const ChatScreenInner = observer(function ChatScreenInner() {
                 <Button variant="ghost" size="sm">
                   <Icon
                     as={require("lucide-react-native").Package}
-                    className="size-5 text-muted-foreground p-0 stroke-2"
+                    className="stroke-2 p-0 size-5 text-muted-foreground"
                   />
                 </Button>
               </Link>
@@ -88,7 +88,7 @@ const ChatScreenInner = observer(function ChatScreenInner() {
                 >
                   <Icon
                     as={require("lucide-react-native").Plus}
-                    className="size-5 text-primary p-0 stroke-2"
+                    className="stroke-2 p-0 size-5 text-primary"
                   />
                 </Button>
               )}
@@ -103,7 +103,7 @@ const ChatScreenInner = observer(function ChatScreenInner() {
               >
                 <Icon
                   as={require("lucide-react-native").TextAlignStart}
-                  className="size-5 text-muted-foreground p-0 stroke-2"
+                  className="stroke-2 p-0 size-5 text-muted-foreground"
                 />
               </Button>
             </Link>
@@ -127,8 +127,10 @@ const ChatScreenInner = observer(function ChatScreenInner() {
           isModelLoading={chat.isModelLoading}
           // Model selector props
           selectedModel={chat.selectedModelId}
+          selectedWhisperModel={chat.selectedWhisperModelId}
           availableModels={chat.availableModels}
           handleModelSelect={chat.handleLoadModel}
+          handleWhisperModelSelect={chat.handleLoadWhisperModel}
           modelError={chat.modelError}
           hasContent={chat.hasContent}
           // Reasoning toggle props

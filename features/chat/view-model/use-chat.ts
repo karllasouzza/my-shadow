@@ -247,19 +247,29 @@ export function useChat() {
 
   const handleLoadModelForConversation = useCallback(
     async (conversationId: string | null) => {
-      if (!conversationId) {
-        // New conversation - load the last used model globally
-        await model.autoLoad();
-        return;
-      }
+      try {
+        if (!conversationId) {
+          // New conversation - load the last used model globally
+          await model.autoLoad();
+          return;
+        }
 
-      // Existing conversation - try to load the model that was used before
-      const lastModelId = conversation.getLastModelUsedId(conversationId);
-      if (lastModelId) {
-        await model.load(lastModelId);
-      } else {
-        // Fallback to last used model globally
-        await model.autoLoad();
+        // Existing conversation - try to load the model that was used before
+        const lastModelId = conversation.getLastModelUsedId(conversationId);
+        if (lastModelId) {
+          await model.load(lastModelId);
+        } else {
+          // Fallback to last used model globally
+          await model.autoLoad();
+        }
+      } catch (error) {
+        // Log the error but don't crash - allow chat to continue without voice input
+        console.error(
+          "[useChat] Failed to load model for conversation:",
+          error instanceof Error ? error.message : String(error),
+        );
+        // Model loading is optional for text-based chat
+        // Voice input will show an error message to the user
       }
     },
     [conversation, model],
@@ -294,6 +304,7 @@ export function useChat() {
       hasContent,
       activeModelName,
       selectedModelId,
+      selectedWhisperModelId: model.selectedWhisperId,
       availableModels: model.available,
       isModelLoading: model.isLoading,
 
@@ -307,6 +318,7 @@ export function useChat() {
       clearConversationError: conversation.clearError,
 
       handleLoadModel: model.load,
+      handleLoadWhisperModel: model.loadWhisper,
       handleUnloadModel: model.unload,
       handleAutoLoadLastModel: model.autoLoad,
       handleLoadModelForConversation,
@@ -322,6 +334,7 @@ export function useChat() {
       model.isLoading,
       model.sync,
       model.load,
+      model.loadWhisper,
       model.unload,
       model.autoLoad,
       model.refresh,
@@ -332,6 +345,7 @@ export function useChat() {
       hasContent,
       activeModelName,
       selectedModelId,
+      model.selectedWhisperId,
       initChat,
       sendMessage,
       cancelGeneration,
