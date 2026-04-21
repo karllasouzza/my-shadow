@@ -7,6 +7,7 @@ import { ChatConversation } from "./types";
 interface IChatState {
   conversations: Record<string, ChatConversation>;
   lastModelId: string | null;
+  lastWhisperModelId: string | null;
   isReasoningEnabled?: boolean;
 }
 
@@ -15,6 +16,7 @@ const chatState$: Observable<IChatState> = observable(
     initial: {
       conversations: {},
       lastModelId: null,
+      lastWhisperModelId: null,
       isReasoningEnabled: false,
     },
     persist: {
