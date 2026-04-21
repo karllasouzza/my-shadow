@@ -14,6 +14,7 @@ export const MODEL_CATALOG: Model[] = [
     estimatedRamBytes: 3300 * 1024 * 1024,
     bytes: "3B",
     tags: ["equilibrado", "português", "ram-moderada"],
+    modelType: "gguf",
   },
   {
     id: "sabia-7b",
@@ -27,6 +28,7 @@ export const MODEL_CATALOG: Model[] = [
     estimatedRamBytes: 6500 * 1024 * 1024,
     bytes: "7B",
     tags: ["português", "alta-qualidade"],
+    modelType: "gguf",
   },
 
   // Phi-3 based
@@ -44,6 +46,7 @@ export const MODEL_CATALOG: Model[] = [
     bytes: "3.8B",
     tags: ["alta-qualidade", "português", "instrutor", "ram-moderada"],
     supportsReasoning: true,
+    modelType: "gguf",
   },
 
   // QWEN 2.5
@@ -59,6 +62,7 @@ export const MODEL_CATALOG: Model[] = [
       "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf",
     bytes: "0.5B",
     tags: ["ultra-leve", "rápido"],
+    modelType: "gguf",
   },
   {
     id: "qwen2.5-1.5b-instruct",
@@ -72,6 +76,7 @@ export const MODEL_CATALOG: Model[] = [
     estimatedRamBytes: 1800 * 1024 * 1024,
     bytes: "1.5B",
     tags: ["equilibrado"],
+    modelType: "gguf",
   },
   {
     id: "qwen2.5-3b-instruct",
@@ -85,6 +90,7 @@ export const MODEL_CATALOG: Model[] = [
     estimatedRamBytes: 3500 * 1024 * 1024,
     bytes: "3B",
     tags: ["alta-qualidade"],
+    modelType: "gguf",
   },
 
   // QWEN 3
@@ -101,6 +107,7 @@ export const MODEL_CATALOG: Model[] = [
     bytes: "0.6B",
     tags: ["ultra-leve"],
     supportsReasoning: true,
+    modelType: "gguf",
   },
   {
     id: "qwen3-1.7b",
@@ -115,6 +122,7 @@ export const MODEL_CATALOG: Model[] = [
     bytes: "1.7B",
     tags: ["equilibrado"],
     supportsReasoning: true,
+    modelType: "gguf",
   },
   {
     id: "qwen3-4b",
@@ -129,6 +137,7 @@ export const MODEL_CATALOG: Model[] = [
     bytes: "4B",
     tags: ["alta-qualidade"],
     supportsReasoning: true,
+    modelType: "gguf",
   },
   // Gemma 2
   {
@@ -143,6 +152,7 @@ export const MODEL_CATALOG: Model[] = [
     estimatedRamBytes: 2600 * 1024 * 1024,
     bytes: "2B",
     tags: ["equilibrado"],
+    modelType: "gguf",
   },
 
   // Gemma 3
@@ -158,6 +168,7 @@ export const MODEL_CATALOG: Model[] = [
     estimatedRamBytes: 1600 * 1024 * 1024,
     bytes: "1B",
     tags: ["ultra-leve"],
+    modelType: "gguf",
   },
   {
     id: "gemma-3-4b-it",
@@ -171,6 +182,7 @@ export const MODEL_CATALOG: Model[] = [
     estimatedRamBytes: 4500 * 1024 * 1024,
     bytes: "4B",
     tags: ["alta-qualidade"],
+    modelType: "gguf",
   },
 
   // DeepSeek R1 Destilado (Distilled)
@@ -186,6 +198,7 @@ export const MODEL_CATALOG: Model[] = [
     estimatedRamBytes: 2400 * 1024 * 1024,
     bytes: "1.5B",
     tags: ["equilibrado"],
+    modelType: "gguf",
   },
   {
     id: "deepseek-r1-distill-qwen-7b",
@@ -200,6 +213,7 @@ export const MODEL_CATALOG: Model[] = [
     bytes: "7B",
     tags: ["alta-qualidade", "reasoning", "deepseek", "alta-ram"],
     supportsReasoning: true,
+    modelType: "gguf",
   },
   {
     id: "deepseek-r1-distill-llama-8b",
@@ -214,6 +228,7 @@ export const MODEL_CATALOG: Model[] = [
     bytes: "8B",
     tags: ["alta-qualidade"],
     supportsReasoning: true,
+    modelType: "gguf",
   },
 
   // Llama 3.2
@@ -231,6 +246,7 @@ export const MODEL_CATALOG: Model[] = [
     bytes: "1B",
     tags: ["ultra-leve"],
     supportsReasoning: true,
+    modelType: "gguf",
   },
   {
     id: "llama-3.2-3b-instruct",
@@ -245,6 +261,7 @@ export const MODEL_CATALOG: Model[] = [
     bytes: "3B",
     tags: ["alta-qualidade"],
     supportsReasoning: true,
+    modelType: "gguf",
   },
 
   // Phi-3 e Phi-3.5
@@ -261,6 +278,7 @@ export const MODEL_CATALOG: Model[] = [
     bytes: "3.8B",
     tags: ["alta-qualidade"],
     supportsReasoning: true,
+    modelType: "gguf",
   },
   {
     id: "phi-3.5-mini-instruct",
@@ -275,6 +293,7 @@ export const MODEL_CATALOG: Model[] = [
     bytes: "3.8B",
     tags: ["alta-qualidade"],
     supportsReasoning: true,
+    modelType: "gguf",
   },
 
   // TinyLlama
@@ -291,6 +310,7 @@ export const MODEL_CATALOG: Model[] = [
     estimatedRamBytes: 1000 * 1024 * 1024,
     bytes: "1.1B",
     tags: ["ultra-leve"],
+    modelType: "gguf",
   },
 ];
 
