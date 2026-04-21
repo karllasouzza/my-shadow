@@ -19,7 +19,7 @@ export function buildConfig(
     n_batch: isLowEnd ? 128 : isMid ? 256 : 512,
     n_ubatch: isLowEnd ? 64 : isMid ? 128 : 256,
     n_threads: Math.max(2, device.cpuCores - 1),
-    n_gpu_layers: device.hasGPU ? 99 : 1,
+    n_gpu_layers: device.hasGPU ? 99 : 0,
     use_mmap: true,
     use_mlock: false,
     cache_type_k: isLowEnd ? "q4_0" : "q8_0",

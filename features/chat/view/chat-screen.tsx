@@ -1,6 +1,7 @@
 import { TopBar } from "@/components/top-bar";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
+import chatState$ from "@/database/chat";
 import ChatBottomBar from "@/features/chat/components/chat-bottom-bar";
 import { useChat } from "@/features/chat/view-model/use-chat";
 import { observer } from "@legendapp/state/react";
@@ -16,24 +17,16 @@ const ChatScreenInner = observer(function ChatScreenInner() {
   const chat = useChat();
   const [inputText, setInputText] = useState("");
 
-  const params = useLocalSearchParams<{
+  const { conversationId } = useLocalSearchParams<{
     conversationId?: string;
-    new?: string;
   }>();
 
-  // Init chat with route ID on mount AND on focus (handles navigation from history)
   useFocusEffect(
     useCallback(() => {
       const init = async () => {
-        // If route contains ?new=1 (or any truthy value), open a fresh chat
-        const newParam = params?.new;
-        const isNew =
-          typeof newParam !== "undefined" &&
-          newParam !== "false" &&
-          newParam !== "0";
+        const isNew = conversationId === undefined || conversationId === null;
 
         if (isNew) {
-          // Reset chat state to create a brand-new conversation
           chat.resetChatState();
           await chat.handleLoadModelForConversation(null);
           await chat.syncModelStatus();
@@ -41,15 +34,22 @@ const ChatScreenInner = observer(function ChatScreenInner() {
           return;
         }
 
-        await chat.initChat(params.conversationId ?? null);
-        await chat.handleLoadModelForConversation(
-          params.conversationId ?? null,
-        );
-        await chat.syncModelStatus();
-        chat.refreshModelsOnFocus();
+        if (!isNew) {
+          const existing = chatState$.conversations[conversationId].get().id;
+
+          if (!existing) {
+            chat.resetChatState();
+            return;
+          }
+
+          await chat.initChat(conversationId);
+          await chat.handleLoadModelForConversation(conversationId ?? null);
+          await chat.syncModelStatus();
+          chat.refreshModelsOnFocus();
+        }
       };
       init();
-    }, [params.conversationId, params.new]),
+    }, [conversationId]),
   );
 
   const handleNewConversation = useCallback(() => {
@@ -63,6 +63,7 @@ const ChatScreenInner = observer(function ChatScreenInner() {
         keyboardVerticalOffset={40}
         style={{
           flex: 1,
+          gap: 0,
         }}
       >
         <TopBar

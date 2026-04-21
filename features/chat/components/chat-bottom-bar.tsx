@@ -68,8 +68,8 @@ function ChatBottomBar({
     <View className={cn("flex w-full p-0 bg-transparent", className)}>
       {!hasContent && <QuickActions />}
 
-      <View className="flex w-full p-3 pt-6  bg-transparent">
-        <View className="bg-card border border-border rounded-2xl p-3 pt-3">
+      <View className="flex w-full p-3 pt-0 bg-transparent">
+        <View className="bg-card border border-border rounded-2xl p-3">
           {/* Text Input */}
           <AutoResizingInput
             value={value}
