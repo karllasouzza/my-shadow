@@ -1,10 +1,10 @@
 import { isModelDownloaded } from "@/shared/ai/manager";
 import {
-  autoLoadLastModel,
-  getAvailableModels,
-  getSelectedModelId,
-  loadModel,
-  unloadModel,
+    autoLoadLastModel,
+    getAvailableModels,
+    getSelectedModelId,
+    loadModel,
+    unloadModel,
 } from "@/shared/ai/model-loader";
 import { getAIRuntime } from "@/shared/ai/text-generation/runtime";
 import type { AvailableModel } from "@/shared/ai/types/model-loader";
@@ -49,8 +49,15 @@ export function useModelManager() {
   );
 
   const unload = useCallback(async () => {
+    // Get the currently loaded model ID
+    const modelId = getSelectedModelId("gguf");
+    if (!modelId) {
+      setError("Nenhum modelo carregado.");
+      return false;
+    }
+
     setIsLoading(true);
-    const result = await unloadModel();
+    const result = await unloadModel(modelId);
     setIsLoading(false);
 
     if (!result.success) {
@@ -78,7 +85,7 @@ export function useModelManager() {
     }
 
     setIsLoading(true);
-    const result = await autoLoadLastModel();
+    const result = await autoLoadLastModel("gguf");
     setIsLoading(false);
 
     if (result.success) {
@@ -116,7 +123,7 @@ export function useModelManager() {
   }, [refresh]);
 
   const selectedId = useMemo(
-    () => currentId ?? getSelectedModelId(),
+    () => currentId ?? getSelectedModelId("gguf"),
     [currentId, isReady, available.length],
   );
 
