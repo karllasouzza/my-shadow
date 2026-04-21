@@ -1,3 +1,5 @@
+import { ModelType } from "./manager";
+
 export interface ModelLoadResult {
   success: boolean;
   error?: string;
@@ -9,4 +11,5 @@ export interface AvailableModel {
   bytes: string;
   isLoaded: boolean;
   supportsReasoning: boolean;
+  modelType: ModelType;
 }

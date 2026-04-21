@@ -1,22 +1,42 @@
 import chatState$ from "@/database/chat";
 import { aiError, aiInfo } from "@/shared/ai/log";
 import { getDownloadedModels, getModelLocalPath } from "./manager";
+import { findWhisperModelById, getAllWhisperModels } from "./stt/catalog";
+import { getWhisperRuntime } from "./stt/runtime";
 import { findModelById, getAllModels } from "./text-generation/catalog";
 import { getAIRuntime } from "./text-generation/runtime";
+import { ModelType } from "./types/manager";
 import { AvailableModel, ModelLoadResult } from "./types/model-loader";
 
 export async function loadModel(modelId: string): Promise<ModelLoadResult> {
-  const model = findModelById(modelId);
+  // Look up modelId in unified catalog (LLM + Whisper)
+  const llmModel = findModelById(modelId);
+  const whisperModel = findWhisperModelById(modelId);
+  const model = llmModel || whisperModel;
+
   if (!model) return { success: false, error: "Modelo não encontrado" };
 
   const path = await getModelLocalPath(modelId);
   if (!path) return { success: false, error: "Modelo não baixado" };
 
-  const runtime = getAIRuntime();
-  aiInfo("MODEL:load:start", `modelId=${modelId}`, { modelId, path });
+  aiInfo(
+    "MODEL:load:start",
+    `modelId=${modelId} modelType=${model.modelType}`,
+    { modelId, path, modelType: model.modelType },
+  );
   const start = Date.now();
 
-  const result = await runtime.loadModel(modelId, path, model.fileSizeBytes);
+  // Dispatch to correct runtime based on modelType
+  let result;
+  if (model.modelType === "gguf") {
+    const runtime = getAIRuntime();
+    result = await runtime.loadModel(modelId, path, model.fileSizeBytes);
+  } else if (model.modelType === "bin") {
+    const runtime = getWhisperRuntime();
+    result = await runtime.loadModel(modelId, path);
+  } else {
+    return { success: false, error: "Tipo de modelo não suportado" };
+  }
 
   if (!result.success) {
     aiError(
@@ -33,57 +53,119 @@ export async function loadModel(modelId: string): Promise<ModelLoadResult> {
     duration,
   });
 
-  // Save last loaded model
-  chatState$.lastModelId.set(modelId);
+  // Persist to correct chatState field based on modelType
+  if (model.modelType === "gguf") {
+    chatState$.lastModelId.set(modelId);
+  } else if (model.modelType === "bin") {
+    chatState$.lastWhisperModelId.set(modelId);
+  }
 
   return { success: true };
 }
 
-export async function unloadModel(): Promise<ModelLoadResult> {
-  aiInfo("MODEL:unload:start", `request`);
+export async function unloadModel(modelId: string): Promise<ModelLoadResult> {
+  // Look up modelId in unified catalog to determine type
+  const llmModel = findModelById(modelId);
+  const whisperModel = findWhisperModelById(modelId);
+  const model = llmModel || whisperModel;
+
+  if (!model) return { success: false, error: "Modelo não encontrado" };
+
+  aiInfo(
+    "MODEL:unload:start",
+    `modelId=${modelId} modelType=${model.modelType}`,
+    { modelId, modelType: model.modelType },
+  );
   const start = Date.now();
-  const result = await getAIRuntime().unloadModel();
+
+  // Dispatch to correct runtime based on modelType
+  let result;
+  if (model.modelType === "gguf") {
+    result = await getAIRuntime().unloadModel();
+  } else if (model.modelType === "bin") {
+    result = await getWhisperRuntime().unloadModel();
+  } else {
+    return { success: false, error: "Tipo de modelo não suportado" };
+  }
 
   if (result.success) {
-    // Clear last model when unloading
-    chatState$.lastModelId.set(null);
+    // Clear the correct chatState field based on model type
+    if (model.modelType === "gguf") {
+      chatState$.lastModelId.set(null);
+    } else if (model.modelType === "bin") {
+      chatState$.lastWhisperModelId.set(null);
+    }
+
     const duration = Date.now() - start;
-    aiInfo("MODEL:unload:done", `duration_ms=${duration}`, { duration });
+    aiInfo("MODEL:unload:done", `modelId=${modelId} duration_ms=${duration}`, {
+      modelId,
+      duration,
+    });
     return { success: true };
   }
 
-  aiError("MODEL:unload:error", `msg=${result.error?.message}`);
+  aiError(
+    "MODEL:unload:error",
+    `modelId=${modelId} msg=${result.error?.message}`,
+    { error: result.error },
+  );
   return { success: false, error: result.error?.message };
 }
 
-export function getSelectedModelId(): string | null {
-  return getAIRuntime().getCurrentModel()?.id ?? null;
+export function getSelectedModelId(modelType: ModelType): string | null {
+  if (modelType === "gguf") {
+    return getAIRuntime().getCurrentModel()?.id ?? null;
+  } else if (modelType === "bin") {
+    return getWhisperRuntime().getCurrentModel()?.id ?? null;
+  }
+  return null;
 }
 
-export async function autoLoadLastModel(): Promise<ModelLoadResult> {
-  const lastModelId = chatState$.lastModelId.get();
+export async function autoLoadLastModel(
+  modelType: ModelType,
+): Promise<ModelLoadResult> {
+  // Read from correct chatState field based on modelType
+  const lastModelId =
+    modelType === "gguf"
+      ? chatState$.lastModelId.get()
+      : chatState$.lastWhisperModelId.get();
 
   if (!lastModelId) {
     return { success: false, error: "Nenhum modelo anterior encontrado" };
   }
-  aiInfo("MODEL:autoload", `modelId=${lastModelId}`);
+  aiInfo("MODEL:autoload", `modelId=${lastModelId} modelType=${modelType}`);
   return loadModel(lastModelId);
 }
 
 export async function getAvailableModels(): Promise<AvailableModel[]> {
-  const catalog = getAllModels();
+  // Merge LLM and Whisper catalogs
+  const llmCatalog = getAllModels();
+  const whisperCatalog = getAllWhisperModels();
   const downloaded = await getDownloadedModels();
-  const loadedId = getAIRuntime().getCurrentModel()?.id;
+
+  // Get loaded model IDs from both runtimes
+  const loadedLlmId = getAIRuntime().getCurrentModel()?.id;
+  const loadedWhisperId = getWhisperRuntime().getCurrentModel()?.id;
 
   return Object.keys(downloaded)
     .map((id) => {
-      const meta = catalog.find((m) => m.id === id);
+      // Check both catalogs for model metadata
+      const llmMeta = llmCatalog.find((m) => m.id === id);
+      const whisperMeta = whisperCatalog.find((m) => m.id === id);
+      const meta = llmMeta || whisperMeta;
+
+      // Determine if loaded based on modelType
+      const modelType = meta?.modelType ?? ("gguf" as const);
+      const isLoaded =
+        modelType === "gguf" ? id === loadedLlmId : id === loadedWhisperId;
+
       return {
         id,
         displayName: meta?.displayName ?? id,
-        bytes: meta?.bytes ?? "0",
-        isLoaded: id === loadedId,
-        supportsReasoning: meta?.supportsReasoning ?? false,
+        bytes: llmMeta?.bytes ?? "N/A",
+        isLoaded,
+        supportsReasoning: llmMeta?.supportsReasoning ?? false,
+        modelType,
       };
     })
     .sort((a, b) => a.displayName.localeCompare(b.displayName));
