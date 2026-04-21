@@ -17,7 +17,11 @@ export type AppErrorCode =
   | "NOT_FOUND"
   | "STORAGE_ERROR"
   | "UNKNOWN_ERROR"
-  | "ABORTED";
+  | "ABORTED"
+  | "FILE_NOT_FOUND"
+  | "ALREADY_ACTIVE"
+  | "PERMISSION_DENIED"
+  | "OUT_OF_MEMORY";
 
 export interface AppError {
   code: AppErrorCode;
