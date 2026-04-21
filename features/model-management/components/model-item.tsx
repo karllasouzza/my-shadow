@@ -7,13 +7,13 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
-import { Model } from "@/shared/ai/types/model";
+import { CatalogEntry } from "@/features/model-management/view-model/use-models";
 import React from "react";
 import { Text, View } from "react-native";
 import { ModelItemStatus } from "../view-model/types";
 
 interface ModelItemProps {
-  item: Model;
+  item: CatalogEntry;
   itemStatus?: ModelItemStatus;
 
   onDownload?: () => void;
@@ -30,21 +30,17 @@ const DEFAULT_STATUS: ModelItemStatus = {
 };
 
 export function ModelItem({
-  item: {
-    displayName,
-    description,
-    fileSizeBytes,
-    estimatedRamBytes,
-    supportsReasoning,
-    tags = [],
-    bytes,
-  },
+  item: { displayName, description, fileSizeBytes, estimatedRamBytes, ...rest },
   itemStatus = DEFAULT_STATUS,
   onDownload,
   onRetry,
   onRemove,
   isLoading,
 }: ModelItemProps) {
+  const supportsReasoning =
+    "supportsReasoning" in rest ? rest.supportsReasoning : false;
+  const tags: string[] = "tags" in rest ? (rest.tags ?? []) : [];
+  const bytes: string | undefined = "bytes" in rest ? rest.bytes : undefined;
   const sizeMB = Math.round(fileSizeBytes / 1024 / 1024);
   const ramMB = Math.round(estimatedRamBytes / 1024 / 1024);
   return (

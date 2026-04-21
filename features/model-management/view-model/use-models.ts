@@ -3,12 +3,19 @@ import {
   getDownloadedModels,
   removeDownloadedModel,
 } from "@/shared/ai/manager";
+import { findWhisperModelById, getAllWhisperModels } from "@/shared/ai/stt";
+import { WhisperModel } from "@/shared/ai/stt/types";
 import {
   findModelById,
   getAllModels,
 } from "@/shared/ai/text-generation/catalog";
+import { Model } from "@/shared/ai/types/model";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ModelItemStatus } from "./types";
+
+export type CatalogEntry = (Model | WhisperModel) & {
+  modelCategory: "llm" | "whisper";
+};
 
 export function useModels() {
   const [isLoading, setIsLoading] = useState(false);
@@ -21,9 +28,17 @@ export function useModels() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [downloadedModelIds, setDownloadedModelIds] = useState<string[]>([]);
 
-  const catalog = useMemo(() => {
+  const catalog = useMemo((): CatalogEntry[] => {
     try {
-      return getAllModels();
+      const llm: CatalogEntry[] = getAllModels().map((m) => ({
+        ...m,
+        modelCategory: "llm" as const,
+      }));
+      const whisper: CatalogEntry[] = getAllWhisperModels().map((m) => ({
+        ...m,
+        modelCategory: "whisper" as const,
+      }));
+      return [...llm, ...whisper];
     } catch (error) {
       console.error("Failed to load model catalog", error);
       return [];
@@ -54,20 +69,20 @@ export function useModels() {
     };
   }, [refreshKey]);
 
-  const filteredCatalog = useMemo(() => {
+  const filteredCatalog = useMemo((): CatalogEntry[] => {
     try {
       if (!searchQuery.trim()) return catalog;
 
       const query = searchQuery.toLowerCase();
 
-      const filteredCatalog = catalog.filter(
+      return catalog.filter(
         (model) =>
           model.displayName.toLowerCase().includes(query) ||
           model.description.toLowerCase().includes(query) ||
-          (model.bytes ?? "").toLowerCase().includes(query),
+          (("bytes" in model ? model.bytes : undefined) ?? "")
+            .toLowerCase()
+            .includes(query),
       );
-
-      return filteredCatalog;
     } catch (error) {
       console.error("Failed to filter model catalog", error);
       return catalog;
@@ -83,7 +98,7 @@ export function useModels() {
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const model = findModelById(modelId);
+      const model = findModelById(modelId) ?? findWhisperModelById(modelId);
       if (!model) {
         setErrorMessage("Modelo não encontrado no catálogo.");
         return;
