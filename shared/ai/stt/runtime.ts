@@ -1,7 +1,10 @@
 import { createError, err, ok, Result } from "@/shared/utils/app-error";
-import type { WhisperContext } from "whisper.rn/src/index";
+
 export class WhisperRuntime {
-  private context: WhisperContext | null = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private context: any = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private vadContext: any = null;
   private modelId: string | null = null;
   private loadingPromise: Promise<Result<{ id: string }>> | null = null;
 
@@ -43,12 +46,10 @@ export class WhisperRuntime {
     path: string,
   ): Promise<Result<{ id: string }>> {
     try {
-      // Dynamically import from src/index so the patch (RNWhisper?.getConstants?.())
-      // is applied via Metro's TypeScript compilation, guarding against Android
-      // initialization timing where the native module may not be ready yet.
-      let initWhisper: typeof import("whisper.rn/src/index").initWhisper;
+      // Dynamically import from whisper.rn main entry point
+      let initWhisper: any;
       try {
-        const mod = await import("whisper.rn/src/index");
+        const mod = await import("whisper.rn");
         initWhisper = mod.initWhisper;
       } catch (importError) {
         return err(
@@ -73,6 +74,10 @@ export class WhisperRuntime {
 
       this.context = context;
       this.modelId = modelId;
+
+      // Try to initialize VAD context if we have a model path
+      // For now, we skip VAD initialization and let RealtimeTranscriber handle it
+      // In the future, VAD can be loaded separately if needed
 
       return ok({ id: modelId });
     } catch (error) {
@@ -127,8 +132,14 @@ export class WhisperRuntime {
     }
   }
 
-  getContext(): WhisperContext | null {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  getContext(): any {
     return this.context;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  getVadContext(): any {
+    return this.vadContext;
   }
 }
 

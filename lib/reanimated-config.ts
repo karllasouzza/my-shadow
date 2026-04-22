@@ -6,5 +6,5 @@ import { configureReanimatedLogger } from "react-native-reanimated";
 // reload. Enable strict: true during debugging sessions to catch real leaks.
 configureReanimatedLogger({ strict: false });
 
-export {};
+export { };
 
