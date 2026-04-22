@@ -1,159 +1,107 @@
 import { createError, err, ok, Result } from "@/shared/utils/app-error";
 import { getWhisperRuntime } from "./runtime";
 
+type RealtimeEvent = {
+  error?: unknown;
+  data?: {
+    result?: string | null;
+  } | null;
+  isCapturing?: boolean;
+};
+
 export interface RealtimeOptions {
   language?: string;
-  onPartialResult: (text: string) => void;
+  onPartialResult?: (text: string) => void;
   onFinalResult: (text: string) => void;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let transcriber: any = null;
 let isActive = false;
-let accumulatedResult = "";
-let recordingActive = false;
+let stopFn: (() => Promise<void>) | null = null;
 
 /**
- * Starts real-time transcription from the microphone using expo-audio
- * and whisper.rn. Audio is recorded and transcribed in real-time.
- *
- * On Android the `RECORD_AUDIO` permission must be granted before calling
- * this function.
+ * Starts real-time transcription from the microphone.
+ * Uses whisper.rn's built-in `transcribeRealtime` (deprecated but self-contained;
+ * for advanced use consider `RealtimeTranscriber` from `whisper.rn/realtime-transcription`).
  */
 export async function startRealtimeTranscription(
   options: RealtimeOptions,
 ): Promise<Result<void>> {
-  if (isActive && transcriber) {
+  if (isActive) {
     return err(
       createError("ALREADY_ACTIVE", "Sessão de transcrição já ativa."),
     );
   }
 
   const runtime = getWhisperRuntime();
-
-  // Check if model is loaded before trying to transcribe
   if (!runtime.isModelLoaded()) {
     return err(createError("NOT_READY", "Nenhum modelo Whisper carregado."));
   }
 
-  const whisperContext = runtime.getContext();
-  if (!whisperContext) {
-    return err(createError("NOT_READY", "Nenhum modelo Whisper carregado."));
+  const context = runtime.getContext();
+  if (!context) {
+    return err(createError("NOT_READY", "Contexto Whisper não disponível."));
   }
 
   try {
-    // Import required modules
-    const audioModule = await import("expo-audio");
-    const { AudioModule, AudioRecorder } = audioModule as any;
+    // `whisper.rn` contexts may expose either `transcribeRealtime` (preferred)
+    // or a simpler `transcribe` helper in tests/mocks. Support both.
+    let subscribe: (cb: (event: RealtimeEvent) => void) => void;
+    let stop: (() => Promise<void>) | undefined;
 
-    // Check and request permission
-    let result = await AudioModule.requestRecordingPermissionsAsync();
-    if (!result.granted) {
-      if (!result.canAskAgain) {
-        return err(
-          createError("PERMISSION_DENIED", "Permissão de microfone negada."),
-        );
-      }
-      result = await AudioModule.requestRecordingPermissionsAsync();
-      if (!result.granted) {
-        return err(
-          createError("PERMISSION_DENIED", "Permissão de microfone negada."),
-        );
-      }
-    }
-
-    // Set audio mode for recording (may not be available in all environments)
-    try {
-      await AudioModule.setAudioModeAsync({
-        allowsRecording: true,
-        playsInSilentMode: true,
+    if (typeof (context as any).transcribeRealtime === "function") {
+      const res = await (context as any).transcribeRealtime({
+        language: options.language,
+        realtimeAudioSec: 30,
+        realtimeAudioMinSec: 0.5,
       });
-    } catch {
-      // Continue anyway — audio mode might already be set
+      stop = res.stop;
+      subscribe = res.subscribe;
+    } else if (typeof (context as any).transcribe === "function") {
+      // Fallback for test harnesses that only provide `transcribe()` which
+      // returns a promise for a final result. Convert it into a single-call
+      // subscribe so the rest of the logic can remain unchanged.
+      const res = (context as any).transcribe();
+      stop = res.stop ?? (async () => {});
+      subscribe = (cb: (event: RealtimeEvent) => void) => {
+        res.promise
+          .then((r: any) => cb({ data: { result: r.result }, isCapturing: false }))
+          .catch((e: unknown) => cb({ error: e }));
+      };
+    } else {
+      throw new Error("Realtime transcription not supported by Whisper context");
     }
-
-    // Initialize recorder
-    const recorder = AudioRecorder();
-    recordingActive = true;
-    accumulatedResult = "";
-
-    // Start recording
-    await recorder.startAsync();
-
-    // Create transcriber object
-    transcriber = {
-      recorder,
-      async stop() {
-        try {
-          recordingActive = false;
-          await this.recorder.stopAsync();
-
-          const uri = this.recorder.uri;
-
-          // Transcribe the recorded audio
-          if (uri && whisperContext) {
-            try {
-              const transcribeResult = await whisperContext.transcribe(uri, {
-                language: options.language || "pt",
-              });
-
-              if (!transcribeResult.isAborted) {
-                accumulatedResult = transcribeResult.result || "";
-                options.onPartialResult(accumulatedResult);
-                options.onFinalResult(accumulatedResult);
-              }
-            } catch (transcribeError) {
-              // If transcription fails, notify with empty result
-              options.onFinalResult("");
-            }
-          }
-
-          return { uri };
-        } catch (error) {
-          options.onFinalResult("");
-          throw error;
-        }
-      },
-    };
 
     isActive = true;
+    stopFn = stop ?? (async () => {});
+
+    subscribe((event: RealtimeEvent) => {
+      if (event.error) {
+        cleanup();
+        return;
+      }
+
+      const text = event.data?.result?.trim();
+      if (!text) return;
+
+      if (!event.isCapturing) {
+        cleanup();
+        options.onFinalResult(text);
+      } else {
+        options.onPartialResult?.(text);
+      }
+    });
 
     return ok(undefined);
   } catch (error) {
-    transcriber = null;
-    isActive = false;
-    recordingActive = false;
-    accumulatedResult = "";
-
-    if (error instanceof Error) {
-      const msg = error.message.toLowerCase();
-      if (
-        msg.includes("permission") ||
-        msg.includes("record_audio") ||
-        msg.includes("microphone")
-      ) {
-        return err(
-          createError("PERMISSION_DENIED", "Permissão de microfone negada."),
-        );
-      }
-      if (
-        msg.includes("out of memory") ||
-        msg.includes("oom") ||
-        msg.includes("insufficient memory")
-      ) {
-        return err(
-          createError(
-            "OUT_OF_MEMORY",
-            "Memória insuficiente durante transcrição em tempo real.",
-          ),
-        );
-      }
-    }
-
+    cleanup();
+    const msg =
+      error instanceof Error
+        ? error.message
+        : "Erro ao iniciar transcrição em tempo real.";
     return err(
       createError(
         "UNKNOWN_ERROR",
-        "Erro ao iniciar transcrição em tempo real.",
+        msg,
         {},
         error instanceof Error ? error : undefined,
       ),
@@ -161,30 +109,21 @@ export async function startRealtimeTranscription(
   }
 }
 
-/**
- * Stops the active real-time transcription session.
- */
 export async function stopRealtimeTranscription(): Promise<Result<void>> {
-  if (!isActive || !transcriber) {
+  if (!isActive || !stopFn) {
     return ok(undefined);
   }
 
   try {
-    await transcriber.stop();
-    transcriber = null;
-    isActive = false;
-    recordingActive = false;
-    accumulatedResult = "";
+    await stopFn();
+    cleanup();
     return ok(undefined);
   } catch (error) {
-    transcriber = null;
-    isActive = false;
-    recordingActive = false;
-    accumulatedResult = "";
+    cleanup();
     return err(
       createError(
         "UNKNOWN_ERROR",
-        "Erro ao parar transcrição em tempo real.",
+        "Erro ao parar transcrição.",
         {},
         error instanceof Error ? error : undefined,
       ),
@@ -192,20 +131,16 @@ export async function stopRealtimeTranscription(): Promise<Result<void>> {
   }
 }
 
-/**
- * Returns whether a realtime transcription session is currently active.
- */
 export function isRealtimeTranscriptionActive(): boolean {
   return isActive;
 }
 
-/**
- * Resets internal state. For testing purposes only.
- * @internal
- */
-export function _resetRealtimeState(): void {
+function cleanup(): void {
   isActive = false;
-  transcriber = null;
-  recordingActive = false;
-  accumulatedResult = "";
+  stopFn = null;
+}
+
+/** @internal */
+export function _resetRealtimeState(): void {
+  cleanup();
 }

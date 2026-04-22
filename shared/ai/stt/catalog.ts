@@ -1,6 +1,3 @@
-import { getAllModels } from "../text-generation/catalog";
-import { ModelType } from "../types/manager";
-import { Model } from "../types/model";
 import { WhisperModel } from "./types";
 
 export const WHISPER_CATALOG: WhisperModel[] = [
@@ -10,8 +7,8 @@ export const WHISPER_CATALOG: WhisperModel[] = [
     description: "Modelo mais leve, ideal para dispositivos com pouca memória.",
     downloadLink:
       "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin",
-    fileSizeBytes: 77704715,
-    estimatedRamBytes: 125000000,
+    fileSizeBytes: 77_704_715,
+    estimatedRamBytes: 125_000_000,
     modelType: "bin",
   },
   {
@@ -21,8 +18,8 @@ export const WHISPER_CATALOG: WhisperModel[] = [
       "Equilíbrio entre velocidade e precisão para português brasileiro.",
     downloadLink:
       "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin",
-    fileSizeBytes: 147951465,
-    estimatedRamBytes: 210000000,
+    fileSizeBytes: 147_951_465,
+    estimatedRamBytes: 210_000_000,
     modelType: "bin",
   },
   {
@@ -32,36 +29,16 @@ export const WHISPER_CATALOG: WhisperModel[] = [
       "Maior precisão para português brasileiro, requer mais memória.",
     downloadLink:
       "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin",
-    fileSizeBytes: 487601967,
-    estimatedRamBytes: 600000000,
+    fileSizeBytes: 487_601_967,
+    estimatedRamBytes: 600_000_000,
     modelType: "bin",
   },
 ];
 
-/**
- * Finds a Whisper model in the catalog by its ID.
- * @param id The model ID to search for
- * @returns The matching WhisperModel, or undefined if not found
- */
 export function findWhisperModelById(id: string): WhisperModel | undefined {
-  return WHISPER_CATALOG.find((model) => model.id === id);
+  return WHISPER_CATALOG.find((m) => m.id === id);
 }
 
-/**
- * Returns all Whisper models in the catalog.
- * @returns Array of all WhisperModel entries
- */
 export function getAllWhisperModels(): WhisperModel[] {
   return [...WHISPER_CATALOG];
-}
-
-/**
- * Returns all models (LLM + Whisper) filtered by the given ModelType.
- * @param type The model type to filter by ("gguf" or "bin")
- * @returns Array of models matching the specified type
- */
-export function getModelsByType(type: ModelType): (Model | WhisperModel)[] {
-  const llmModels = getAllModels().filter((m) => m.modelType === type);
-  const whisperModels = WHISPER_CATALOG.filter((m) => m.modelType === type);
-  return [...llmModels, ...whisperModels];
 }

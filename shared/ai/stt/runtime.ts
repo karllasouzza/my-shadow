@@ -1,12 +1,10 @@
 import { createError, err, ok, Result } from "@/shared/utils/app-error";
+// @ts-ignore
+import { initWhisper, type WhisperContext } from "whisper.rn";
 
 export class WhisperRuntime {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private context: any = null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private vadContext: any = null;
+  private context: WhisperContext | null = null;
   private modelId: string | null = null;
-  private loadingPromise: Promise<Result<{ id: string }>> | null = null;
 
   isModelLoaded(id?: string): boolean {
     if (!this.context) return false;
@@ -14,54 +12,18 @@ export class WhisperRuntime {
     return true;
   }
 
-  getCurrentModel(): { id: string; isLoaded: true } | null {
+  getCurrentModel(): { id: string } | null {
     if (!this.context || !this.modelId) return null;
-    return { id: this.modelId, isLoaded: true };
+    return { id: this.modelId };
   }
 
   async loadModel(
     modelId: string,
     path: string,
   ): Promise<Result<{ id: string }>> {
-    // Queue concurrent calls behind existing load operation
-    if (this.loadingPromise) {
-      await this.loadingPromise;
-    }
-
-    // If model is already loaded with the same ID, return success
-    if (this.context && this.modelId === modelId) {
-      return ok({ id: modelId });
-    }
-
-    // Start new load operation
-    this.loadingPromise = this.performLoad(modelId, path);
-    const result = await this.loadingPromise;
-    this.loadingPromise = null;
-
-    return result;
-  }
-
-  private async performLoad(
-    modelId: string,
-    path: string,
-  ): Promise<Result<{ id: string }>> {
     try {
-      // Dynamically import from whisper.rn main entry point
-      let initWhisper: any;
-      try {
-        const mod = await import("whisper.rn");
-        initWhisper = mod.initWhisper;
-      } catch (importError) {
-        return err(
-          createError(
-            "UNKNOWN_ERROR",
-            "Módulo nativo Whisper não pôde ser carregado.",
-            { modelId, path },
-            importError instanceof Error
-              ? importError
-              : new Error(String(importError)),
-          ),
-        );
+      if (this.context && this.modelId === modelId) {
+        return ok({ id: modelId });
       }
 
       if (this.context) {
@@ -71,40 +33,19 @@ export class WhisperRuntime {
       }
 
       const context = await initWhisper({ filePath: path });
-
       this.context = context;
       this.modelId = modelId;
 
-      // Try to initialize VAD context if we have a model path
-      // For now, we skip VAD initialization and let RealtimeTranscriber handle it
-      // In the future, VAD can be loaded separately if needed
-
       return ok({ id: modelId });
     } catch (error) {
-      if (this.context) {
-        try {
-          await this.context.release();
-        } catch {
-          // ignore
-        }
-        this.context = null;
-        this.modelId = null;
-      }
-
-      // Extract the native error message when available (native bridge errors
-      // are real Error objects but their message may live on a non-enumerable
-      // property or in a nested `userInfo` / `nativeStackAndroid` key).
-      const nativeMsg =
-        error instanceof Error && error.message
+      const msg =
+        error instanceof Error
           ? error.message
-          : error != null && typeof error === "object" && "message" in error
-            ? String((error as { message: unknown }).message)
-            : undefined;
-
+          : "Falha ao carregar modelo Whisper";
       return err(
         createError(
           "UNKNOWN_ERROR",
-          nativeMsg ?? "Falha ao carregar modelo Whisper",
+          msg,
           { modelId, path },
           error instanceof Error ? error : undefined,
         ),
@@ -124,7 +65,7 @@ export class WhisperRuntime {
       return err(
         createError(
           "UNKNOWN_ERROR",
-          "Falha ao descarregar modelo Whisper",
+          "Falha ao descarregar modelo",
           {},
           error instanceof Error ? error : undefined,
         ),
@@ -132,26 +73,14 @@ export class WhisperRuntime {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  getContext(): any {
+  getContext(): WhisperContext | null {
     return this.context;
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  getVadContext(): any {
-    return this.vadContext;
   }
 }
 
-let whisperRuntimeInstance: WhisperRuntime | null = null;
+let instance: WhisperRuntime | null = null;
 
-/**
- * Gets the singleton WhisperRuntime instance.
- * @returns The WhisperRuntime singleton
- */
 export function getWhisperRuntime(): WhisperRuntime {
-  if (!whisperRuntimeInstance) {
-    whisperRuntimeInstance = new WhisperRuntime();
-  }
-  return whisperRuntimeInstance;
+  if (!instance) instance = new WhisperRuntime();
+  return instance;
 }
