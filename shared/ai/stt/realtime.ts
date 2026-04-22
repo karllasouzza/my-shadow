@@ -64,11 +64,15 @@ export async function startRealtimeTranscription(
       stop = res.stop ?? (async () => {});
       subscribe = (cb: (event: RealtimeEvent) => void) => {
         res.promise
-          .then((r: any) => cb({ data: { result: r.result }, isCapturing: false }))
+          .then((r: any) =>
+            cb({ data: { result: r.result }, isCapturing: false }),
+          )
           .catch((e: unknown) => cb({ error: e }));
       };
     } else {
-      throw new Error("Realtime transcription not supported by Whisper context");
+      throw new Error(
+        "Realtime transcription not supported by Whisper context",
+      );
     }
 
     isActive = true;
