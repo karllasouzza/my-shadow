@@ -1,15 +1,3 @@
-/**
- * useVoiceInput hook
- *
- * Manages voice recording state, STT integration, permission checks,
- * gesture handling, and error recovery for the chat voice input feature.
- *
- * Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 3.1, 3.2, 3.3, 6.1, 6.2,
- *               7.1, 7.2, 7.3, 7.4, 8.1, 8.2, 8.3, 8.4, 9.1, 9.2,
- *               9.3, 9.4, 10.1, 10.2, 10.3, 10.4, 10.5,
- *               11.3, 11.4, 11.5
- */
-
 import { useObservable } from "@legendapp/state/react";
 import { useCallback, useEffect, useRef } from "react";
 import { AccessibilityInfo, Linking } from "react-native";
@@ -19,17 +7,12 @@ import {
   stopRealtimeTranscription,
 } from "@/shared/ai/stt/realtime";
 import type { AppErrorCode } from "@/shared/utils/app-error";
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+import { AudioModule } from "expo-audio";
 
 export type VoiceInputStatus = "idle" | "recording" | "processing";
 
 export interface UseVoiceInputOptions {
-  /** Called when a non-empty final transcript is ready to be sent */
   onTranscriptReady: (text: string) => void;
-  /** Called to navigate to the model download screen */
   onNavigateToModelDownload: () => void;
 }
 
@@ -54,10 +37,6 @@ export interface UseVoiceInputResult {
   confirmModelDownload: () => void;
 }
 
-// ---------------------------------------------------------------------------
-// Error message mapping (Brazilian Portuguese)
-// ---------------------------------------------------------------------------
-
 function getErrorMessage(code: AppErrorCode): string {
   switch (code) {
     case "PERMISSION_DENIED":
@@ -77,14 +56,9 @@ function getErrorMessage(code: AppErrorCode): string {
 
 const STOP_ERROR_MESSAGE = "Erro ao processar gravação. Tente novamente.";
 
-// ---------------------------------------------------------------------------
-// Hook
-// ---------------------------------------------------------------------------
-
 export function useVoiceInput(
   options: UseVoiceInputOptions,
 ): UseVoiceInputResult {
-  // Local Legend State observable — not persisted
   const voiceState$ = useObservable({
     status: "idle" as VoiceInputStatus,
     partialTranscript: "",
@@ -209,33 +183,37 @@ export function useVoiceInput(
   // ---------------------------------------------------------------------------
 
   const startRecording = useCallback(async () => {
+    console.log("[Voice] Starting recording...");
     const currentStatus = voiceState$.status.peek();
     if (currentStatus !== "idle") return;
 
     const granted = await checkPermission();
+    console.log("[Voice] Permission granted:", granted);
     if (!granted) return;
 
     cancelFlag.current = false;
 
     // Set audio mode to allow recording
     try {
-      const { AudioModule } = await import("expo-audio");
       await AudioModule.setAudioModeAsync({
         allowsRecording: true,
         playsInSilentMode: true,
       });
     } catch (error) {
+      console.log("[Voice] Failed to set audio mode:", error);
       // Continue anyway — audio mode might already be set
     }
 
     const result = await startRealtimeTranscription({
       language: "pt",
       onPartialResult: (text) => {
+        console.log("[Voice] Partial result:", text);
         if (cancelFlag.current) return;
         voiceState$.partialTranscript.set(text);
       },
       onFinalResult: (text) => {
         if (cancelFlag.current) return;
+        console.log("[Voice] Final result:", text);
         const trimmed = text.trim();
         voiceState$.status.set("idle");
         voiceState$.partialTranscript.set("");
@@ -248,6 +226,7 @@ export function useVoiceInput(
         }
       },
     });
+    console.log("[Voice] startRealtimeTranscription result:", result);
 
     if (!result.success) {
       handleError(result.error.code);

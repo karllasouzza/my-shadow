@@ -1,13 +1,13 @@
 import {
-    downloadModelById,
-    getDownloadedModels,
-    removeDownloadedModel,
+  downloadModelById,
+  getDownloadedModels,
+  removeDownloadedModel,
 } from "@/shared/ai/manager";
-import { findWhisperModelById, getAllWhisperModels } from "@/shared/ai/stt";
+import { findWhisperModelById, getAllWhisperModels } from "@/shared/ai/stt/catalog";
 import { WhisperModel } from "@/shared/ai/stt/types";
 import {
-    findModelById,
-    getAllModels,
+  findModelById,
+  getAllModels,
 } from "@/shared/ai/text-generation/catalog";
 import { Model } from "@/shared/ai/types/model";
 import { useCallback, useEffect, useMemo, useState } from "react";
