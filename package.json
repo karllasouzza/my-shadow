@@ -14,11 +14,11 @@
     "test:unit": "bun test tests/unit",
     "test:integration": "bun test tests/integration",
     "test:e2e": "bun test tests/e2e",
-    "test:watch": "bun test --watch",
-    "postinstall": "patch-package"
+    "test:watch": "bun test --watch"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
+    "@fugood/react-native-audio-pcm-stream": "^1.1.4",
     "@legendapp/list": "^2.0.19",
     "@legendapp/state": "^3.0.0-beta.46",
     "@react-navigation/bottom-tabs": "^7.15.5",
@@ -54,6 +54,7 @@
     "clsx": "^2.1.1",
     "color": "^5.0.3",
     "expo": "^55.0.15",
+    "expo-audio": "~55.0.14",
     "expo-build-properties": "~55.0.13",
     "expo-clipboard": "~55.0.13",
     "expo-constants": "~55.0.14",
@@ -96,6 +97,7 @@
     "tailwind-merge": "^3.5.0",
     "tailwindcss-animate": "^1.0.7",
     "uuid": "^13.0.0",
+    "whisper.rn": "^0.5.5",
     "zod": "^4.3.6"
   },
   "op-sqlite": {
@@ -108,7 +110,7 @@
     "eslint": "^9.39.4",
     "eslint-config-expo": "~55.0.0",
     "fast-check": "^4.7.0",
-    "patch-package": "^8.0.1",
+    "@react-native-community/cli": "latest",
     "react-native-builder-bob": "^0.41.0",
     "react-native-monorepo-config": "^0.3.3",
     "react-native-svg-transformer": "^1.5.3",
@@ -117,7 +119,8 @@
     "typescript": "~5.9.3"
   },
   "trustedDependencies": [
-    "llama.rn"
+    "llama.rn",
+    "whisper.rn"
   ],
   "private": true
 }
