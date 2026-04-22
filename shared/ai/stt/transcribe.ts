@@ -92,14 +92,15 @@ export async function transcribe(
       return err(createError("ABORTED", "Transcrição cancelada."));
     }
 
-    // Map whisper.rn result to TranscriptionResult
+    // Map whisper.rn result to TranscriptionResult.
+    // Segment t0/t1 are in centiseconds (1/100 s) — convert to milliseconds.
     const transcriptionResult: TranscriptionResult = {
       text: whisperResult.result,
       language: whisperResult.language,
       segments: whisperResult.segments.map((segment) => ({
         text: segment.text,
-        startMs: segment.t0,
-        endMs: segment.t1,
+        startMs: segment.t0 * 10,
+        endMs: segment.t1 * 10,
       })),
     };
 

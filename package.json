@@ -14,7 +14,8 @@
     "test:unit": "bun test tests/unit",
     "test:integration": "bun test tests/integration",
     "test:e2e": "bun test tests/e2e",
-    "test:watch": "bun test --watch"
+    "test:watch": "bun test --watch",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
@@ -107,6 +108,7 @@
     "eslint": "^9.39.4",
     "eslint-config-expo": "~55.0.0",
     "fast-check": "^4.7.0",
+    "patch-package": "^8.0.1",
     "react-native-builder-bob": "^0.41.0",
     "react-native-monorepo-config": "^0.3.3",
     "react-native-svg-transformer": "^1.5.3",

@@ -68,67 +68,48 @@ export async function detectSpeechSegments(
   try {
     const silenceThresholdMs = options?.silenceThresholdMs ?? 300;
 
-    // Use whisper.rn's built-in VAD options for speech detection
-    const transcribeOptions = {
-      // Enable VAD-related options in whisper.rn
-      no_speech_thold: 0.6, // Threshold for no-speech detection
-      vad_thold: 0.5, // Voice activity detection threshold
-      // We don't need the actual transcription text, just the segments
+    // Use transcription to derive speech segments. whisper.rn returns segment
+    // timestamps (t0/t1) in centiseconds; multiply by 10 to convert to ms.
+    const { stop, promise } = context.transcribe(audioPath, {
       translate: false,
-      language: "auto", // Let Whisper auto-detect language
-    };
+      language: "auto",
+    });
 
-    // Start transcription with VAD options to get speech segments
-    const { promise } = context.transcribe(audioPath, transcribeOptions);
+    void stop; // stop reference kept in case future cancellation is needed
 
-    // Wait for transcription result
     const whisperResult = await promise;
 
-    // Check if transcription was aborted or failed
     if (whisperResult.isAborted) {
       return err(createError("ABORTED", "Detecção de fala cancelada."));
     }
 
-    // Extract segments from transcription result
-    const rawSegments = whisperResult.segments || [];
+    const rawSegments = whisperResult.segments ?? [];
 
-    // Filter out segments that are too short (below silence threshold)
-    // and map to SpeechSegment format
+    // Convert centiseconds → milliseconds and filter short segments.
     const speechSegments: SpeechSegment[] = [];
-
     for (const segment of rawSegments) {
-      const duration = segment.t1 - segment.t0;
-
-      // Only include segments that are longer than the silence threshold
-      if (duration >= silenceThresholdMs) {
-        speechSegments.push({
-          startMs: segment.t0,
-          endMs: segment.t1,
-        });
+      const startMs = segment.t0 * 10;
+      const endMs = segment.t1 * 10;
+      if (endMs - startMs >= silenceThresholdMs) {
+        speechSegments.push({ startMs, endMs });
       }
     }
 
-    // Merge adjacent segments that are separated by less than silenceThresholdMs
+    // Merge adjacent segments whose gap is below the silence threshold.
     const mergedSegments: SpeechSegment[] = [];
-
     for (const segment of speechSegments) {
       if (mergedSegments.length === 0) {
         mergedSegments.push(segment);
         continue;
       }
-
-      const lastSegment = mergedSegments[mergedSegments.length - 1];
-      const gap = segment.startMs - lastSegment.endMs;
-
-      // If gap is smaller than silence threshold, merge segments
-      if (gap < silenceThresholdMs) {
-        lastSegment.endMs = segment.endMs;
+      const last = mergedSegments[mergedSegments.length - 1];
+      if (segment.startMs - last.endMs < silenceThresholdMs) {
+        last.endMs = segment.endMs;
       } else {
         mergedSegments.push(segment);
       }
     }
 
-    // Return empty array if no speech detected (as per requirement 8.2)
     return ok(mergedSegments);
   } catch (error) {
     return err(

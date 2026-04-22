@@ -1,22 +1,9 @@
 import { createError, err, ok, Result } from "@/shared/utils/app-error";
-
-// Type-only import using the explicit subpath to avoid export resolution warnings
 import type { WhisperContext } from "whisper.rn/src/index";
-
-/**
- * WhisperRuntime singleton class for managing Whisper model lifecycle.
- *
- * Provides methods to load, unload, and query Whisper models for speech-to-text transcription.
- * Handles concurrent load requests by queueing them behind the active loading operation.
- *
- * Note: initWhisper is imported lazily inside performLoad() to avoid blocking app startup
- * if the native module fails to initialize.
- */
 export class WhisperRuntime {
   private context: WhisperContext | null = null;
   private modelId: string | null = null;
   private loadingPromise: Promise<Result<{ id: string }>> | null = null;
-  private initializationError: Error | null = null;
 
   isModelLoaded(id?: string): boolean {
     if (!this.context) return false;
@@ -56,34 +43,32 @@ export class WhisperRuntime {
     path: string,
   ): Promise<Result<{ id: string }>> {
     try {
-      // Dynamically import initWhisper to defer native module initialization
+      // Dynamically import from src/index so the patch (RNWhisper?.getConstants?.())
+      // is applied via Metro's TypeScript compilation, guarding against Android
+      // initialization timing where the native module may not be ready yet.
       let initWhisper: typeof import("whisper.rn/src/index").initWhisper;
       try {
-        const whisperModule = await import("whisper.rn/src/index");
-        initWhisper = whisperModule.initWhisper;
+        const mod = await import("whisper.rn/src/index");
+        initWhisper = mod.initWhisper;
       } catch (importError) {
-        this.initializationError =
-          importError instanceof Error
-            ? importError
-            : new Error(String(importError));
         return err(
           createError(
             "UNKNOWN_ERROR",
-            "Whisper native module não pôde ser carregado. Verifique se o módulo está corretamente instalado.",
+            "Módulo nativo Whisper não pôde ser carregado.",
             { modelId, path },
-            this.initializationError,
+            importError instanceof Error
+              ? importError
+              : new Error(String(importError)),
           ),
         );
       }
 
-      // Unload any existing model first
       if (this.context) {
         await this.context.release();
         this.context = null;
         this.modelId = null;
       }
 
-      // Initialize new Whisper context
       const context = await initWhisper({ filePath: path });
 
       this.context = context;
@@ -91,21 +76,30 @@ export class WhisperRuntime {
 
       return ok({ id: modelId });
     } catch (error) {
-      // Release partial context on failure
       if (this.context) {
         try {
           await this.context.release();
         } catch {
-          // Ignore release errors during cleanup
+          // ignore
         }
         this.context = null;
         this.modelId = null;
       }
 
+      // Extract the native error message when available (native bridge errors
+      // are real Error objects but their message may live on a non-enumerable
+      // property or in a nested `userInfo` / `nativeStackAndroid` key).
+      const nativeMsg =
+        error instanceof Error && error.message
+          ? error.message
+          : error != null && typeof error === "object" && "message" in error
+            ? String((error as { message: unknown }).message)
+            : undefined;
+
       return err(
         createError(
           "UNKNOWN_ERROR",
-          "Falha ao carregar modelo Whisper",
+          nativeMsg ?? "Falha ao carregar modelo Whisper",
           { modelId, path },
           error instanceof Error ? error : undefined,
         ),
