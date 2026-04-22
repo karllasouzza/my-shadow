@@ -1,14 +1,3 @@
-/**
- * ChatBottomBar component
- *
- * Extended to wire voice input via useVoiceInput hook.
- * Conditionally renders VoiceInputButton (when text is empty) or SendButton (when non-empty).
- * Shows live partial transcript, recording duration, cancel hint, and error messages.
- *
- * Requirements: 1.1, 1.2, 1.3, 2.3, 2.6, 4.1, 4.2, 4.3, 4.4, 5.1, 5.5,
- *               6.3, 6.4, 6.5, 7.2, 7.3, 8.1, 9.1, 9.2, 9.3, 10.2, 10.4
- */
-
 import AutoResizingInput from "@/components/ui/auto-resizing-input";
 import { Text } from "@/components/ui/text";
 import { formatDuration } from "@/features/chat/utils/format-duration";
@@ -25,10 +14,6 @@ import { ReasoningToggle } from "./reasoning-toggle";
 import { RecordingIndicator } from "./recording-indicator";
 import { SendButton } from "./send-button";
 import { VoiceInputButton } from "./voice-input-button";
-
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
 
 interface ChatBottomBarProps {
   value: string;
@@ -58,10 +43,6 @@ interface ChatBottomBarProps {
   onNavigateToModelDownload?: () => void;
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 function ChatBottomBar({
   value,
   onChangeText,
@@ -88,10 +69,6 @@ function ChatBottomBar({
   voiceInput: voiceInputProp,
   onNavigateToModelDownload,
 }: ChatBottomBarProps) {
-  // ---------------------------------------------------------------------------
-  // Voice input hook (or injected prop for testing)
-  // ---------------------------------------------------------------------------
-
   const internalVoiceInput = useVoiceInput({
     onTranscriptReady: (text) => {
       onChangeText(text);
@@ -109,11 +86,7 @@ function ChatBottomBar({
     isCancelPreview,
     noModelPromptVisible,
     errorMessage,
-    onPressIn,
-    onPressOut,
     onTap,
-    onSwipeUpdate,
-    onSwipeEnd,
     dismissNoModelPrompt,
     confirmModelDownload,
   } = voiceInput;
@@ -230,11 +203,7 @@ function ChatBottomBar({
               <VoiceInputButton
                 status={voiceStatus}
                 isCancelPreview={isCancelPreview}
-                onPressIn={onPressIn}
-                onPressOut={onPressOut}
                 onTap={onTap}
-                onSwipeUpdate={onSwipeUpdate}
-                onSwipeEnd={onSwipeEnd}
               />
             ) : (
               <SendButton

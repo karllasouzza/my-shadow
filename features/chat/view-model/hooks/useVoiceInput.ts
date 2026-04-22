@@ -15,8 +15,8 @@ import { useCallback, useEffect, useRef } from "react";
 import { AccessibilityInfo, Linking } from "react-native";
 
 import {
-    startRealtimeTranscription,
-    stopRealtimeTranscription,
+  startRealtimeTranscription,
+  stopRealtimeTranscription,
 } from "@/shared/ai/stt/realtime";
 import type { AppErrorCode } from "@/shared/utils/app-error";
 
@@ -47,8 +47,6 @@ export interface UseVoiceInputResult {
   onPressIn: () => void;
   onPressOut: () => void;
   onTap: () => void;
-  onSwipeUpdate: (dx: number) => void;
-  onSwipeEnd: (dx: number) => void;
 
   // Actions
   openSettings: () => void;
@@ -126,22 +124,6 @@ export function useVoiceInput(
     }
   }, []);
 
-  const resetToIdle = useCallback(() => {
-    clearTimer();
-    cancelFlag.current = true;
-    voiceState$.set({
-      status: "idle",
-      partialTranscript: "",
-      durationSeconds: 0,
-      isCancelPreview: false,
-      permissionDenied: voiceState$.permissionDenied.peek(),
-      permissionPermanentlyDenied:
-        voiceState$.permissionPermanentlyDenied.peek(),
-      noModelPromptVisible: false,
-      errorMessage: null,
-    });
-  }, [clearTimer, voiceState$]);
-
   const handleError = useCallback(
     (code: AppErrorCode) => {
       clearTimer();
@@ -181,7 +163,9 @@ export function useVoiceInput(
   const checkPermission = useCallback(async (): Promise<boolean> => {
     try {
       const { AudioModule } = await import("expo-audio");
-      const result = await AudioModule.getRecordingPermissionsAsync();
+
+      // First check if already granted
+      let result = await AudioModule.getRecordingPermissionsAsync();
 
       if (result.granted) {
         voiceState$.permissionDenied.set(false);
@@ -189,7 +173,18 @@ export function useVoiceInput(
         return true;
       }
 
-      // canAskAgain === false means permanently denied
+      // If not granted but we can ask again, request permission
+      if (result.canAskAgain) {
+        result = await AudioModule.requestRecordingPermissionsAsync();
+
+        if (result.granted) {
+          voiceState$.permissionDenied.set(false);
+          voiceState$.permissionPermanentlyDenied.set(false);
+          return true;
+        }
+      }
+
+      // Permission denied or permanently denied
       const permanent = result.canAskAgain === false;
       voiceState$.permissionDenied.set(true);
       voiceState$.permissionPermanentlyDenied.set(permanent);
@@ -221,6 +216,17 @@ export function useVoiceInput(
     if (!granted) return;
 
     cancelFlag.current = false;
+
+    // Set audio mode to allow recording
+    try {
+      const { AudioModule } = await import("expo-audio");
+      await AudioModule.setAudioModeAsync({
+        allowsRecording: true,
+        playsInSilentMode: true,
+      });
+    } catch (error) {
+      // Continue anyway — audio mode might already be set
+    }
 
     const result = await startRealtimeTranscription({
       language: "pt",
@@ -269,6 +275,7 @@ export function useVoiceInput(
     const currentStatus = voiceState$.status.peek();
     if (currentStatus !== "recording") return;
 
+    console.log("[Voice] Stopping recording...");
     clearTimer();
     voiceState$.status.set("processing");
     voiceState$.isCancelPreview.set(false);
@@ -303,41 +310,6 @@ export function useVoiceInput(
     }
     // processing: ignore
   }, [voiceState$, startRecording, stopRecording]);
-
-  const onSwipeUpdate = useCallback(
-    (dx: number) => {
-      if (voiceState$.status.peek() !== "recording") return;
-      voiceState$.isCancelPreview.set(dx <= -40);
-    },
-    [voiceState$],
-  );
-
-  const onSwipeEnd = useCallback(
-    (dx: number) => {
-      if (voiceState$.status.peek() !== "recording") return;
-      if (dx <= -80) {
-        // Cancel gesture
-        cancelFlag.current = true;
-        clearTimer();
-        stopRealtimeTranscription().catch(() => {});
-        voiceState$.set({
-          status: "idle",
-          partialTranscript: "",
-          durationSeconds: 0,
-          isCancelPreview: false,
-          permissionDenied: voiceState$.permissionDenied.peek(),
-          permissionPermanentlyDenied:
-            voiceState$.permissionPermanentlyDenied.peek(),
-          noModelPromptVisible: false,
-          errorMessage: null,
-        });
-        AccessibilityInfo.announceForAccessibility("Gravação cancelada");
-      } else {
-        voiceState$.isCancelPreview.set(false);
-      }
-    },
-    [voiceState$, clearTimer],
-  );
 
   // ---------------------------------------------------------------------------
   // Actions
@@ -399,8 +371,6 @@ export function useVoiceInput(
     onPressIn,
     onPressOut,
     onTap,
-    onSwipeUpdate,
-    onSwipeEnd,
     openSettings,
     dismissNoModelPrompt,
     confirmModelDownload,

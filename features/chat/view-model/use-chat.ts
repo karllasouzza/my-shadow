@@ -251,6 +251,8 @@ export function useChat() {
         if (!conversationId) {
           // New conversation - load the last used model globally
           await model.autoLoad();
+          // Also auto-load the last Whisper model for voice input
+          await model.autoLoadWhisper();
           return;
         }
 
@@ -262,6 +264,9 @@ export function useChat() {
           // Fallback to last used model globally
           await model.autoLoad();
         }
+        
+        // Always try to auto-load the last Whisper model for voice input
+        await model.autoLoadWhisper();
       } catch (error) {
         // Log the error but don't crash - allow chat to continue without voice input
         console.error(
@@ -321,6 +326,7 @@ export function useChat() {
       handleLoadWhisperModel: model.loadWhisper,
       handleUnloadModel: model.unload,
       handleAutoLoadLastModel: model.autoLoad,
+      handleAutoLoadWhisper: model.autoLoadWhisper,
       handleLoadModelForConversation,
       refreshModelsOnFocus: model.refresh,
     }),
@@ -335,6 +341,7 @@ export function useChat() {
       model.sync,
       model.load,
       model.loadWhisper,
+      model.autoLoadWhisper,
       model.unload,
       model.autoLoad,
       model.refresh,

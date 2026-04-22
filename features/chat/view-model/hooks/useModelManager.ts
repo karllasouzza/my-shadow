@@ -7,6 +7,7 @@ import {
     unloadModel,
 } from "@/shared/ai/model-loader";
 import { getAIRuntime } from "@/shared/ai/text-generation/runtime";
+import { getWhisperRuntime } from "@/shared/ai/stt/runtime";
 import type { AvailableModel } from "@/shared/ai/types/model-loader";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -124,6 +125,30 @@ export function useModelManager() {
     return false;
   }, [refresh]);
 
+  const autoLoadWhisper = useCallback(async () => {
+    const runtime = getWhisperRuntime();
+
+    // Check if a Whisper model is already loaded
+    if (runtime.isModelLoaded()) {
+      setCurrentWhisperId(runtime.getCurrentModel()?.id ?? null);
+      await refresh();
+      return true;
+    }
+
+    setIsLoading(true);
+    const result = await autoLoadLastModel("bin");
+    setIsLoading(false);
+
+    if (result.success) {
+      setCurrentWhisperId(runtime.getCurrentModel()?.id ?? null);
+      await refresh();
+      return true;
+    }
+
+    // Silent failure for Whisper autoload — it's optional for text-based chat
+    return false;
+  }, [refresh]);
+
   const sync = useCallback(async () => {
     const runtime = getAIRuntime();
     const loaded = runtime.isModelLoaded();
@@ -167,6 +192,7 @@ export function useModelManager() {
       loadWhisper,
       unload,
       autoLoad,
+      autoLoadWhisper,
       sync,
       refresh,
     }),
@@ -182,6 +208,7 @@ export function useModelManager() {
       loadWhisper,
       unload,
       autoLoad,
+      autoLoadWhisper,
       sync,
       refresh,
     ],
