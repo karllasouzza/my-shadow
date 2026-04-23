@@ -1,6 +1,6 @@
 import { WhisperModel } from "./types";
 
-export const WHISPER_CATALOG: WhisperModel[] = [
+export const WHISPER_CATALOG: readonly WhisperModel[] = [
   {
     id: "whisper-tiny-pt",
     displayName: "Whisper Tiny (pt-BR)",
@@ -37,8 +37,4 @@ export const WHISPER_CATALOG: WhisperModel[] = [
 
 export function findWhisperModelById(id: string): WhisperModel | undefined {
   return WHISPER_CATALOG.find((m) => m.id === id);
-}
-
-export function getAllWhisperModels(): WhisperModel[] {
-  return [...WHISPER_CATALOG];
 }

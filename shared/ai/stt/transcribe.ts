@@ -1,5 +1,5 @@
 import { createError, err, ok, Result } from "@/shared/utils/app-error";
-import { getWhisperRuntime } from "./runtime";
+import { getActiveContext } from "./runtime";
 import type { TranscriptionResult } from "./types";
 
 export interface TranscribeOptions {
@@ -10,21 +10,15 @@ export interface TranscribeOptions {
 
 /**
  * Transcribes an audio file using the loaded Whisper model.
- * whisper.rn handles file validation internally — no need to pre-check existence.
+ * whisper.rn handles file validation internally.
  */
 export async function transcribe(
   audioPath: string,
   options?: TranscribeOptions,
 ): Promise<Result<TranscriptionResult>> {
-  const runtime = getWhisperRuntime();
-  if (!runtime.isModelLoaded()) {
-    return err(createError("NOT_READY", "Nenhum modelo Whisper carregado."));
-  }
-
-  const context = runtime.getContext();
-  if (!context) {
-    return err(createError("NOT_READY", "Contexto Whisper não disponível."));
-  }
+  const contextResult = getActiveContext();
+  if (!contextResult.success) return contextResult;
+  const context = contextResult.data;
 
   try {
     const { stop, promise } = context.transcribe(audioPath, {
@@ -43,7 +37,7 @@ export async function transcribe(
     const whisperResult = await promise;
 
     if (whisperResult.isAborted) {
-      return err(createError("ABORTED", "Transcrição cancelada."));
+      return err(createError("ABORTED", "Transcription cancelled."));
     }
 
     const result: TranscriptionResult = {
@@ -61,7 +55,7 @@ export async function transcribe(
     return ok(result);
   } catch (error) {
     const msg =
-      error instanceof Error ? error.message : "Erro durante transcrição.";
+      error instanceof Error ? error.message : "Error during transcription.";
     return err(
       createError(
         "UNKNOWN_ERROR",

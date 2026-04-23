@@ -24,9 +24,5 @@ export interface WhisperModel {
 export interface TranscriptionResult {
   text: string;
   language: string;
-  segments: Array<{
-    text: string;
-    startMs: number;
-    endMs: number;
-  }>;
+  segments: TranscriptionSegment[];
 }

@@ -1,10 +1,3 @@
-/**
- * Unit tests for shared/ai/stt/transcribe.ts
- *
- * Task 10.1 — Implement transcribe function
- * Validates: Requirements 7.1, 7.2, 7.3, 7.4, 7.5, 7.6
- */
-
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 
 // ---------------------------------------------------------------------------
@@ -16,24 +9,19 @@ mock.module("react-native", () => ({
   NativeModules: {},
 }));
 
-// Mock FileSystem
-const mockFileInfo: Record<string, { exists: boolean }> = {};
-
-mock.module("expo-file-system/legacy", () => ({
-  getInfoAsync: async (path: string) => {
-    return mockFileInfo[path] || { exists: false };
-  },
-}));
-
-// Mock WhisperRuntime
-let mockIsModelLoaded = false;
+// Mock getActiveContext
 let mockContext: any = null;
 
 mock.module("@/shared/ai/stt/runtime", () => ({
-  getWhisperRuntime: () => ({
-    isModelLoaded: () => mockIsModelLoaded,
-    getContext: () => mockContext,
-  }),
+  getActiveContext: () => {
+    if (!mockContext) {
+      return {
+        success: false,
+        error: { code: "NOT_READY", message: "No Whisper model loaded." },
+      };
+    }
+    return { success: true, data: mockContext };
+  },
 }));
 
 // ---------------------------------------------------------------------------
@@ -41,9 +29,7 @@ mock.module("@/shared/ai/stt/runtime", () => ({
 // ---------------------------------------------------------------------------
 
 function resetMocks() {
-  mockIsModelLoaded = false;
   mockContext = null;
-  Object.keys(mockFileInfo).forEach((key) => delete mockFileInfo[key]);
 }
 
 // ---------------------------------------------------------------------------
@@ -53,61 +39,36 @@ function resetMocks() {
 describe("transcribe function", () => {
   beforeEach(resetMocks);
 
-  describe("NOT_READY guard (Requirement 7.3)", () => {
+  describe("NOT_READY guard", () => {
     it("returns err with NOT_READY when no Whisper model is loaded", async () => {
       const { transcribe } = await import("@/shared/ai/stt/transcribe");
-
-      mockIsModelLoaded = false;
 
       const result = await transcribe("/path/to/audio.wav");
 
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.code).toBe("NOT_READY");
-        expect(result.error.message).toBe("Nenhum modelo Whisper carregado.");
+        expect(result.error.message).toBe("No Whisper model loaded.");
       }
     });
   });
 
-  describe("FILE_NOT_FOUND guard (Requirement 7.4)", () => {
-    it("returns err with FILE_NOT_FOUND when audio file does not exist", async () => {
-      const { transcribe } = await import("@/shared/ai/stt/transcribe");
-
-      mockIsModelLoaded = true;
-      mockContext = {};
-      mockFileInfo["/nonexistent/audio.wav"] = { exists: false };
-
-      const result = await transcribe("/nonexistent/audio.wav");
-
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.code).toBe("FILE_NOT_FOUND");
-        expect(result.error.message).toBe("Arquivo de áudio não encontrado.");
-      }
-    });
-  });
-
-  describe("Successful transcription (Requirement 7.1)", () => {
+  describe("Successful transcription", () => {
     it("returns ok with TranscriptionResult when transcription succeeds", async () => {
       const { transcribe } = await import("@/shared/ai/stt/transcribe");
-
-      mockIsModelLoaded = true;
-      mockFileInfo["/valid/audio.wav"] = { exists: true };
-
-      const mockTranscribeResult = {
-        result: "Hello world",
-        language: "en",
-        segments: [
-          { text: "Hello", t0: 0, t1: 500 },
-          { text: " world", t0: 500, t1: 1000 },
-        ],
-        isAborted: false,
-      };
 
       mockContext = {
         transcribe: () => ({
           stop: () => Promise.resolve(),
-          promise: Promise.resolve(mockTranscribeResult),
+          promise: Promise.resolve({
+            result: "Hello world",
+            language: "en",
+            segments: [
+              { text: "Hello", t0: 0, t1: 500 },
+              { text: " world", t0: 500, t1: 1000 },
+            ],
+            isAborted: false,
+          }),
         }),
       };
 
@@ -125,12 +86,9 @@ describe("transcribe function", () => {
     });
   });
 
-  describe("Language hint (Requirement 7.5)", () => {
+  describe("Language hint", () => {
     it("passes language hint to whisper.rn options", async () => {
       const { transcribe } = await import("@/shared/ai/stt/transcribe");
-
-      mockIsModelLoaded = true;
-      mockFileInfo["/valid/audio.wav"] = { exists: true };
 
       let capturedOptions: any = null;
 
@@ -156,12 +114,9 @@ describe("transcribe function", () => {
     });
   });
 
-  describe("Progress callback (Requirement 7.6)", () => {
+  describe("Progress callback", () => {
     it("passes onProgress callback to whisper.rn options", async () => {
       const { transcribe } = await import("@/shared/ai/stt/transcribe");
-
-      mockIsModelLoaded = true;
-      mockFileInfo["/valid/audio.wav"] = { exists: true };
 
       let capturedOptions: any = null;
       const progressCallback = (progress: number) => {
@@ -190,12 +145,9 @@ describe("transcribe function", () => {
     });
   });
 
-  describe("Abort signal (Requirement 7.2)", () => {
+  describe("Abort signal", () => {
     it("returns err with ABORTED when transcription is aborted", async () => {
       const { transcribe } = await import("@/shared/ai/stt/transcribe");
-
-      mockIsModelLoaded = true;
-      mockFileInfo["/valid/audio.wav"] = { exists: true };
 
       mockContext = {
         transcribe: () => ({
@@ -214,15 +166,12 @@ describe("transcribe function", () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.code).toBe("ABORTED");
-        expect(result.error.message).toBe("Transcrição cancelada.");
+        expect(result.error.message).toBe("Transcription cancelled.");
       }
     });
 
     it("hooks abortSignal to stop function", async () => {
       const { transcribe } = await import("@/shared/ai/stt/transcribe");
-
-      mockIsModelLoaded = true;
-      mockFileInfo["/valid/audio.wav"] = { exists: true };
 
       let stopCalled = false;
 
@@ -246,15 +195,11 @@ describe("transcribe function", () => {
       };
 
       const abortController = new AbortController();
-
-      // Start transcription
       const transcribePromise = transcribe("/valid/audio.wav", {
         abortSignal: abortController.signal,
       });
 
-      // Abort after a short delay
       setTimeout(() => abortController.abort(), 50);
-
       await transcribePromise;
 
       expect(stopCalled).toBe(true);

@@ -1,7 +1,7 @@
 import chatState$ from "@/database/chat";
 import { aiError, aiInfo } from "@/shared/ai/log";
 import { getDownloadedModels, getModelLocalPath } from "./manager";
-import { findWhisperModelById, getAllWhisperModels } from "./stt/catalog";
+import { WHISPER_CATALOG, findWhisperModelById } from "./stt/catalog";
 import { getWhisperRuntime } from "./stt/runtime";
 import { findModelById, getAllModels } from "./text-generation/catalog";
 import { getAIRuntime } from "./text-generation/runtime";
@@ -140,7 +140,7 @@ export async function autoLoadLastModel(
 export async function getAvailableModels(): Promise<AvailableModel[]> {
   // Merge LLM and Whisper catalogs
   const llmCatalog = getAllModels();
-  const whisperCatalog = getAllWhisperModels();
+  const whisperCatalog = WHISPER_CATALOG;
   const downloaded = await getDownloadedModels();
 
   // Get loaded model IDs from both runtimes

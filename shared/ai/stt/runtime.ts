@@ -41,7 +41,7 @@ export class WhisperRuntime {
       const msg =
         error instanceof Error
           ? error.message
-          : "Falha ao carregar modelo Whisper";
+          : "Failed to load Whisper model";
       return err(
         createError(
           "UNKNOWN_ERROR",
@@ -65,7 +65,7 @@ export class WhisperRuntime {
       return err(
         createError(
           "UNKNOWN_ERROR",
-          "Falha ao descarregar modelo",
+          "Failed to unload model",
           {},
           error instanceof Error ? error : undefined,
         ),
@@ -83,4 +83,16 @@ let instance: WhisperRuntime | null = null;
 export function getWhisperRuntime(): WhisperRuntime {
   if (!instance) instance = new WhisperRuntime();
   return instance;
+}
+
+export function getActiveContext(): Result<WhisperContext> {
+  const runtime = getWhisperRuntime();
+  if (!runtime.isModelLoaded()) {
+    return err(createError("NOT_READY", "No Whisper model loaded."));
+  }
+  const context = runtime.getContext();
+  if (!context) {
+    return err(createError("NOT_READY", "Whisper context not available."));
+  }
+  return ok(context);
 }

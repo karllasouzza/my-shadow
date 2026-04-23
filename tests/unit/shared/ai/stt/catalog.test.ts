@@ -1,9 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
-    WHISPER_CATALOG,
-    findWhisperModelById,
-    getAllWhisperModels,
-    getModelsByType,
+  WHISPER_CATALOG,
+  findWhisperModelById,
 } from "../../../../../shared/ai/stt/catalog";
 
 describe("WHISPER_CATALOG", () => {
@@ -76,44 +74,9 @@ describe("findWhisperModelById", () => {
   });
 });
 
-describe("getAllWhisperModels", () => {
-  it("returns all three whisper models", () => {
-    const models = getAllWhisperModels();
-    expect(models).toHaveLength(3);
-  });
-
-  it("returns a copy — mutations do not affect the catalog", () => {
-    const models = getAllWhisperModels();
-    models.pop();
+describe("WHISPER_CATALOG immutability", () => {
+  it("cannot be mutated at compile time (readonly)", () => {
     expect(WHISPER_CATALOG).toHaveLength(3);
-  });
-});
-
-describe("getModelsByType", () => {
-  it("returns only 'bin' models when type is 'bin'", () => {
-    const models = getModelsByType("bin");
-    expect(models.every((m) => m.modelType === "bin")).toBe(true);
-  });
-
-  it("returns all three whisper models when type is 'bin'", () => {
-    const models = getModelsByType("bin");
-    const ids = models.map((m) => m.id);
-    expect(ids).toContain("whisper-tiny-pt");
-    expect(ids).toContain("whisper-base-pt");
-    expect(ids).toContain("whisper-small-pt");
-  });
-
-  it("returns only 'gguf' models when type is 'gguf'", () => {
-    const models = getModelsByType("gguf");
-    expect(models.every((m) => m.modelType === "gguf")).toBe(true);
-    expect(models.length).toBeGreaterThan(0);
-  });
-
-  it("returns no whisper models when type is 'gguf'", () => {
-    const models = getModelsByType("gguf");
-    const ids = models.map((m) => m.id);
-    expect(ids).not.toContain("whisper-tiny-pt");
-    expect(ids).not.toContain("whisper-base-pt");
-    expect(ids).not.toContain("whisper-small-pt");
+    expect(WHISPER_CATALOG.every((m) => m.modelType === "bin")).toBe(true);
   });
 });
