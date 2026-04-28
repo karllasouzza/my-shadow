@@ -9,7 +9,7 @@ import { Link, useFocusEffect, useLocalSearchParams } from "expo-router";
 import React, { memo, useCallback, useState } from "react";
 import { View } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
-import MessagesList from "../components/messages-list";
+import { MessagesList } from "../components/messages-list";
 
 const ChatScreenInner = observer(function ChatScreenInner() {
   const ScreenContainer = KeyboardAvoidingView;
