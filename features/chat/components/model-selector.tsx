@@ -105,8 +105,14 @@ export function ModelSelector({
         accessibilityLabel="Selecionar modelo"
         id="mode-selector"
       >
-        <Text className="font-medium text-foreground text-sm" numberOfLines={1}>
-          {isLoading ? "Carregando modelo" : displayText}
+        <Text
+          className={cn(
+            "font-medium text-foreground text-sm",
+            isLoading ? "text-muted-foreground" : "",
+          )}
+          numberOfLines={1}
+        >
+          {displayText}
         </Text>
         {selectedLlm && !isLoading && (
           <Text

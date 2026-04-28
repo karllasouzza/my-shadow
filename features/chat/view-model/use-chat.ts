@@ -3,6 +3,7 @@ import { aiError, aiInfo } from "@/shared/ai/log";
 import { getAIRuntime } from "@/shared/ai/text-generation/runtime";
 import { useValue } from "@legendapp/state/react";
 import { useCallback, useMemo } from "react";
+import { toast } from "sonner-native";
 import { createChatMessage } from "../model/chat-message";
 import { useConversation } from "./hooks/useConversation";
 import { useModelManager } from "./hooks/useModelManager";
@@ -202,11 +203,11 @@ export function useChat() {
         );
         // Preserve the streaming message ID for smooth transition
         if (messageId) {
-          (assistantMessage as any).id = messageId;
+          assistantMessage.id = messageId;
         }
         // Add timings if available
         if (timings) {
-          (assistantMessage as any).timings = timings;
+          assistantMessage.timings = timings;
         }
         conversation.addMessage(conversationId, assistantMessage);
         // Clear streaming state after saving to Legend State for smooth transition
@@ -248,11 +249,9 @@ export function useChat() {
   const handleLoadModelForConversation = useCallback(
     async (conversationId: string | null) => {
       try {
+        // New conversation - load the last used model globally
         if (!conversationId) {
-          // New conversation - load the last used model globally
           await model.autoLoad();
-          // Also auto-load the last Whisper model for voice input
-          await model.autoLoadWhisper();
           return;
         }
 
@@ -261,20 +260,14 @@ export function useChat() {
         if (lastModelId) {
           await model.load(lastModelId);
         } else {
-          // Fallback to last used model globally
           await model.autoLoad();
         }
-        
-        // Always try to auto-load the last Whisper model for voice input
-        await model.autoLoadWhisper();
       } catch (error) {
-        // Log the error but don't crash - allow chat to continue without voice input
         console.error(
           "[useChat] Failed to load model for conversation:",
           error instanceof Error ? error.message : String(error),
         );
-        // Model loading is optional for text-based chat
-        // Voice input will show an error message to the user
+        toast.error("Ocorreu um erro ao carregar o modelo.");
       }
     },
     [conversation, model],

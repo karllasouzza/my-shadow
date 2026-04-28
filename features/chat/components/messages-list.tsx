@@ -158,5 +158,3 @@ export const MessagesList = observer(function MessagesList({
     </View>
   );
 });
-
-export default MessagesList;
