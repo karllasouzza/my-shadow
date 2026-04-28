@@ -33,7 +33,6 @@ export class AIRuntime {
     path: string,
     fileSizeBytes: number,
   ): Promise<Result<{ id: string }>> {
-    // Protection against simultaneous load (SIGSEGV)
     if (this.loadingPromise) return this.loadingPromise;
 
     this.loadingPromise = this._doLoad(modelId, path, fileSizeBytes);
@@ -57,7 +56,6 @@ export class AIRuntime {
     try {
       await this.unloadModel();
 
-      // Check memory: file * 1.5 for KV cache + activations
       this.device ??= await detectDevice();
       const device = this.device as DeviceInfo;
       const requiredGB = (fileSizeBytes * 1.5) / 1024 ** 3;
@@ -169,6 +167,30 @@ export class AIRuntime {
     }
   }
 
+  private _buildCompletionConfig(
+    filteredMessages: {
+      role: string;
+      content: string;
+      reasoning_content?: string;
+    }[],
+    enableThinking: boolean,
+    options?: StreamCompletionOptions,
+  ) {
+    return {
+      messages: filteredMessages,
+      jinja: true,
+      enable_thinking: enableThinking,
+      thinking_forced_open: enableThinking,
+      n_predict: options?.maxTokens ?? this.config?.n_predict ?? 2048,
+      temperature: options?.temperature ?? 0.7,
+      stop: STOP_WORDS,
+      top_k: this.config?.top_k ?? 40,
+      top_p: this.config?.top_p ?? 0.9,
+      penalty_freq: 0.5,
+      penalty_last_n: 64,
+    };
+  }
+
   private async _warmupModel(): Promise<void> {
     if (!this.context) return;
     aiDebug("LOAD:warmup:start", "warming up model");
@@ -230,19 +252,7 @@ export class AIRuntime {
 
     try {
       const { promise, stop } = await this.context.parallel.completion(
-        {
-          messages: filteredMessages,
-          jinja: true,
-          enable_thinking: enableThinking,
-          thinking_forced_open: enableThinking,
-          n_predict: options?.maxTokens ?? this.config?.n_predict ?? 2048,
-          temperature: options?.temperature ?? 0.7,
-          stop: STOP_WORDS,
-          top_k: this.config?.top_k ?? 40,
-          top_p: this.config?.top_p ?? 0.9,
-          penalty_freq: 0.5,
-          penalty_last_n: 64,
-        },
+        this._buildCompletionConfig(filteredMessages, enableThinking, options),
         (_: number, data: TokenData) => {
           if (abortController.signal.aborted) return;
 
