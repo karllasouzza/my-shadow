@@ -3,7 +3,7 @@ import {
   getDownloadedModels,
   removeDownloadedModel,
 } from "@/shared/ai/manager";
-import { findWhisperModelById, getAllWhisperModels } from "@/shared/ai/stt/catalog";
+import { findWhisperModelById, WHISPER_CATALOG } from "@/shared/ai/stt/catalog";
 import { WhisperModel } from "@/shared/ai/stt/types";
 import {
   findModelById,
@@ -34,7 +34,7 @@ export function useModels() {
         ...m,
         modelCategory: "llm" as const,
       }));
-      const whisper: CatalogEntry[] = getAllWhisperModels().map((m) => ({
+      const whisper: CatalogEntry[] = WHISPER_CATALOG.map((m) => ({
         ...m,
         modelCategory: "whisper" as const,
       }));
