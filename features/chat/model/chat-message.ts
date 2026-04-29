@@ -19,3 +19,19 @@ export function createChatMessage(
     createdAt: new Date().toISOString(),
   };
 }
+
+/**
+ * Create a tool result message for injection into the conversation.
+ */
+export function createToolMessage(
+  content: string,
+  tool_call_id: string,
+): ChatMessage {
+  return {
+    id: generateUUID(),
+    role: "tool",
+    content,
+    tool_call_id,
+    createdAt: new Date().toISOString(),
+  };
+}

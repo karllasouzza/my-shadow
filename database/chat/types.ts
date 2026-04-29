@@ -1,4 +1,4 @@
-import type { NativeCompletionResultTimings } from "llama.rn";
+import type { NativeCompletionResultTimings, ToolCall } from "llama.rn";
 
 export type MessageRole = "system" | "user" | "assistant" | "tool";
 
@@ -13,6 +13,10 @@ export interface ChatMessage {
   createdAt: string;
   updatedAt?: string;
   _isStreaming?: boolean;
+  /** Tool call ID (for role: "tool" messages linking to the tool call) */
+  tool_call_id?: string;
+  /** Tool calls made by the assistant (for role: "assistant" messages) */
+  tool_calls?: ToolCall[];
 }
 
 export interface ChatConversation {
