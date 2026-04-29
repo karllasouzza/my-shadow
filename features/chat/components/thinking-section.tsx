@@ -8,21 +8,14 @@ import {
   Animated,
   Easing,
   LayoutAnimation,
-  Platform,
   ScrollView,
   Text,
-  UIManager,
   View,
 } from "react-native";
 
 interface ThinkingSectionProps {
   reasoning_content: string;
   isStreaming?: boolean;
-}
-
-// Habilita LayoutAnimation no Android
-if (Platform.OS === "android") {
-  UIManager.setLayoutAnimationEnabledExperimental?.(true);
 }
 
 export const ThinkingSection = observer(function ThinkingSection({
@@ -33,8 +26,6 @@ export const ThinkingSection = observer(function ThinkingSection({
   const scrollViewRef = useRef<ScrollView>(null);
   const rotateAnim = useRef(new Animated.Value(0)).current;
 
-  if (!reasoning_content && !isStreaming) return null;
-
   // Animação do ícone
   useEffect(() => {
     Animated.timing(rotateAnim, {
@@ -43,7 +34,7 @@ export const ThinkingSection = observer(function ThinkingSection({
       easing: Easing.inOut(Easing.ease),
       useNativeDriver: true,
     }).start();
-  }, [expanded]);
+  }, [expanded, rotateAnim]);
 
   // Quando fecha: scroll para o final (conteúdo mais recente)
   useEffect(() => {
