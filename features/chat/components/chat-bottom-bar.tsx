@@ -8,7 +8,6 @@ import { AvailableModel } from "@/shared/ai/types/model-loader";
 import React, { useCallback } from "react";
 import { ActivityIndicator, Platform, View } from "react-native";
 import { ModelSelector } from "./model-selector";
-import { NoModelPrompt } from "./no-model-prompt";
 import QuickActions from "./quick-actions";
 import { ReasoningToggle } from "./reasoning-toggle";
 import { RecordingIndicator } from "./recording-indicator";
@@ -91,10 +90,6 @@ function ChatBottomBar({
     confirmModelDownload,
   } = voiceInput;
 
-  // ---------------------------------------------------------------------------
-  // Derived state
-  // ---------------------------------------------------------------------------
-
   const isRecording = voiceStatus === "recording";
   const isProcessing = voiceStatus === "processing";
   const showVoiceButton = value.trim().length === 0;
@@ -105,24 +100,18 @@ function ChatBottomBar({
     onSend();
   };
 
-  if (availableModels.length === 0 && !isModelLoading) return null;
-
   const modelSupportsReasoning = useCallback(() => {
     if (!selectedModel) return false;
     const model = availableModels.find((m) => m.id === selectedModel);
     return model?.supportsReasoning || false;
   }, [selectedModel, availableModels])();
 
-  // ---------------------------------------------------------------------------
-  // Render
-  // ---------------------------------------------------------------------------
-
   return (
-    <View className={cn("flex gap-6 bg-transparent p-0 w-full", className)}>
+    <View className={cn("flex gap-3 bg-transparent p-3 w-full", className)}>
       {!hasContent && <QuickActions />}
 
-      <View className="flex bg-transparent p-3 pt-0 w-full">
-        <View className="bg-card p-3 border border-border rounded-2xl">
+      <View className="flex bg-transparent p-0 w-full">
+        <View className="bg-card p-3 border shadow-lg border-border rounded-2xl">
           {/* Text Input — shows partial transcript (italic/dimmed) while recording */}
           <AutoResizingInput
             value={isRecording ? partialTranscript : value}
@@ -218,11 +207,11 @@ function ChatBottomBar({
       </View>
 
       {/* No-model prompt (AlertDialog) */}
-      <NoModelPrompt
+      {/* <NoModelPrompt
         visible={noModelPromptVisible}
         onConfirm={confirmModelDownload}
         onDismiss={dismissNoModelPrompt}
-      />
+      /> */}
     </View>
   );
 }

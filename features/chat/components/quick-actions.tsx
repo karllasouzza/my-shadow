@@ -36,7 +36,7 @@ function QuickActions() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerClassName="px-4 pt-3 gap-2"
+        contentContainerClassName="gap-2"
       >
         {defaultQuickActions.map((action) => (
           <Button
