@@ -1,6 +1,7 @@
 import { ChatMessage } from "@/database/chat/types";
 import { aiDebug, aiError, aiInfo } from "@/shared/ai/log";
 import { toLlamaToolsFormat } from "@/shared/ai/tools/types";
+import { generateUUID } from "@/shared/random-id";
 import { createError, err, ok, Result } from "@/shared/utils/app-error";
 import { initLlama, LlamaContext, TokenData } from "llama.rn";
 import { detectDevice, type DeviceInfo } from "../../device";
@@ -289,6 +290,8 @@ export class AIRuntime {
 
     let firstTokenAt: number | null = null;
     let collectedToolCalls: CompletionOutput["tool_calls"] = undefined;
+    // Track already-seen tool call signatures to avoid duplicate detection per chunk
+    const detectedToolCallSignatures = new Set<string>();
 
     try {
       const { promise, stop } = await this.context.parallel.completion(
@@ -296,19 +299,33 @@ export class AIRuntime {
         (_: number, data: TokenData) => {
           if (abortController.signal.aborted) return;
 
-          // Collect tool calls from streaming data
+          // Collect tool calls from streaming data (deduplicated)
           if (data.tool_calls && data.tool_calls.length > 0) {
-            collectedToolCalls = data.tool_calls;
-            aiDebug(
-              "TOOL:stream:tool-calls",
-              `detected ${data.tool_calls.length} tool call(s)`,
-              {
-                toolCalls: data.tool_calls.map((tc: any) => ({
-                  id: tc.id,
-                  name: tc.function?.name,
-                })),
-              },
-            );
+            const newCalls: any[] = [];
+            for (const tc of data.tool_calls) {
+              const sig = `${tc.id ?? "null"}:${tc.function?.name ?? "unknown"}`;
+              if (!detectedToolCallSignatures.has(sig)) {
+                detectedToolCallSignatures.add(sig);
+                newCalls.push(tc);
+              }
+            }
+            if (newCalls.length > 0) {
+              // Ensure each tool call has a non-null ID for tracing
+              collectedToolCalls = data.tool_calls.map((tc: any) => ({
+                ...tc,
+                id: tc.id ?? `tc_${generateUUID().slice(0, 12)}`,
+              }));
+              aiDebug(
+                "TOOL:stream:tool-calls",
+                `detected ${newCalls.length} new tool call(s)`,
+                {
+                  toolCalls: newCalls.map((tc: any) => ({
+                    id: tc.id ?? "<generated>",
+                    name: tc.function?.name,
+                  })),
+                },
+              );
+            }
           }
 
           let token = data.token ?? "";
@@ -370,12 +387,20 @@ export class AIRuntime {
           ? result.tool_calls
           : collectedToolCalls;
 
-      if (finalToolCalls && finalToolCalls.length > 0) {
+      // Ensure every tool call has a non-null ID for tracing
+      const normalizedToolCalls: any[] | undefined = (
+        finalToolCalls as any[] | undefined
+      )?.map((tc: any) => ({
+        ...tc,
+        id: tc.id ?? `tc_${generateUUID().slice(0, 12)}`,
+      }));
+
+      if (normalizedToolCalls && normalizedToolCalls.length > 0) {
         aiInfo(
           "TOOL:result:tool-calls",
-          `modelId=${this.modelId} count=${finalToolCalls.length}`,
+          `modelId=${this.modelId} count=${normalizedToolCalls.length}`,
           {
-            toolCalls: finalToolCalls.map((tc: any) => ({
+            toolCalls: normalizedToolCalls.map((tc: any) => ({
               id: tc.id,
               name: tc.function?.name,
             })),
@@ -384,14 +409,14 @@ export class AIRuntime {
 
         aiInfo(
           "INFERENCE:tool-calls",
-          `modelId=${this.modelId} count=${finalToolCalls.length}`,
+          `modelId=${this.modelId} count=${normalizedToolCalls.length}`,
         );
 
         return ok({
           text,
           reasoning: reasoning || undefined,
           timings: result.timings,
-          tool_calls: finalToolCalls,
+          tool_calls: normalizedToolCalls,
         });
       }
 

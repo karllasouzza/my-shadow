@@ -66,9 +66,10 @@ export async function webSearchHandler(
 
     const url = `${baseUrl}?${searchParams.toString()}`;
 
+    const webSearchTimeout = 30_000;
     const fetchResult = await fetchUrl(url, {
       signal: context?.signal,
-      timeout: 15_000,
+      timeout: webSearchTimeout,
       retryAttempts: 2,
       retryDelayMs: 500,
       maxSizeBytes: 3 * 1024 * 1024,
@@ -81,12 +82,16 @@ export async function webSearchHandler(
     });
 
     if (!fetchResult.success) {
+      const timeoutMs = webSearchTimeout;
+      const errorMessage =
+        fetchResult.errorCode === "TIMEOUT"
+          ? `Search request timed out after ${timeoutMs / 1000}s. This may be due to network conditions. Please try a simpler query or check your connection.`
+          : fetchResult.errorCode === "CAPTCHA"
+            ? "Search request was blocked. Please try again later."
+            : fetchResult.error || "Failed to fetch search results";
       return {
         success: false,
-        error:
-          fetchResult.errorCode === "CAPTCHA"
-            ? "Search request was blocked. Please try again later."
-            : fetchResult.error || "Failed to fetch search results",
+        error: errorMessage,
       };
     }
 
