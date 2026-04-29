@@ -1,6 +1,9 @@
 import { ChatMessage } from "@/database/chat/types";
-import { aiDebug, aiError, aiInfo } from "@/shared/ai/log";
+import { aiError, aiInfo } from "@/shared/ai/log";
 import { getAIRuntime } from "@/shared/ai/text-generation/runtime";
+import type { CompletionOutput } from "@/shared/ai/text-generation/types";
+import { ToolLoopExecutor } from "@/shared/ai/tools/tool-loop-executor";
+import type { ToolDefinition, ToolResult } from "@/shared/ai/tools/types";
 import { generateUUID } from "@/shared/random-id";
 import type { NativeCompletionResultTimings } from "llama.rn";
 import { useCallback, useMemo, useRef, useState } from "react";
@@ -12,6 +15,7 @@ export interface StreamingMessage extends ChatMessage {
 interface GenerateOptions {
   modelId: string;
   enableThinking: boolean;
+  tools?: ToolDefinition[];
   onUpdate?: (content: string, reasoning: string) => void;
   onComplete?: (
     content: string,
@@ -25,6 +29,11 @@ interface GenerateOptions {
     partialReasoning?: string,
     messageId?: string,
   ) => void;
+  /** Called when the model requests a tool call. Return the tool result or null to decline. */
+  onToolCall?: (
+    name: string,
+    params: Record<string, unknown>,
+  ) => Promise<ToolResult | null>;
 }
 
 export function useStreamingGeneration() {
@@ -68,29 +77,16 @@ export function useStreamingGeneration() {
         messageId: initialMessage.id,
       });
 
-      const result = await getAIRuntime().streamCompletion(messages, {
-        enableThinking: options.enableThinking,
-        abortSignal: abortController.signal,
-        onStreamChunk: (chunk) => {
-          if (abortController.signal.aborted) return;
-
-          if (chunk.token) contentRef.current += chunk.token;
-          if (chunk.reasoning) reasoningRef.current += chunk.reasoning;
-
-          const updatedMessage: StreamingMessage = {
-            ...initialMessage,
-            content: contentRef.current,
-            reasoning_content: reasoningRef.current,
-          };
-
-          setStreaming(updatedMessage);
-          options.onUpdate?.(contentRef.current, reasoningRef.current);
-
-          aiDebug("INFERENCE:ui:chunk", `messageId=${initialMessage.id}`, {
-            tokenPreview: (chunk.token || "").slice(0, 12),
-          });
-        },
-      });
+      // Run the full generation with tool call support
+      const result = await generateWithTools(
+        messages,
+        options,
+        abortController,
+        initialMessage,
+        (updated: StreamingMessage) => setStreaming(updated),
+        contentRef,
+        reasoningRef,
+      );
 
       abortRef.current = null;
 
@@ -165,4 +161,107 @@ export function useStreamingGeneration() {
     }),
     [streaming, isGenerating, generate, cancel, clearStreamingState],
   );
+}
+
+async function generateWithTools(
+  messages: ChatMessage[],
+  options: GenerateOptions,
+  abortController: AbortController,
+  streamingMessage: StreamingMessage,
+  setStreaming: (msg: StreamingMessage) => void,
+  contentRef: { current: string },
+  reasoningRef: { current: string },
+): Promise<
+  | { success: false; error?: { code: string } }
+  | { success: true; data: CompletionOutput }
+> {
+  const executor = new ToolLoopExecutor({
+    maxIterations: 3,
+    enableParallelExecution: true,
+    maxConcurrency: 3,
+    enableCaching: true,
+    cacheTTL: 10 * 60 * 1000,
+    maxCacheSize: 50,
+    errorStrategy: "continue-on-error",
+    defaultTimeoutMs: 30000,
+    defaultRetryAttempts: 2,
+    enableLogging: typeof __DEV__ !== "undefined" && __DEV__,
+  });
+
+  try {
+    const result = await executor.execute(
+      {
+        messages,
+        tools: options.tools ?? [],
+        enableThinking: options.enableThinking,
+        abortSignal: abortController.signal,
+        toolOverrides: {
+          web_search: { timeoutMs: 45000, retryAttempts: 2 },
+          fetch_url: { timeoutMs: 30000, retryAttempts: 1 },
+        },
+      },
+      // Tool execution callback
+      async (name, params, _config) => {
+        if (abortController.signal.aborted) {
+          return null;
+        }
+        return (await options.onToolCall?.(name, params)) ?? null;
+      },
+      // Completion callback
+      async (msgs, completionOpts) => {
+        return await getAIRuntime().streamCompletion(msgs, {
+          enableThinking: completionOpts?.enableThinking,
+          abortSignal: completionOpts?.abortSignal,
+          tools: completionOpts?.tools,
+          onStreamChunk: (chunk) => {
+            if (abortController.signal.aborted) return;
+
+            if (chunk.token) contentRef.current += chunk.token;
+            if (chunk.reasoning) reasoningRef.current += chunk.reasoning;
+
+            options.onUpdate?.(contentRef.current, reasoningRef.current);
+          },
+        });
+      },
+      // Event handlers
+      {
+        onToolStart: (_exec) => {
+          setStreaming({
+            ...streamingMessage,
+            content: contentRef.current + "\n\n[⚙️ Executando ferramenta...]",
+            reasoning_content: reasoningRef.current,
+          });
+        },
+        onIterationComplete: (_, executions) => {
+          const completed = executions.filter((e) => e.result.success).length;
+          aiInfo(
+            "TOOL:iteration:progress",
+            `completed=${completed} total=${executions.length}`,
+          );
+        },
+      },
+    );
+
+    if (!result.success) {
+      return {
+        success: false,
+        error: { code: result.error.code },
+      };
+    }
+
+    const { finalCompletion } = result.data;
+
+    return {
+      success: true,
+      data: finalCompletion,
+    };
+  } catch (error) {
+    console.error("[generateWithTools] unexpected error:", error);
+    return {
+      success: false,
+      error: {
+        code: error instanceof Error ? error.message : "Unknown error",
+      },
+    };
+  }
 }

@@ -1,13 +1,18 @@
 import chatState$ from "@/database/chat";
 import { aiError, aiInfo } from "@/shared/ai/log";
 import { getAIRuntime } from "@/shared/ai/text-generation/runtime";
+import { ToolRegistry, webSearchToolDefinition } from "@/shared/ai/tools";
 import { useValue } from "@legendapp/state/react";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner-native";
 import { createChatMessage } from "../model/chat-message";
 import { useConversation } from "./hooks/useConversation";
 import { useModelManager } from "./hooks/useModelManager";
 import { useStreamingGeneration } from "./hooks/useStreamingGeneration";
+
+/** Global tool registry with web search tool pre-registered. */
+export const toolRegistry = new ToolRegistry();
+toolRegistry.register(webSearchToolDefinition);
 
 /** Simple message validation */
 function validateChatMessage(content: string) {
@@ -19,6 +24,13 @@ export function useChat() {
   const model = useModelManager();
   const stream = useStreamingGeneration();
   const reasoningEnabled = useValue(chatState$.isReasoningEnabled) ?? false;
+
+  // Consent dialog state
+  const [consentOpen, setConsentOpen] = useState(false);
+  const [pendingConsent, setPendingConsent] = useState<{
+    query: string;
+    resolve: (granted: boolean) => void;
+  } | null>(null);
 
   const resolveCurrentModelId = useCallback(() => {
     return (
@@ -86,6 +98,46 @@ export function useChat() {
     [conversation, model, stream],
   );
 
+  // Get consent for a web search tool call
+  const requestConsent = useCallback((query: string): Promise<boolean> => {
+    return new Promise((resolve) => {
+      setPendingConsent({ query, resolve });
+      setConsentOpen(true);
+    });
+  }, []);
+
+  const handleConsentAllow = useCallback(() => {
+    pendingConsent?.resolve(true);
+    setPendingConsent(null);
+    setConsentOpen(false);
+  }, [pendingConsent]);
+
+  const handleConsentDecline = useCallback(() => {
+    pendingConsent?.resolve(false);
+    setPendingConsent(null);
+    setConsentOpen(false);
+  }, [pendingConsent]);
+
+  const handleToolCall = useCallback(
+    async (name: string, params: Record<string, unknown>) => {
+      if (name === "web_search") {
+        const query = (params.query as string) ?? "";
+        const granted = await requestConsent(query);
+
+        if (!granted) {
+          aiInfo("TOOL:consent:declined", `query="${query}"`);
+          return null;
+        }
+
+        aiInfo("TOOL:consent:granted", `query="${query}"`);
+        return toolRegistry.execute(name, params);
+      }
+
+      return toolRegistry.execute(name, params);
+    },
+    [requestConsent],
+  );
+
   const sendMessage = useCallback(
     async (content: string) => {
       const validation = validateChatMessage(content);
@@ -116,6 +168,8 @@ export function useChat() {
       await stream.generate(messages, {
         modelId: currentModelId,
         enableThinking: reasoningEnabled,
+        tools: toolRegistry.getAll(),
+        onToolCall: handleToolCall,
         onComplete: (text, reasoning, messageId, timings) => {
           aiInfo(
             "INFERENCE:start",
@@ -127,11 +181,9 @@ export function useChat() {
             reasoning,
             currentModelId,
           );
-          // Preserve the streaming message ID for smooth transition
           if (messageId) {
             (assistantMessage as any).id = messageId;
           }
-          // Add timings if available
           if (timings) {
             (assistantMessage as any).timings = timings;
           }
@@ -141,7 +193,6 @@ export function useChat() {
             { conversationId, modelId: currentModelId, timings },
           );
           conversation.addMessage(conversationId, assistantMessage);
-          // Clear streaming state after saving to Legend State for smooth transition
           stream.clearStreamingState();
         },
         onError: (code, partialText, partialReasoning, messageId) => {
@@ -167,6 +218,7 @@ export function useChat() {
       resolveCurrentModelId,
       stream,
       reasoningEnabled,
+      handleToolCall,
     ],
   );
 
@@ -194,6 +246,8 @@ export function useChat() {
     await stream.generate(messages, {
       modelId: currentModelId,
       enableThinking: reasoningEnabled,
+      tools: toolRegistry.getAll(),
+      onToolCall: handleToolCall,
       onComplete: (text, reasoning, messageId, timings) => {
         const assistantMessage = createChatMessage(
           "assistant",
@@ -201,16 +255,13 @@ export function useChat() {
           reasoning,
           currentModelId,
         );
-        // Preserve the streaming message ID for smooth transition
         if (messageId) {
           assistantMessage.id = messageId;
         }
-        // Add timings if available
         if (timings) {
           assistantMessage.timings = timings;
         }
         conversation.addMessage(conversationId, assistantMessage);
-        // Clear streaming state after saving to Legend State for smooth transition
         stream.clearStreamingState();
       },
       onError: (code, partialText, partialReasoning, messageId) => {
@@ -230,6 +281,7 @@ export function useChat() {
     resolveCurrentModelId,
     stream,
     reasoningEnabled,
+    handleToolCall,
   ]);
 
   const cancelGeneration = useCallback(() => {
@@ -249,13 +301,11 @@ export function useChat() {
   const handleLoadModelForConversation = useCallback(
     async (conversationId: string | null) => {
       try {
-        // New conversation - load the last used model globally
         if (!conversationId) {
           await model.autoLoad();
           return;
         }
 
-        // Existing conversation - try to load the model that was used before
         const lastModelId = conversation.getLastModelUsedId(conversationId);
         if (lastModelId) {
           await model.load(lastModelId);
@@ -306,6 +356,12 @@ export function useChat() {
       availableModels: model.available,
       isModelLoading: model.isLoading,
 
+      // Consent dialog state
+      consentOpen,
+      pendingConsent,
+      handleConsentAllow,
+      handleConsentDecline,
+
       initChat,
       syncModelStatus: model.sync,
       sendMessage,
@@ -346,6 +402,10 @@ export function useChat() {
       activeModelName,
       selectedModelId,
       model.selectedWhisperId,
+      consentOpen,
+      pendingConsent,
+      handleConsentAllow,
+      handleConsentDecline,
       initChat,
       sendMessage,
       cancelGeneration,
