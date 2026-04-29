@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, mock } from "bun:test";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 import type { ToolCall } from "llama.rn";
 
 // Mock ai log to avoid console noise
@@ -43,9 +43,7 @@ function makeCompletionOutput(text: string, tool_calls?: ToolCall[]) {
   };
 }
 
-function createContext(
-  overrides: Record<string, unknown> = {},
-) {
+function createContext(overrides: Record<string, unknown> = {}) {
   return {
     messages: [],
     tools: [],
@@ -87,14 +85,13 @@ describe("ToolLoopExecutor", () => {
     mockDebug.length = 0;
     mockError.length = 0;
 
-    const mod = await import(
-      "@/shared/ai/tools/tool-loop-executor"
-    );
+    const mod = await import("@/shared/ai/tools/tool-loop-executor");
     ToolLoopExecutor = mod.ToolLoopExecutor;
     executor = new ToolLoopExecutor({ enableLogging: false });
-    mockOnToolCall = mock(
-      async () => ({ success: true, data: { result: "ok" } }),
-    );
+    mockOnToolCall = mock(async () => ({
+      success: true,
+      data: { result: "ok" },
+    }));
   });
 
   // ============ CORE FUNCTIONALITY ============
@@ -217,12 +214,8 @@ describe("ToolLoopExecutor", () => {
   });
 
   it("does not cache failed results (default strategy)", async () => {
-    const complete1 = makeSingleIterationComplete([
-      makeToolCall("fail", {}),
-    ]);
-    const complete2 = makeSingleIterationComplete([
-      makeToolCall("fail", {}),
-    ]);
+    const complete1 = makeSingleIterationComplete([makeToolCall("fail", {})]);
+    const complete2 = makeSingleIterationComplete([makeToolCall("fail", {})]);
 
     mockOnToolCall.mockResolvedValue({ success: false, error: "API error" });
 
@@ -245,7 +238,9 @@ describe("ToolLoopExecutor", () => {
     const complete2 = mock(async () => {
       return {
         success: true as const,
-        data: makeCompletionOutput("", [makeToolCall("search", { b: 2, a: 1 })]),
+        data: makeCompletionOutput("", [
+          makeToolCall("search", { b: 2, a: 1 }),
+        ]),
       };
     });
 
@@ -415,9 +410,7 @@ describe("ToolLoopExecutor", () => {
       onMetrics: mock(() => {}),
     };
 
-    const complete = makeSingleIterationComplete([
-      makeToolCall("test", {}),
-    ]);
+    const complete = makeSingleIterationComplete([makeToolCall("test", {})]);
 
     mockOnToolCall.mockResolvedValue({ success: true, data: {} });
 
@@ -437,11 +430,7 @@ describe("ToolLoopExecutor", () => {
     mockOnToolCall.mockResolvedValue({ success: true, data: {} });
 
     // First run: 2 cache misses
-    await executor.execute(
-      createContext(),
-      mockOnToolCall,
-      complete,
-    );
+    await executor.execute(createContext(), mockOnToolCall, complete);
 
     // Second run with same calls: 2 cache hits
     const complete2 = makeSingleIterationComplete([
@@ -460,9 +449,7 @@ describe("ToolLoopExecutor", () => {
   });
 
   it("has correct cache stats", async () => {
-    const complete = makeSingleIterationComplete([
-      makeToolCall("a", {}),
-    ]);
+    const complete = makeSingleIterationComplete([makeToolCall("a", {})]);
 
     mockOnToolCall.mockResolvedValue({ success: true, data: {} });
 
@@ -475,9 +462,7 @@ describe("ToolLoopExecutor", () => {
   });
 
   it("clearCache removes entries", async () => {
-    const complete = makeSingleIterationComplete([
-      makeToolCall("a", {}),
-    ]);
+    const complete = makeSingleIterationComplete([makeToolCall("a", {})]);
 
     mockOnToolCall.mockResolvedValue({ success: true, data: {} });
 
@@ -489,12 +474,8 @@ describe("ToolLoopExecutor", () => {
   });
 
   it("clearCache with tool name removes only that tool's entries", async () => {
-    const completeA = makeSingleIterationComplete([
-      makeToolCall("a", {}),
-    ]);
-    const completeB = makeSingleIterationComplete([
-      makeToolCall("b", {}),
-    ]);
+    const completeA = makeSingleIterationComplete([makeToolCall("a", {})]);
+    const completeB = makeSingleIterationComplete([makeToolCall("b", {})]);
 
     mockOnToolCall.mockResolvedValue({ success: true, data: {} });
 
@@ -567,8 +548,6 @@ describe("ToolLoopExecutor", () => {
 
     expect(result.success).toBe(true);
     expect(result.data.toolCallHistory[0].result.success).toBe(false);
-    expect(result.data.toolCallHistory[0].result.error).toContain(
-      "declined",
-    );
+    expect(result.data.toolCallHistory[0].result.error).toContain("declined");
   });
 });
