@@ -1,5 +1,6 @@
 import { ChatMessage } from "@/database/chat/types";
 import { aiDebug, aiError, aiInfo } from "@/shared/ai/log";
+import { toLlamaToolsFormat } from "@/shared/ai/tools/types";
 import { createError, err, ok, Result } from "@/shared/utils/app-error";
 import { initLlama, LlamaContext, TokenData } from "llama.rn";
 import { detectDevice, type DeviceInfo } from "../../device";
@@ -18,6 +19,7 @@ export class AIRuntime {
   private loadingPromise: Promise<any> | null = null;
   private config: any = null;
   private device: DeviceInfo | null = null;
+  private _toolUseSupported = false;
 
   isModelLoaded(id?: string): boolean {
     if (!this.context) return false;
@@ -102,6 +104,21 @@ export class AIRuntime {
         n_parallel: 1,
       });
 
+      // Detect tool calling support from model's jinja template
+      try {
+        const jinja = this.context.model?.chatTemplates?.jinja;
+        console.log("LOAD:tool-support", `modelId=${modelId}`, jinja);
+        this._toolUseSupported = jinja?.defaultCaps.tools === true;
+        aiInfo(
+          "LOAD:tool-support",
+          `modelId=${modelId} toolUse=${this._toolUseSupported}`,
+          { toolUseSupported: this._toolUseSupported },
+        );
+      } catch {
+        this._toolUseSupported = false;
+        aiDebug("LOAD:tool-support:error", "could not detect tool support");
+      }
+
       this.modelId = modelId;
       this.config = config;
 
@@ -176,7 +193,7 @@ export class AIRuntime {
     enableThinking: boolean,
     options?: StreamCompletionOptions,
   ) {
-    return {
+    const config: Record<string, unknown> = {
       messages: filteredMessages,
       jinja: true,
       enable_thinking: enableThinking,
@@ -189,6 +206,28 @@ export class AIRuntime {
       penalty_freq: 0.5,
       penalty_last_n: 64,
     };
+
+    if (options?.tools && options.tools.length > 0 && this._toolUseSupported) {
+      const enabledTools = options.tools.filter((t) => t.enabled);
+      if (enabledTools.length > 0) {
+        config.tools = toLlamaToolsFormat(enabledTools);
+        config.tool_choice = "auto";
+        aiDebug(
+          "TOOL:build-config",
+          `injecting ${enabledTools.length} tool(s)`,
+          {
+            toolNames: enabledTools.map((t) => t.name),
+          },
+        );
+      }
+    } else if (options?.tools?.length && !this._toolUseSupported) {
+      aiDebug(
+        "TOOL:build-config:unsupported",
+        `model=${this.modelId} does not support tool use`,
+      );
+    }
+
+    return config;
   }
 
   private async _warmupModel(): Promise<void> {
@@ -249,12 +288,28 @@ export class AIRuntime {
     });
 
     let firstTokenAt: number | null = null;
+    let collectedToolCalls: CompletionOutput["tool_calls"] = undefined;
 
     try {
       const { promise, stop } = await this.context.parallel.completion(
         this._buildCompletionConfig(filteredMessages, enableThinking, options),
         (_: number, data: TokenData) => {
           if (abortController.signal.aborted) return;
+
+          // Collect tool calls from streaming data
+          if (data.tool_calls && data.tool_calls.length > 0) {
+            collectedToolCalls = data.tool_calls;
+            aiDebug(
+              "TOOL:stream:tool-calls",
+              `detected ${data.tool_calls.length} tool call(s)`,
+              {
+                toolCalls: data.tool_calls.map((tc: any) => ({
+                  id: tc.id,
+                  name: tc.function?.name,
+                })),
+              },
+            );
+          }
 
           let token = data.token ?? "";
           const reasoningChunk = data.reasoning_content ?? "";
@@ -307,6 +362,37 @@ export class AIRuntime {
 
       if (abortController.signal.aborted) {
         return err(createError("ABORTED", "Geração cancelada."));
+      }
+
+      // Check for tool calls in the final result (may be more complete than stream)
+      const finalToolCalls =
+        result.tool_calls && result.tool_calls.length > 0
+          ? result.tool_calls
+          : collectedToolCalls;
+
+      if (finalToolCalls && finalToolCalls.length > 0) {
+        aiInfo(
+          "TOOL:result:tool-calls",
+          `modelId=${this.modelId} count=${finalToolCalls.length}`,
+          {
+            toolCalls: finalToolCalls.map((tc: any) => ({
+              id: tc.id,
+              name: tc.function?.name,
+            })),
+          },
+        );
+
+        aiInfo(
+          "INFERENCE:tool-calls",
+          `modelId=${this.modelId} count=${finalToolCalls.length}`,
+        );
+
+        return ok({
+          text,
+          reasoning: reasoning || undefined,
+          timings: result.timings,
+          tool_calls: finalToolCalls,
+        });
       }
 
       if (!text.trim() && !reasoning.trim()) {

@@ -9,7 +9,6 @@ import { ModelType } from "./types/manager";
 import { AvailableModel, ModelLoadResult } from "./types/model-loader";
 
 export async function loadModel(modelId: string): Promise<ModelLoadResult> {
-  // Look up modelId in unified catalog (LLM + Whisper)
   const llmModel = findModelById(modelId);
   const whisperModel = findWhisperModelById(modelId);
   const model = llmModel || whisperModel;

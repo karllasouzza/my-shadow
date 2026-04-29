@@ -314,28 +314,14 @@ export const MODEL_CATALOG: Model[] = [
   },
 ];
 
-/**
- * Gets the full list of available models in the catalog.
- * @returns {Model[]} Array of available models with metadata.
- */
 export function getAllModels(): Model[] {
   return [...MODEL_CATALOG];
 }
 
-/**
- * Finds a model in the catalog by its ID.
- * @param id model id
- * @returns {Model | undefined} Model matching the given ID, or undefined if not found.
- */
 export function findModelById(id: string): Model | undefined {
   return MODEL_CATALOG.find((model) => model.id === id);
 }
 
-/**
- * Filters models by available RAM.
- * @param maxRamBytes Maximum RAM in bytes
- * @returns {Model[]} Array of models that fit within the specified RAM
- */
 export function getModelsByRam(maxRamBytes: number): Model[] {
   return MODEL_CATALOG.filter(
     (model) => model.estimatedRamBytes <= maxRamBytes,
