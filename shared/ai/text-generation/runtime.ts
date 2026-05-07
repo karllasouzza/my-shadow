@@ -266,11 +266,16 @@ export class AIRuntime {
       findModelById(this.modelId)?.supportsReasoning ??
       !!options?.enableThinking;
 
+    console.log("[AIRuntime] is Think enabled:", enableThinking);
+
     const signal = options?.abortSignal;
     const filteredMessages = messages.map((m) => ({
       role: m.role,
       content: m.content,
       ...(m.role !== "user" ? { reasoning_content: m.reasoning_content } : {}),
+      ...(m.tool_calls && m.tool_calls.length > 0
+        ? { tool_calls: m.tool_calls }
+        : {}),
     }));
 
     let text = "";
@@ -290,7 +295,6 @@ export class AIRuntime {
 
     let firstTokenAt: number | null = null;
     let collectedToolCalls: CompletionOutput["tool_calls"] = undefined;
-    // Track already-seen tool call signatures to avoid duplicate detection per chunk
     const detectedToolCallSignatures = new Set<string>();
 
     try {

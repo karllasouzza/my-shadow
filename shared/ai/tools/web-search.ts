@@ -1,7 +1,6 @@
 import type { ToolDefinition, ToolResult } from "@/shared/ai/tools/types";
 import { fetchUrl } from "./fetch-url";
-import type { ParsedContent } from "./parse-html";
-import { parseHtml } from "./parse-html";
+import { decodeHtmlEntities } from "./parse-html";
 
 export const webSearchToolDefinition: ToolDefinition = {
   name: "web_search",
@@ -66,7 +65,9 @@ export async function webSearchHandler(
 
     const url = `${baseUrl}?${searchParams.toString()}`;
 
-    const webSearchTimeout = 30_000;
+    const webSearchTimeout = 12_000;
+    console.log(`[web-search] fetching query="${params.query}" url=${url}`);
+
     const fetchResult = await fetchUrl(url, {
       signal: context?.signal,
       timeout: webSearchTimeout,
@@ -81,6 +82,11 @@ export async function webSearchHandler(
       },
     });
 
+    console.log(
+      `[web-search] fetchResult success=${fetchResult.success}`,
+      fetchResult.html,
+    );
+
     if (!fetchResult.success) {
       const timeoutMs = webSearchTimeout;
       const errorMessage =
@@ -92,16 +98,14 @@ export async function webSearchHandler(
       return {
         success: false,
         error: errorMessage,
+        errorCode: fetchResult.errorCode,
       };
     }
 
-    const parsed = parseHtml(fetchResult.html, {
-      baseUrl: fetchResult.finalUrl || url,
-      removeSelectors: ["script", "style", "noscript", "header", "footer"],
-      maxTextLength: 500,
-    });
-
-    const results = extractDuckDuckGoResults(parsed, params.count || 10);
+    const results = extractDuckDuckGoResults(
+      fetchResult.html,
+      params.count || 10,
+    );
 
     if (results.length === 0) {
       return {
@@ -129,51 +133,71 @@ export async function webSearchHandler(
     return {
       success: false,
       error: "An unexpected error occurred while searching",
+      errorCode: (error as any)?.errorCode,
     };
   }
 }
 
 function extractDuckDuckGoResults(
-  parsed: ParsedContent,
+  html: string,
   maxCount: number,
 ): SearchResult[] {
   const results: SearchResult[] = [];
 
-  for (const link of parsed.links) {
-    if (results.length >= maxCount) break;
+  const resultRegex =
+    /<div[^>]*\bclass\s*=\s*["'][^"']*\bresult\b[^"']*["'][^>]*>([\s\S]*?)<\/div>\s*(?=<div[^>]*\bclass\s*=\s*["'][^"']*\bresult\b|$)/gi;
 
-    if (link.href.includes("duckduckgo.com") && !link.href.includes("/l/?")) {
-      continue;
-    }
+  let match: RegExpExecArray | null;
+  while (
+    (match = resultRegex.exec(html)) !== null &&
+    results.length < maxCount
+  ) {
+    const block = match[1];
 
-    const actualUrl = extractDuckDuckGoRedirectUrl(link.href);
-    if (!actualUrl) continue;
+    const titleMatch = block.match(
+      /<a[^>]*\bclass\s*=\s*["'][^"']*\bresult__a\b[^"']*["'][^>]*\bhref\s*=\s*["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/i,
+    );
+    if (!titleMatch) continue;
 
-    if (link.text?.length > 10 && actualUrl.startsWith("http")) {
-      results.push({
-        title: link.text,
-        url: actualUrl,
-        snippet: link.text,
-        source: extractHostname(actualUrl),
-      });
-    }
+    const rawUrl = decodeHtmlEntities(titleMatch[1]);
+    const title = stripHtml(decodeHtmlEntities(titleMatch[2])).trim();
+    const url = resolveDuckDuckGoUrl(rawUrl);
+
+    if (!url || !title) continue;
+
+    const snippetMatch = block.match(
+      /<(?:div|a)[^>]*\bclass\s*=\s*["'][^"']*\bresult__snippet\b[^"']*["'][^>]*>([\s\S]*?)<\/(?:div|a)>/i,
+    );
+    const snippet = snippetMatch
+      ? stripHtml(decodeHtmlEntities(snippetMatch[1])).trim()
+      : title;
+
+    results.push({
+      title,
+      url,
+      snippet: snippet || title,
+      source: extractHostname(url),
+    });
   }
 
   return results;
 }
 
-function extractDuckDuckGoRedirectUrl(href: string): string | null {
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ");
+}
+
+function resolveDuckDuckGoUrl(href: string): string | null {
   try {
     if (href.includes("/l/?") && href.includes("uddg=")) {
       const urlParams = new URL(href, "https://duckduckgo.com").searchParams;
       const encoded = urlParams.get("uddg");
-      if (encoded) {
-        return decodeURIComponent(encoded);
-      }
+      if (encoded) return decodeURIComponent(encoded);
     }
-    if (href.startsWith("http://") || href.startsWith("https://")) {
-      return href;
-    }
+
+    if (href.startsWith("//")) return "https:" + href;
+    if (href.startsWith("http://") || href.startsWith("https://")) return href;
+
     return null;
   } catch {
     return null;

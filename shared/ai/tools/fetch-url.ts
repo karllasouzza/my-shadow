@@ -8,7 +8,6 @@ export const BROWSER_HEADERS: Record<string, string> = {
   Accept:
     "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
   "Accept-Language": "en-US,en;q=0.9",
-  "Accept-Encoding": "gzip, deflate, br",
   Connection: "keep-alive",
   "Upgrade-Insecure-Requests": "1",
   "Sec-Fetch-Dest": "document",
@@ -124,10 +123,10 @@ export async function fetchUrl(
 
     try {
       const controller = new AbortController();
-      const combinedSignals = [controller.signal];
-      if (signal) combinedSignals.push(signal);
-
-      const timeoutId = setTimeout(() => controller.abort(), timeout);
+      const combinedSignal = combineSignals(
+        controller.signal,
+        signal,
+      ) as BunFetchSignal;
 
       const fetchHeaders: Record<string, string> = {};
       if (useBrowserHeaders) {
@@ -138,13 +137,28 @@ export async function fetchUrl(
         Object.assign(fetchHeaders, customHeaders);
       }
 
-      const response = await fetch(url, {
+      console.log(
+        `[fetch-url] attempt=${attempt} url=${url} timeout=${timeout}ms`,
+      );
+
+      const fetchPromise = fetch(url, {
         headers: fetchHeaders,
-        signal: combineSignals(...combinedSignals) as BunFetchSignal,
+        signal: combinedSignal,
         redirect: "follow",
       });
 
-      clearTimeout(timeoutId);
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          controller.abort();
+          const err = new Error(`Request timed out after ${timeout}ms.`);
+          err.name = "TimeoutError";
+          reject(err);
+        }, timeout);
+      });
+
+      const response = await Promise.race([fetchPromise, timeoutPromise]);
+
+      console.log(`[fetch-url] response received status=${response.status}`);
 
       const responseHeaders: Record<string, string> = {};
       response.headers?.forEach((value, key) => {
@@ -153,12 +167,13 @@ export async function fetchUrl(
 
       const finalUrl = response.url || url;
 
-      const reader = response.body?.getReader();
       let html = "";
       let totalBytes = 0;
-      const decoder = new TextDecoder("utf-8", { fatal: false });
 
-      if (reader) {
+      // Prefer simple text() on React Native; streaming reader may not be reliable
+      if (response.body?.getReader) {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder("utf-8", { fatal: false });
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
@@ -179,11 +194,12 @@ export async function fetchUrl(
           }
           html += decoder.decode(value, { stream: true });
         }
+        html += decoder.decode();
       } else {
         html = await response.text();
       }
 
-      html += decoder.decode();
+      console.log(`[fetch-url] body read bytes=${html.length}`);
 
       if (!response.ok) {
         if (response.status === 403 || response.status === 429) {
@@ -243,6 +259,8 @@ export async function fetchUrl(
         };
       }
 
+      console.log(`[fetch-url] success url=${url}`);
+
       return {
         success: true,
         html,
@@ -254,6 +272,9 @@ export async function fetchUrl(
       };
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
+      console.log(
+        `[fetch-url] error attempt=${attempt} message=${lastError.message}`,
+      );
 
       if (isTransientError(lastError)) {
         if (attempt <= retryAttempts) {
@@ -266,7 +287,6 @@ export async function fetchUrl(
 
       const isTimeout =
         lastError.name === "TimeoutError" ||
-        lastError.message.includes("aborted") ||
         lastError.message.includes("timed out");
 
       return {

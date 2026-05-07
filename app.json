@@ -64,7 +64,8 @@
       "expo-image",
       "expo-web-browser",
       "expo-file-system",
-      "expo-audio"
+      "expo-audio",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,

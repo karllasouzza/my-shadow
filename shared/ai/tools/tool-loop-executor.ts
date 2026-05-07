@@ -363,7 +363,19 @@ export class ToolLoopExecutor {
 
       events?.onIterationComplete?.(iteration, executions);
 
-      // Step 3: Inject tool results into message history
+      // Step 3a: Add assistant message with tool_calls (required by LLaMA template)
+      if (toolCalls.length > 0) {
+        const assistantWithToolCalls = {
+          id: `assistant_tool_${iteration}`,
+          role: "assistant" as const,
+          content: finalCompletion.text || "",
+          tool_calls: toolCalls,
+          createdAt: new Date().toISOString(),
+        };
+        history.push(assistantWithToolCalls);
+      }
+
+      // Step 3b: Inject tool results into message history
       for (const exec of executions) {
         if (context.abortSignal.aborted) {
           wasAborted = true;
@@ -628,11 +640,14 @@ export class ToolLoopExecutor {
           );
         } else {
           const errMsg = result?.error ?? "Tool returned no result";
+          const errorCode = result?.errorCode ?? "TOOL_ERROR";
+          const isRetryable = this.shouldRetry(errorCode);
+
           lastError = {
             toolName: toolCall.function.name,
             error: errMsg,
-            code: "TOOL_ERROR",
-            retryable: false,
+            code: errorCode,
+            retryable: isRetryable,
             timestamp: Date.now(),
           };
           execution.error = lastError;
@@ -644,11 +659,13 @@ export class ToolLoopExecutor {
           this.log(
             "warn",
             "TOOL:tool:error",
-            `id=${execId} name=${toolCall.function.name} error=${errMsg}`,
+            `id=${execId} name=${toolCall.function.name} error=${errMsg} code=${errorCode} retryable=${isRetryable}`,
           );
 
-          // Non-successful result from tool (not an exception) — do not retry
-          break;
+          // Retryable errors (TIMEOUT, NETWORK_ERROR, etc.) allow the loop to retry
+          if (!isRetryable) {
+            break;
+          }
         }
 
         events?.onToolComplete?.(execution);

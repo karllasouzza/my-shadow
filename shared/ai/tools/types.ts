@@ -23,6 +23,13 @@ export interface ToolResult {
   success: boolean;
   data?: unknown;
   error?: string;
+  errorCode?:
+    | "TIMEOUT"
+    | "NETWORK_ERROR"
+    | "CAPTCHA"
+    | "SIZE_LIMIT"
+    | "BLOCKED"
+    | "PARSE_ERROR";
   source?: string;
 }
 
