@@ -5,7 +5,7 @@ import type { UseVoiceInputResult } from "@/features/chat/view-model/hooks/useVo
 import { useVoiceInput } from "@/features/chat/view-model/hooks/useVoiceInput";
 import { cn } from "@/lib/utils";
 import { AvailableModel } from "@/shared/ai/types/model-loader";
-import React, { useCallback } from "react";
+import React, { useMemo } from "react";
 import { ActivityIndicator, Platform, View } from "react-native";
 import { ModelSelector } from "./model-selector";
 import QuickActions from "./quick-actions";
@@ -92,7 +92,8 @@ function ChatBottomBar({
 
   const isRecording = voiceStatus === "recording";
   const isProcessing = voiceStatus === "processing";
-  const showVoiceButton = value.trim().length === 0;
+  const showVoiceButton =
+    value.trim().length === 0 && !isRecording && !isProcessing && !isGenerating;
   const isDisabled = !isModelReady || isGenerating || !value.trim();
 
   const handleSend = () => {
@@ -100,11 +101,11 @@ function ChatBottomBar({
     onSend();
   };
 
-  const modelSupportsReasoning = useCallback(() => {
+  const modelSupportsReasoning = useMemo(() => {
     if (!selectedModel) return false;
     const model = availableModels.find((m) => m.id === selectedModel);
     return model?.supportsReasoning || false;
-  }, [selectedModel, availableModels])();
+  }, [selectedModel, availableModels]);
 
   return (
     <View className={cn("flex gap-3 bg-transparent p-3 w-full", className)}>

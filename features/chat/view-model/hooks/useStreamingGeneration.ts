@@ -196,7 +196,7 @@ async function generateWithTools(
         enableThinking: options.enableThinking,
         abortSignal: abortController.signal,
         toolOverrides: {
-          web_search: { timeoutMs: 45000, retryAttempts: 2 },
+          web_search: { timeoutMs: 60000, retryAttempts: 2 },
           fetch_url: { timeoutMs: 30000, retryAttempts: 1 },
         },
       },
@@ -218,6 +218,13 @@ async function generateWithTools(
 
             if (chunk.token) contentRef.current += chunk.token;
             if (chunk.reasoning) reasoningRef.current += chunk.reasoning;
+
+            // Update streaming message state for real-time UI display
+            setStreaming({
+              ...streamingMessage,
+              content: contentRef.current,
+              reasoning_content: reasoningRef.current || undefined,
+            });
 
             options.onUpdate?.(contentRef.current, reasoningRef.current);
           },

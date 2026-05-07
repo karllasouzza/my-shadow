@@ -3,7 +3,7 @@ import { aiError, aiInfo } from "@/shared/ai/log";
 import { getAIRuntime } from "@/shared/ai/text-generation/runtime";
 import { ToolRegistry, webSearchToolDefinition } from "@/shared/ai/tools";
 import { useValue } from "@legendapp/state/react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { toast } from "sonner-native";
 import { createChatMessage } from "../model/chat-message";
 import { useConversation } from "./hooks/useConversation";
@@ -24,13 +24,6 @@ export function useChat() {
   const model = useModelManager();
   const stream = useStreamingGeneration();
   const reasoningEnabled = useValue(chatState$.isReasoningEnabled) ?? false;
-
-  // Consent dialog state
-  const [consentOpen, setConsentOpen] = useState(false);
-  const [pendingConsent, setPendingConsent] = useState<{
-    query: string;
-    resolve: (granted: boolean) => void;
-  } | null>(null);
 
   const resolveCurrentModelId = useCallback(() => {
     return (
@@ -98,44 +91,11 @@ export function useChat() {
     [conversation, model, stream],
   );
 
-  // Get consent for a web search tool call
-  const requestConsent = useCallback((query: string): Promise<boolean> => {
-    return new Promise((resolve) => {
-      setPendingConsent({ query, resolve });
-      setConsentOpen(true);
-    });
-  }, []);
-
-  const handleConsentAllow = useCallback(() => {
-    pendingConsent?.resolve(true);
-    setPendingConsent(null);
-    setConsentOpen(false);
-  }, [pendingConsent]);
-
-  const handleConsentDecline = useCallback(() => {
-    pendingConsent?.resolve(false);
-    setPendingConsent(null);
-    setConsentOpen(false);
-  }, [pendingConsent]);
-
   const handleToolCall = useCallback(
     async (name: string, params: Record<string, unknown>) => {
-      if (name === "web_search") {
-        const query = (params.query as string) ?? "";
-        const granted = await requestConsent(query);
-
-        if (!granted) {
-          aiInfo("TOOL:consent:declined", `query="${query}"`);
-          return null;
-        }
-
-        aiInfo("TOOL:consent:granted", `query="${query}"`);
-        return toolRegistry.execute(name, params);
-      }
-
       return toolRegistry.execute(name, params);
     },
-    [requestConsent],
+    [],
   );
 
   const sendMessage = useCallback(
@@ -290,6 +250,7 @@ export function useChat() {
 
   const toggleReasoning = useCallback(() => {
     chatState$.isReasoningEnabled.set((prev) => !prev);
+    console.log("Reasoning enabled:", chatState$.isReasoningEnabled.get());
   }, []);
 
   const resetChatState = useCallback(() => {
@@ -356,12 +317,6 @@ export function useChat() {
       availableModels: model.available,
       isModelLoading: model.isLoading,
 
-      // Consent dialog state
-      consentOpen,
-      pendingConsent,
-      handleConsentAllow,
-      handleConsentDecline,
-
       initChat,
       syncModelStatus: model.sync,
       sendMessage,
@@ -402,10 +357,6 @@ export function useChat() {
       activeModelName,
       selectedModelId,
       model.selectedWhisperId,
-      consentOpen,
-      pendingConsent,
-      handleConsentAllow,
-      handleConsentDecline,
       initChat,
       sendMessage,
       cancelGeneration,
