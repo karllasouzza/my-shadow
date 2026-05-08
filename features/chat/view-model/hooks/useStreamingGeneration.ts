@@ -2,7 +2,6 @@ import { ChatMessage } from "@/database/chat/types";
 import { aiError, aiInfo } from "@/shared/ai/log";
 import { getAIRuntime } from "@/shared/ai/text-generation/runtime";
 import type { CompletionOutput } from "@/shared/ai/text-generation/types";
-import { ToolLoopExecutor } from "@/shared/ai/tools/tool-loop-executor";
 import type { ToolDefinition, ToolResult } from "@/shared/ai/tools/types";
 import { generateUUID } from "@/shared/random-id";
 import type { NativeCompletionResultTimings } from "llama.rn";
@@ -175,79 +174,44 @@ async function generateWithTools(
   | { success: false; error?: { code: string } }
   | { success: true; data: CompletionOutput }
 > {
-  const executor = new ToolLoopExecutor({
-    maxIterations: 3,
-    enableParallelExecution: true,
-    maxConcurrency: 3,
-    enableCaching: true,
-    cacheTTL: 10 * 60 * 1000,
-    maxCacheSize: 50,
-    errorStrategy: "continue-on-error",
-    defaultTimeoutMs: 30000,
-    defaultRetryAttempts: 2,
-    enableLogging: typeof __DEV__ !== "undefined" && __DEV__,
-  });
-
   try {
-    const result = await executor.execute(
-      {
-        messages,
-        tools: options.tools ?? [],
-        enableThinking: options.enableThinking,
-        abortSignal: abortController.signal,
-        toolOverrides: {
-          web_search: { timeoutMs: 60000, retryAttempts: 2 },
-          fetch_url: { timeoutMs: 30000, retryAttempts: 1 },
-        },
-      },
-      // Tool execution callback
-      async (name, params, _config) => {
+    const result = await getAIRuntime().streamCompletionWithTools(messages, {
+      enableThinking: options.enableThinking,
+      abortSignal: abortController.signal,
+      tools: options.tools,
+      maxIterations: 3,
+      onToolCall: async (name: string, params: Record<string, unknown>) => {
         if (abortController.signal.aborted) {
           return null;
         }
         return (await options.onToolCall?.(name, params)) ?? null;
       },
-      // Completion callback
-      async (msgs, completionOpts) => {
-        return await getAIRuntime().streamCompletion(msgs, {
-          enableThinking: completionOpts?.enableThinking,
-          abortSignal: completionOpts?.abortSignal,
-          tools: completionOpts?.tools,
-          onStreamChunk: (chunk) => {
-            if (abortController.signal.aborted) return;
+      onStreamChunk: (chunk) => {
+        if (abortController.signal.aborted) return;
 
-            if (chunk.token) contentRef.current += chunk.token;
-            if (chunk.reasoning) reasoningRef.current += chunk.reasoning;
+        if (chunk.token) contentRef.current += chunk.token;
+        if (chunk.reasoning) reasoningRef.current += chunk.reasoning;
 
-            // Update streaming message state for real-time UI display
-            setStreaming({
-              ...streamingMessage,
-              content: contentRef.current,
-              reasoning_content: reasoningRef.current || undefined,
-            });
+        setStreaming({
+          ...streamingMessage,
+          content: contentRef.current,
+          reasoning_content: reasoningRef.current || undefined,
+        });
 
-            options.onUpdate?.(contentRef.current, reasoningRef.current);
-          },
+        options.onUpdate?.(contentRef.current, reasoningRef.current);
+      },
+      onToolExecutionStart: () => {
+        setStreaming({
+          ...streamingMessage,
+          content: contentRef.current + "\n\n[⚙️ Executando ferramenta...]",
+          reasoning_content: reasoningRef.current,
         });
       },
-      // Event handlers
-      {
-        onToolStart: (_exec) => {
-          setStreaming({
-            ...streamingMessage,
-            content: contentRef.current + "\n\n[⚙️ Executando ferramenta...]",
-            reasoning_content: reasoningRef.current,
-          });
-        },
-        onIterationComplete: (_, executions) => {
-          const completed = executions.filter((e) => e.result.success).length;
-          aiInfo(
-            "TOOL:iteration:progress",
-            `completed=${completed} total=${executions.length}`,
-          );
-        },
+      toolOverrides: {
+        web_search: { timeoutMs: 60000, maxRetries: 2 },
+        fetch_url: { timeoutMs: 30000, maxRetries: 1 },
       },
-    );
+    });
 
     if (!result.success) {
       return {
@@ -256,11 +220,9 @@ async function generateWithTools(
       };
     }
 
-    const { finalCompletion } = result.data;
-
     return {
       success: true,
-      data: finalCompletion,
+      data: result.data,
     };
   } catch (error) {
     console.error("[generateWithTools] unexpected error:", error);

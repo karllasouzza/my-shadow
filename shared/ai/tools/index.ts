@@ -14,19 +14,6 @@ export {
   ParseHtmlOptions
 } from "./parse-html";
 export { ToolRegistry } from "./registry";
-export {
-  ToolLoopExecutor,
-  type CompletionFunction,
-  type ErrorStrategy,
-  type ExecutionError,
-  type ToolCallExecution,
-  type ToolExecutionConfig,
-  type ToolLoopConfig,
-  type ToolLoopContext,
-  type ToolLoopEvents,
-  type ToolLoopMetrics,
-  type ToolLoopResult
-} from "./tool-loop-executor";
 export * from "./types";
 export {
   formatSearchResultsForLLM,

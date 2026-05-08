@@ -1,22 +1,11 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import type { ToolCall } from "llama.rn";
-
-// Mock ai log to avoid console noise
-const mockInfo: string[] = [];
-const mockDebug: string[] = [];
-const mockError: string[] = [];
-
-mock.module("@/shared/ai/log", () => ({
-  aiInfo: (tag: string, msg: string) => {
-    mockInfo.push(`${tag}: ${msg}`);
-  },
-  aiDebug: (tag: string, msg: string) => {
-    mockDebug.push(`${tag}: ${msg}`);
-  },
-  aiError: (tag: string, msg: string) => {
-    mockError.push(`${tag}: ${msg}`);
-  },
-}));
+import type { ChatMessage } from "@/database/chat/types";
+import {
+  runToolLoop,
+  type CompletionFunction,
+  type ToolLoopOptions,
+} from "@/shared/ai/text-generation/tool-loop";
 
 // Helper factories
 function makeToolCall(
@@ -43,13 +32,12 @@ function makeCompletionOutput(text: string, tool_calls?: ToolCall[]) {
   };
 }
 
-function createContext(overrides: Record<string, unknown> = {}) {
+function makeOptions(
+  overrides: Partial<ToolLoopOptions> = {},
+): ToolLoopOptions {
   return {
-    messages: [],
-    tools: [],
-    enableThinking: false,
-    abortSignal: new AbortController().signal,
-    toolOverrides: overrides,
+    onToolCall: mock(async () => ({ success: true, data: { result: "ok" } })),
+    ...overrides,
   };
 }
 
@@ -72,22 +60,13 @@ function makeSingleIterationComplete(toolCalls: ToolCall[], finalText = "") {
       success: true as const,
       data: makeCompletionOutput(finalText || `Final response (#${callIndex})`),
     };
-  });
+  }) as CompletionFunction;
 }
 
-describe("ToolLoopExecutor", () => {
-  let ToolLoopExecutor: any;
-  let executor: any;
+describe("runToolLoop", () => {
   let mockOnToolCall: any;
 
-  beforeEach(async () => {
-    mockInfo.length = 0;
-    mockDebug.length = 0;
-    mockError.length = 0;
-
-    const mod = await import("@/shared/ai/tools/tool-loop-executor");
-    ToolLoopExecutor = mod.ToolLoopExecutor;
-    executor = new ToolLoopExecutor({ enableLogging: false });
+  beforeEach(() => {
     mockOnToolCall = mock(async () => ({
       success: true,
       data: { result: "ok" },
@@ -100,43 +79,24 @@ describe("ToolLoopExecutor", () => {
     const complete = makeSingleIterationComplete([
       makeToolCall("test_tool", { query: "hello" }),
     ]);
-    mockOnToolCall.mockResolvedValue({
-      success: true,
-      data: { result: "ok" },
-    });
 
-    const result = await executor.execute(
-      createContext(),
-      mockOnToolCall,
-      complete,
-    );
+    const result = await runToolLoop([], makeOptions({ onToolCall: mockOnToolCall }), complete);
 
     expect(result.success).toBe(true);
-    expect(mockOnToolCall).toHaveBeenCalledWith(
-      "test_tool",
-      { query: "hello" },
-      expect.anything(),
-    );
-    expect(result.data.toolCallHistory).toHaveLength(1);
-    expect(result.data.totalIterations).toBe(2);
+    expect(mockOnToolCall).toHaveBeenCalledWith("test_tool", { query: "hello" });
   });
 
   it("returns final text from completion when no tool calls", async () => {
     const complete = mock(async () => ({
       success: true as const,
       data: makeCompletionOutput("Hello, world!"),
-    }));
+    })) as CompletionFunction;
 
-    const result = await executor.execute(
-      createContext(),
-      mockOnToolCall,
-      complete,
-    );
+    const result = await runToolLoop([], makeOptions({ onToolCall: mockOnToolCall }), complete);
 
     expect(result.success).toBe(true);
-    expect(result.data.finalCompletion.text).toBe("Hello, world!");
+    expect((result as any).data.text).toBe("Hello, world!");
     expect(mockOnToolCall).not.toHaveBeenCalled();
-    expect(result.data.totalIterations).toBe(1);
   });
 
   it("executes multiple tool calls in same iteration", async () => {
@@ -150,15 +110,10 @@ describe("ToolLoopExecutor", () => {
       return { success: true, data: { name } };
     });
 
-    const result = await executor.execute(
-      createContext(),
-      mockOnToolCall,
-      complete,
-    );
+    const result = await runToolLoop([], makeOptions({ onToolCall: mockOnToolCall }), complete);
 
     expect(result.success).toBe(true);
     expect(mockOnToolCall).toHaveBeenCalledTimes(3);
-    expect(result.data.toolCallHistory).toHaveLength(3);
   });
 
   it("executes multiple iterations when tools return tool calls", async () => {
@@ -177,87 +132,22 @@ describe("ToolLoopExecutor", () => {
         success: true as const,
         data: makeCompletionOutput("Final answer"),
       };
-    });
+    }) as CompletionFunction;
 
     mockOnToolCall.mockImplementation(async (_name: string, params: any) => {
       return { success: true, data: { result: params } };
     });
 
-    const result = await executor.execute(
-      createContext(),
-      mockOnToolCall,
-      complete,
-    );
+    const result = await runToolLoop([], makeOptions({ onToolCall: mockOnToolCall }), complete);
 
     expect(result.success).toBe(true);
-    expect(result.data.finalCompletion.text).toBe("Final answer");
-    expect(result.data.totalIterations).toBe(3);
-  });
-
-  // ============ CACHING ============
-
-  it("caches successful results and returns on duplicate call", async () => {
-    const complete = makeSingleIterationComplete([
-      makeToolCall("calc", { x: 1 }),
-    ]);
-
-    // First execution: cache miss, tool called
-    await executor.execute(createContext(), mockOnToolCall, complete);
-    expect(mockOnToolCall).toHaveBeenCalledTimes(1);
-
-    // Second execution with same params: cache hit, tool not called again
-    const complete2 = makeSingleIterationComplete([
-      makeToolCall("calc", { x: 1 }),
-    ]);
-    await executor.execute(createContext(), mockOnToolCall, complete2);
-    expect(mockOnToolCall).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not cache failed results (default strategy)", async () => {
-    const complete1 = makeSingleIterationComplete([makeToolCall("fail", {})]);
-    const complete2 = makeSingleIterationComplete([makeToolCall("fail", {})]);
-
-    mockOnToolCall.mockResolvedValue({ success: false, error: "API error" });
-
-    await executor.execute(createContext(), mockOnToolCall, complete1);
-    await executor.execute(createContext(), mockOnToolCall, complete2);
-
-    // Should call twice (no caching of failures) — one per execute call
+    expect((result as any).data.text).toBe("Final answer");
     expect(mockOnToolCall).toHaveBeenCalledTimes(2);
-  });
-
-  it("cache key normalizes object key order", async () => {
-    const complete = makeSingleIterationComplete([
-      makeToolCall("search", { a: 1, b: 2 }),
-    ]);
-
-    // First call with ordered params
-    await executor.execute(createContext(), mockOnToolCall, complete);
-
-    // Second call with same params different key order
-    const complete2 = mock(async () => {
-      return {
-        success: true as const,
-        data: makeCompletionOutput("", [
-          makeToolCall("search", { b: 2, a: 1 }),
-        ]),
-      };
-    });
-
-    await executor.execute(createContext(), mockOnToolCall, complete2);
-
-    // Should be cache hit (normalized keys) — only 1 tool call total
-    expect(mockOnToolCall).toHaveBeenCalledTimes(1);
   });
 
   // ============ ERROR HANDLING ============
 
-  it("continue-on-error: collects errors but continues execution", async () => {
-    executor = new ToolLoopExecutor({
-      errorStrategy: "continue-on-error",
-      enableLogging: false,
-    });
-
+  it("continues execution when a tool fails", async () => {
     const complete = makeSingleIterationComplete([
       makeToolCall("ok_tool", {}),
       makeToolCall("fail_tool", {}),
@@ -271,67 +161,22 @@ describe("ToolLoopExecutor", () => {
       return Promise.resolve({ success: true, data: { ok: true } });
     });
 
-    const result = await executor.execute(
-      createContext(),
-      mockOnToolCall,
-      complete,
-    );
+    const result = await runToolLoop([], makeOptions({ onToolCall: mockOnToolCall }), complete);
 
     expect(result.success).toBe(true);
-    expect(result.data.errors).toHaveLength(1);
-    expect(result.data.toolCallHistory).toHaveLength(3);
-  });
-
-  it("fail-fast: stops on first error", async () => {
-    executor = new ToolLoopExecutor({
-      errorStrategy: "fail-fast",
-      enableLogging: false,
-    });
-
-    let callIndex = 0;
-    const complete = mock(async () => {
-      callIndex++;
-      return {
-        success: true as const,
-        data: makeCompletionOutput("", [
-          makeToolCall("ok_tool", {}),
-          makeToolCall("fail_tool", {}),
-          makeToolCall("never_called", {}),
-        ]),
-      };
-    });
-
-    mockOnToolCall.mockImplementation((name: string) => {
-      if (name === "fail_tool") {
-        return Promise.resolve({ success: false, error: "Stop here" });
-      }
-      return Promise.resolve({ success: true, data: {} });
-    });
-
-    const result = await executor.execute(
-      createContext(),
-      mockOnToolCall,
-      complete,
-    );
-
-    expect(result.success).toBe(true);
-    expect(result.data.errors.length).toBeGreaterThan(0);
+    expect(mockOnToolCall).toHaveBeenCalledTimes(3);
   });
 
   it("handles completion failure on first iteration", async () => {
     const complete = mock(async () => ({
       success: false as const,
       error: { code: "GENERATION_FAILED", message: "Model error" },
-    }));
+    })) as CompletionFunction;
 
-    const result = await executor.execute(
-      createContext(),
-      mockOnToolCall,
-      complete,
-    );
+    const result = await runToolLoop([], makeOptions({ onToolCall: mockOnToolCall }), complete);
 
     expect(result.success).toBe(false);
-    expect(result.error.code).toBe("GENERATION_FAILED");
+    expect((result as any).error.code).toBe("GENERATION_FAILED");
   });
 
   // ============ ABORT SIGNAL ============
@@ -345,147 +190,49 @@ describe("ToolLoopExecutor", () => {
         success: true as const,
         data: makeCompletionOutput("", [makeToolCall("slow", {})]),
       };
-    });
+    }) as CompletionFunction;
 
     mockOnToolCall.mockImplementation(async () => {
       await new Promise((r) => setTimeout(r, 100));
       return { success: true, data: {} };
     });
 
-    // Abort before execution completes
     setTimeout(() => abortController.abort(), 20);
 
-    const result = await executor.execute(
-      {
-        ...createContext(),
+    const result = await runToolLoop(
+      [],
+      makeOptions({
+        onToolCall: mockOnToolCall,
         abortSignal: abortController.signal,
-      },
-      mockOnToolCall,
+      }),
       complete,
     );
 
-    expect(result.data?.wasAborted).toBe(true);
+    expect(result.success).toBe(false);
+    expect((result as any).error.code).toBe("ABORTED");
   });
 
-  // ============ DEPENDENCIES & ORDERING ============
+  // ============ MESSAGE HISTORY ============
 
-  it("respects tool dependency hints for sequential execution", async () => {
-    const calls: string[] = [];
-
+  it("injects assistant message with tool_calls before tool results", async () => {
     const complete = makeSingleIterationComplete([
-      makeToolCall("fetch", { url: "..." }),
-      makeToolCall("parse", { source: "fetch" }),
+      makeToolCall("test", {}),
     ]);
 
-    mockOnToolCall.mockImplementation(async (name: string) => {
-      calls.push(`start:${name}`);
-      await new Promise((r) => setTimeout(r, 10));
-      calls.push(`end:${name}`);
-      return { success: true, data: { name } };
-    });
+    const history: ChatMessage[] = [
+      { id: "user_1", role: "user", content: "hi", createdAt: new Date().toISOString() },
+    ];
 
-    await executor.execute(
-      {
-        ...createContext(),
-        toolOverrides: {
-          parse: { dependsOn: ["fetch"] },
-        },
-      },
-      mockOnToolCall,
-      complete,
-    );
+    await runToolLoop(history, makeOptions({ onToolCall: mockOnToolCall }), complete);
 
-    // fetch must complete before parse starts
-    const endFetch = calls.indexOf("end:fetch");
-    const startParse = calls.indexOf("start:parse");
-    expect(endFetch).toBeLessThan(startParse);
-  });
-
-  // ============ METRICS & EVENTS ============
-
-  it("emits lifecycle events correctly", async () => {
-    const events = {
-      onToolStart: mock(() => {}),
-      onToolComplete: mock(() => {}),
-      onMetrics: mock(() => {}),
-    };
-
-    const complete = makeSingleIterationComplete([makeToolCall("test", {})]);
-
-    mockOnToolCall.mockResolvedValue({ success: true, data: {} });
-
-    await executor.execute(createContext(), mockOnToolCall, complete, events);
-
-    expect(events.onToolStart).toHaveBeenCalled();
-    expect(events.onToolComplete).toHaveBeenCalled();
-    expect(events.onMetrics).toHaveBeenCalled();
-  });
-
-  it("collects accurate metrics", async () => {
-    const complete = makeSingleIterationComplete([
-      makeToolCall("a", {}),
-      makeToolCall("b", {}),
-    ]);
-
-    mockOnToolCall.mockResolvedValue({ success: true, data: {} });
-
-    // First run: 2 cache misses
-    await executor.execute(createContext(), mockOnToolCall, complete);
-
-    // Second run with same calls: 2 cache hits
-    const complete2 = makeSingleIterationComplete([
-      makeToolCall("a", {}),
-      makeToolCall("b", {}),
-    ]);
-    const result2 = await executor.execute(
-      createContext(),
-      mockOnToolCall,
-      complete2,
-    );
-
-    const metrics2 = result2.data.metrics;
-    expect(metrics2.cacheHits).toBe(2);
-    expect(metrics2.toolCallCount).toBe(2);
-  });
-
-  it("has correct cache stats", async () => {
-    const complete = makeSingleIterationComplete([makeToolCall("a", {})]);
-
-    mockOnToolCall.mockResolvedValue({ success: true, data: {} });
-
-    await executor.execute(createContext(), mockOnToolCall, complete);
-
-    const stats = executor.getCacheStats();
-    expect(stats.size).toBe(1);
-    expect(stats.hits).toBe(0);
-    expect(stats.misses).toBe(1);
-  });
-
-  it("clearCache removes entries", async () => {
-    const complete = makeSingleIterationComplete([makeToolCall("a", {})]);
-
-    mockOnToolCall.mockResolvedValue({ success: true, data: {} });
-
-    await executor.execute(createContext(), mockOnToolCall, complete);
-    expect(executor.getCacheStats().size).toBe(1);
-
-    executor.clearCache();
-    expect(executor.getCacheStats().size).toBe(0);
-  });
-
-  it("clearCache with tool name removes only that tool's entries", async () => {
-    const completeA = makeSingleIterationComplete([makeToolCall("a", {})]);
-    const completeB = makeSingleIterationComplete([makeToolCall("b", {})]);
-
-    mockOnToolCall.mockResolvedValue({ success: true, data: {} });
-
-    await executor.execute(createContext(), mockOnToolCall, completeA);
-    await executor.execute(createContext(), mockOnToolCall, completeB);
-
-    expect(executor.getCacheStats().size).toBe(2);
-
-    executor.clearCache("a");
-    expect(executor.getCacheStats().size).toBe(1);
+    // Verify that complete was called with updated history on second iteration
+    expect(complete).toHaveBeenCalledTimes(2);
+    const secondCallHistory = (complete as any).mock.calls[1][0] as ChatMessage[];
+    expect(secondCallHistory).toHaveLength(3);
+    expect(secondCallHistory[1].role).toBe("assistant");
+    expect(secondCallHistory[1].tool_calls).toBeDefined();
+    expect(secondCallHistory[2].role).toBe("tool");
+    expect(secondCallHistory[2].tool_call_id).toBeDefined();
   });
 
   // ============ EDGE CASES ============
@@ -494,17 +241,12 @@ describe("ToolLoopExecutor", () => {
     const complete = mock(async () => ({
       success: true as const,
       data: makeCompletionOutput("Direct response"),
-    }));
+    })) as CompletionFunction;
 
-    const result = await executor.execute(
-      createContext(),
-      mockOnToolCall,
-      complete,
-    );
+    const result = await runToolLoop([], makeOptions({ onToolCall: mockOnToolCall }), complete);
 
     expect(result.success).toBe(true);
-    expect(result.data.finalCompletion.text).toBe("Direct response");
-    expect(result.data.toolCallHistory).toHaveLength(0);
+    expect((result as any).data.text).toBe("Direct response");
   });
 
   it("handles invalid JSON in tool call arguments", async () => {
@@ -520,34 +262,34 @@ describe("ToolLoopExecutor", () => {
     const complete = makeSingleIterationComplete([toolCall]);
 
     mockOnToolCall.mockImplementation(async (_name: string, params: any) => {
-      // Should receive empty object for invalid JSON
       return { success: true, data: { received: params } };
     });
 
-    await executor.execute(createContext(), mockOnToolCall, complete);
+    await runToolLoop([], makeOptions({ onToolCall: mockOnToolCall }), complete);
 
-    expect(mockOnToolCall).toHaveBeenCalledWith(
-      "bad_tool",
-      {},
-      expect.anything(),
-    );
+    expect(mockOnToolCall).toHaveBeenCalledWith("bad_tool", {});
   });
 
   it("handles tool returning null (user declined)", async () => {
-    const complete = makeSingleIterationComplete([
-      makeToolCall("declined", {}),
-    ]);
+    const complete = makeSingleIterationComplete([makeToolCall("declined", {})]);
 
     mockOnToolCall.mockResolvedValue(null);
 
-    const result = await executor.execute(
-      createContext(),
-      mockOnToolCall,
+    const result = await runToolLoop([], makeOptions({ onToolCall: mockOnToolCall }), complete);
+
+    expect(result.success).toBe(true);
+  });
+
+  it("emits onToolExecutionStart callback", async () => {
+    const onToolExecutionStart = mock(() => {});
+    const complete = makeSingleIterationComplete([makeToolCall("test", {})]);
+
+    await runToolLoop(
+      [],
+      makeOptions({ onToolCall: mockOnToolCall, onToolExecutionStart }),
       complete,
     );
 
-    expect(result.success).toBe(true);
-    expect(result.data.toolCallHistory[0].result.success).toBe(false);
-    expect(result.data.toolCallHistory[0].result.error).toContain("declined");
+    expect(onToolExecutionStart).toHaveBeenCalledWith(["test"]);
   });
 });

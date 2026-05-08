@@ -9,15 +9,21 @@ import { findModelById } from "./catalog";
 import { buildConfig } from "./config";
 import { STOP_WORDS } from "./constants";
 import { isLikelyOOMError } from "./oom-detection";
-import { CompletionOutput, StreamCompletionOptions } from "./types";
+import { runToolLoop } from "./tool-loop";
+import {
+  CompletionOutput,
+  StreamCompletionOptions,
+  StreamCompletionWithToolsOptions,
+} from "./types";
 
 let instance: AIRuntime | null = null;
 
 export class AIRuntime {
   private context: LlamaContext | null = null;
   private modelId: string | null = null;
-  private stopFn: (() => Promise<void>) | null = null;
   private loadingPromise: Promise<any> | null = null;
+  private stopFn: (() => Promise<void>) | null = null;
+
   private config: any = null;
   private device: DeviceInfo | null = null;
   private _toolUseSupported = false;
@@ -474,6 +480,38 @@ export class AIRuntime {
     } finally {
       this.stopFn = null;
     }
+  }
+
+  async streamCompletionWithTools(
+    messages: ChatMessage[],
+    options: StreamCompletionWithToolsOptions,
+  ): Promise<Result<CompletionOutput>> {
+    aiInfo(
+      "TOOL:loop:start",
+      `modelId=${this.modelId} maxIterations=${options.maxIterations ?? 3}`,
+      {
+        maxIterations: options.maxIterations ?? 3,
+        toolCount: options.tools?.length ?? 0,
+      },
+    );
+
+    const result = await runToolLoop(
+      messages,
+      {
+        maxIterations: options.maxIterations,
+        onToolCall: options.onToolCall,
+        onToolExecutionStart: options.onToolExecutionStart,
+        toolOverrides: options.toolOverrides,
+        abortSignal: options.abortSignal,
+      },
+      (history) => this.streamCompletion(history, options),
+    );
+
+    if (result.success) {
+      aiInfo("TOOL:loop:end", `modelId=${this.modelId}`);
+    }
+
+    return result;
   }
 
   async cancelGeneration(): Promise<void> {
