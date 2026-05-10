@@ -1,9 +1,3 @@
-/**
- * Conversation Error State
- *
- * Exibido quando a conversa não foi encontrada ou está corrompida.
- * Card centralizado com ícone, mensagem e botão para voltar ao histórico.
- */
 import { Icon } from "@/components/ui/icon";
 import { Text } from "@/components/ui/text";
 import { AlertCircle, Clock } from "lucide-react-native";

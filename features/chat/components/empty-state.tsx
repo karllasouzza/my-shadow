@@ -1,9 +1,3 @@
-/**
- * Empty State
- *
- * Estado vazio do chat — mensagem de boas-vindas.
- */
-
 import React from "react";
 import { Text, View } from "react-native";
 

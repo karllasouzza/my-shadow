@@ -1,37 +1,20 @@
-/**
- * NoModelPrompt component
- *
- * Displays an AlertDialog when no Whisper model is loaded, prompting the user
- * to download one. All strings are in Brazilian Portuguese.
- *
- * Requirements: 8.1, 8.2, 8.3, 8.4
- */
-
 import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Text } from "@/components/ui/text";
-
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
 
 interface NoModelPromptProps {
   visible: boolean;
   onConfirm: () => void;
   onDismiss: () => void;
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export function NoModelPrompt({
   visible,

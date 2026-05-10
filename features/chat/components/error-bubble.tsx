@@ -1,8 +1,3 @@
-/**
- * Error Bubble
- *
- * Mensagem de erro exibida como bubble na conversa com botão de retry.
- */
 import { Icon } from "@/components/ui/icon";
 import { Text } from "@/components/ui/text";
 import { AlertTriangle, RefreshCw } from "lucide-react-native";
@@ -27,9 +22,7 @@ export function ErrorBubble({ message, onRetry }: ErrorBubbleProps) {
         <Text className="text-destructive font-semibold text-sm mb-1">
           Erro na geração
         </Text>
-        <Text className="text-destructive/80 text-sm leading-5">
-          {message}
-        </Text>
+        <Text className="text-destructive/80 text-sm leading-5">{message}</Text>
 
         {/* Retry button */}
         <Pressable

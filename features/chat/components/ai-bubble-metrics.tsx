@@ -6,14 +6,12 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { CompletionOutput } from "@/shared/ai/text-generation/types";
+import type { CompletionTimings } from "@/shared/ai/text-generation/types";
 import React from "react";
 import { View } from "react-native";
 
-type RuntimeTimings = CompletionOutput["timings"];
-
 type MetricsProps = {
-  timings?: RuntimeTimings;
+  timings?: CompletionTimings | null;
 };
 
 export function AIBubbleMetrics({ timings }: MetricsProps) {
@@ -21,20 +19,11 @@ export function AIBubbleMetrics({ timings }: MetricsProps) {
     return null;
   }
 
-  const generatedTokens = timings.predicted_n;
-  const promptTokens = timings.prompt_n;
-  const cacheTokens = timings.cache_n;
-
-  const totalDurationMs = timings.prompt_ms + timings.predicted_ms;
-
-  const firstPhaseMs = timings.prompt_ms;
-
-  const tokensPerSecond =
-    timings.predicted_per_second > 0
-      ? timings.predicted_per_second
-      : timings.predicted_ms > 0
-        ? (timings.predicted_n / timings.predicted_ms) * 1000
-        : 0;
+  const generatedTokens = timings.generatedTokens;
+  const promptTokens = timings.promptTokens;
+  const totalDurationMs = timings.totalMs;
+  const firstTokenMs = timings.timeToFirstToken;
+  const tokensPerSecond = timings.tokensPerSecond;
 
   return (
     <View className="w-full flex-row items-center gap-2 flex-wrap bg-muted/50 rounded-lg px-3 py-2">
@@ -69,32 +58,12 @@ export function AIBubbleMetrics({ timings }: MetricsProps) {
               className="size-3.5 text-muted-foreground"
             />
             <Text className="text-muted-foreground text-xs">
-              {cacheTokens} tok cache
-            </Text>
-          </Badge>
-        </TooltipTrigger>
-        <TooltipContent side="top">
-          <Text>Tokens atuais no KV cache (cache_n)</Text>
-        </TooltipContent>
-      </Tooltip>
-
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Badge
-            variant="outline"
-            className="flex-row items-center gap-1.5 py-1"
-          >
-            <Icon
-              as={require("lucide-react-native").Hash}
-              className="size-3.5 text-muted-foreground"
-            />
-            <Text className="text-muted-foreground text-xs">
               {promptTokens} tok prompt
             </Text>
           </Badge>
         </TooltipTrigger>
         <TooltipContent side="top">
-          <Text>Tokens de entrada processados no prompt (prompt_n)</Text>
+          <Text>Tokens de entrada processados no prompt</Text>
         </TooltipContent>
       </Tooltip>
 
@@ -129,12 +98,12 @@ export function AIBubbleMetrics({ timings }: MetricsProps) {
               className="size-3.5 text-muted-foreground"
             />
             <Text className="text-muted-foreground text-xs">
-              {firstPhaseMs.toFixed(0)} ms
+              {firstTokenMs.toFixed(0)} ms
             </Text>
           </Badge>
         </TooltipTrigger>
         <TooltipContent side="top">
-          <Text>Tempo de processamento do prompt (prompt_ms)</Text>
+          <Text>Tempo até o primeiro token (TTFT)</Text>
         </TooltipContent>
       </Tooltip>
 
