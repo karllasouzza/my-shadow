@@ -1,4 +1,5 @@
-import type { NativeCompletionResultTimings, ToolCall } from "llama.rn";
+import type { CompletionTimings } from "@/shared/ai/text-generation/types";
+import type { ToolCall } from "llama.rn";
 
 export type MessageRole = "system" | "user" | "assistant" | "tool";
 
@@ -7,7 +8,7 @@ export interface ChatMessage {
   role: MessageRole;
   content: string;
   reasoning_content?: string;
-  timings?: NativeCompletionResultTimings;
+  timings?: CompletionTimings;
   modelId?: string;
   errorCode?: string;
   createdAt: string;
