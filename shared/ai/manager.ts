@@ -1,7 +1,7 @@
 import { aiDebug, aiError, aiInfo } from "@/shared/ai/log";
 import { Result, createError, err, ok } from "@/shared/utils/app-error";
 import * as FileSystem from "expo-file-system/legacy";
-import { getAIRuntime } from "./text-generation/runtime";
+import { getTextEngine } from "./text-generation";
 import {
   DownloadedModelInfo,
   ModelType,
@@ -353,13 +353,13 @@ export async function removeDownloadedModel(
     aiInfo("REMOVE:start", `modelId=${modelId}`);
 
     // Unload from LLM runtime if loaded
-    const runtime = getAIRuntime();
-    if (runtime.getCurrentModel()?.id === modelId) {
+    const engine = getTextEngine();
+    if (engine.getState().modelId === modelId) {
       aiDebug(
         "REMOVE:unload",
         `model is loaded in LLM runtime, unloading: ${modelId}`,
       );
-      await runtime.unloadModel();
+      await engine.unloadModel();
     }
 
     // TODO: Unload from Whisper runtime when stt/runtime.ts is available.

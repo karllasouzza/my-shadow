@@ -3,8 +3,8 @@ import { aiError, aiInfo } from "@/shared/ai/log";
 import { getDownloadedModels, getModelLocalPath } from "./manager";
 import { WHISPER_CATALOG, findWhisperModelById } from "./stt/catalog";
 import { getWhisperRuntime } from "./stt/runtime";
+import { getTextEngine } from "./text-generation";
 import { findModelById, getAllModels } from "./text-generation/catalog";
-import { getAIRuntime } from "./text-generation/runtime";
 import { ModelType } from "./types/manager";
 import { AvailableModel, ModelLoadResult } from "./types/model-loader";
 
@@ -26,24 +26,35 @@ export async function loadModel(modelId: string): Promise<ModelLoadResult> {
   const start = Date.now();
 
   // Dispatch to correct runtime based on modelType
-  let result;
   if (model.modelType === "gguf") {
-    const runtime = getAIRuntime();
-    result = await runtime.loadModel(modelId, path, model.fileSizeBytes);
+    const result = await getTextEngine().loadModel(
+      modelId,
+      path,
+      model.fileSizeBytes,
+    );
+    if (!result.ok) {
+      aiError(
+        "MODEL:load:error",
+        `modelId=${modelId} msg=${result.error.message}`,
+        { error: result.error },
+      );
+      return { success: false, error: result.error.message };
+    }
   } else if (model.modelType === "bin") {
-    const runtime = getWhisperRuntime();
-    result = await runtime.loadModel(modelId, path);
+    const result = await getWhisperRuntime().loadModel(modelId, path);
+    if (!result.success) {
+      aiError(
+        "MODEL:load:error",
+        `modelId=${modelId} msg=${result.error?.message}`,
+        { error: result.error },
+      );
+      return {
+        success: false,
+        error: result.error?.message ?? "Unknown error",
+      };
+    }
   } else {
     return { success: false, error: "Tipo de modelo não suportado" };
-  }
-
-  if (!result.success) {
-    aiError(
-      "MODEL:load:error",
-      `modelId=${modelId} msg=${result.error.message}`,
-      { error: result.error },
-    );
-    return { success: false, error: result.error.message };
   }
 
   const duration = Date.now() - start;
@@ -78,22 +89,24 @@ export async function unloadModel(modelId: string): Promise<ModelLoadResult> {
   const start = Date.now();
 
   // Dispatch to correct runtime based on modelType
-  let result;
+  let succeeded = false;
+  let errorMsg: string | undefined;
+
   if (model.modelType === "gguf") {
-    result = await getAIRuntime().unloadModel();
+    const result = await getTextEngine().unloadModel();
+    succeeded = result.ok;
+    if (!result.ok) errorMsg = result.error.message;
   } else if (model.modelType === "bin") {
-    result = await getWhisperRuntime().unloadModel();
+    const result = await getWhisperRuntime().unloadModel();
+    succeeded = result.success;
+    if (!result.success) errorMsg = result.error?.message;
   } else {
     return { success: false, error: "Tipo de modelo não suportado" };
   }
 
-  if (result.success) {
-    // Clear the correct chatState field based on model type
-    if (model.modelType === "gguf") {
-      chatState$.lastModelId.set(null);
-    } else if (model.modelType === "bin") {
-      chatState$.lastWhisperModelId.set(null);
-    }
+  if (succeeded) {
+    if (model.modelType === "gguf") chatState$.lastModelId.set(null);
+    else if (model.modelType === "bin") chatState$.lastWhisperModelId.set(null);
 
     const duration = Date.now() - start;
     aiInfo("MODEL:unload:done", `modelId=${modelId} duration_ms=${duration}`, {
@@ -103,17 +116,15 @@ export async function unloadModel(modelId: string): Promise<ModelLoadResult> {
     return { success: true };
   }
 
-  aiError(
-    "MODEL:unload:error",
-    `modelId=${modelId} msg=${result.error?.message}`,
-    { error: result.error },
-  );
-  return { success: false, error: result.error?.message };
+  aiError("MODEL:unload:error", `modelId=${modelId} msg=${errorMsg}`, {
+    error: errorMsg,
+  });
+  return { success: false, error: errorMsg };
 }
 
 export function getSelectedModelId(modelType: ModelType): string | null {
   if (modelType === "gguf") {
-    return getAIRuntime().getCurrentModel()?.id ?? null;
+    return getTextEngine().getState().modelId ?? null;
   } else if (modelType === "bin") {
     return getWhisperRuntime().getCurrentModel()?.id ?? null;
   }
@@ -143,7 +154,7 @@ export async function getAvailableModels(): Promise<AvailableModel[]> {
   const downloaded = await getDownloadedModels();
 
   // Get loaded model IDs from both runtimes
-  const loadedLlmId = getAIRuntime().getCurrentModel()?.id;
+  const loadedLlmId = getTextEngine().getState().modelId;
   const loadedWhisperId = getWhisperRuntime().getCurrentModel()?.id;
 
   return Object.keys(downloaded)
