@@ -1,13 +1,13 @@
 import { isModelDownloaded } from "@/shared/ai/manager";
 import {
-    autoLoadLastModel,
-    getAvailableModels,
-    getSelectedModelId,
-    loadModel,
-    unloadModel,
+  autoLoadLastModel,
+  getAvailableModels,
+  getSelectedModelId,
+  loadModel,
+  unloadModel,
 } from "@/shared/ai/model-loader";
-import { getTextEngine } from "@/shared/ai/text-generation";
 import { getWhisperRuntime } from "@/shared/ai/stt/runtime";
+import { getTextEngine } from "@/shared/ai/text-generation";
 import type { AvailableModel } from "@/shared/ai/types/model-loader";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -153,7 +153,11 @@ export function useModelManager() {
     const engine = getTextEngine();
     const state = engine.getState();
 
-    if (state.isLoaded && state.modelId && !(await isModelDownloaded(state.modelId))) {
+    if (
+      state.isLoaded &&
+      state.modelId &&
+      !(await isModelDownloaded(state.modelId))
+    ) {
       await engine.unloadModel();
       setCurrentId(null);
       setIsReady(false);
