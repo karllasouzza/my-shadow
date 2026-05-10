@@ -1,10 +1,16 @@
 import { ChatMessage } from "@/database/chat/types";
 import { aiError, aiInfo } from "@/shared/ai/log";
-import { getAIRuntime } from "@/shared/ai/text-generation/runtime";
-import type { CompletionOutput } from "@/shared/ai/text-generation/types";
-import type { ToolDefinition, ToolResult } from "@/shared/ai/tools/types";
+import type {
+  CompletionOutput,
+  CompletionTimings,
+  GenerateOptions as EngineGenerateOptions,
+  Message,
+  StreamEvent,
+  ToolDefinitionForEngine,
+  ToolResultForEngine,
+} from "@/shared/ai/text-generation";
+import { getTextEngine } from "@/shared/ai/text-generation";
 import { generateUUID } from "@/shared/random-id";
-import type { NativeCompletionResultTimings } from "llama.rn";
 import { useCallback, useMemo, useRef, useState } from "react";
 
 export interface StreamingMessage extends ChatMessage {
@@ -14,13 +20,13 @@ export interface StreamingMessage extends ChatMessage {
 interface GenerateOptions {
   modelId: string;
   enableThinking: boolean;
-  tools?: ToolDefinition[];
+  tools?: ToolDefinitionForEngine[];
   onUpdate?: (content: string, reasoning: string) => void;
   onComplete?: (
     content: string,
     reasoning?: string,
     messageId?: string,
-    timings?: NativeCompletionResultTimings,
+    timings?: CompletionTimings | null,
   ) => void;
   onError?: (
     code: string,
@@ -28,11 +34,10 @@ interface GenerateOptions {
     partialReasoning?: string,
     messageId?: string,
   ) => void;
-  /** Called when the model requests a tool call. Return the tool result or null to decline. */
   onToolCall?: (
     name: string,
     params: Record<string, unknown>,
-  ) => Promise<ToolResult | null>;
+  ) => Promise<ToolResultForEngine | null>;
 }
 
 export function useStreamingGeneration() {
@@ -55,90 +60,53 @@ export function useStreamingGeneration() {
       contentRef.current = "";
       reasoningRef.current = "";
 
-      // Create initial streaming message with fixed timestamp
-      const createdAtTimestamp = new Date().toISOString();
-      const initialMessage: StreamingMessage = {
-        id: generateUUID(),
-        role: "assistant",
-        content: "",
-        reasoning_content: "",
-        modelId: options.modelId,
-        createdAt: createdAtTimestamp,
-        updatedAt: createdAtTimestamp,
-        _isStreaming: true,
-      };
-
-      setStreaming(initialMessage);
+      const messageId = generateUUID();
+      const base = createStreamingBase(messageId);
       setIsGenerating(true);
+      setStreaming(base);
 
-      aiInfo("INFERENCE:ui:start", `messageId=${initialMessage.id}`, {
-        modelId: options.modelId,
-        messageId: initialMessage.id,
-      });
-
-      // Run the full generation with tool call support
-      const result = await generateWithTools(
-        messages,
-        options,
-        abortController,
-        initialMessage,
-        (updated: StreamingMessage) => setStreaming(updated),
-        contentRef,
-        reasoningRef,
+      const result = await getTextEngine().generate(
+        toEngineMessages(messages),
+        buildEngineOptions(
+          options,
+          abortController,
+          base,
+          contentRef,
+          reasoningRef,
+          setStreaming,
+        ),
       );
 
       abortRef.current = null;
 
       if (abortController.signal.aborted) {
-        aiInfo("INFERENCE:ui:aborted", `messageId=${initialMessage.id}`);
-        clearStreamingState();
-        options.onError?.(
-          "ABORTED",
-          contentRef.current,
-          reasoningRef.current,
-          initialMessage.id,
+        onAborted(
+          messageId,
+          contentRef,
+          reasoningRef,
+          options,
+          clearStreamingState,
         );
         return;
       }
-
-      if (!result.success) {
-        aiError(
-          "INFERENCE:ui:error",
-          `messageId=${initialMessage.id} code=${result.error?.code}`,
-        );
-        clearStreamingState();
-        options.onError?.(
-          result.error?.code ?? "GENERATION_FAILED",
-          contentRef.current,
-          reasoningRef.current,
-          initialMessage.id,
+      if (!result.ok) {
+        onFailed(
+          result.error,
+          messageId,
+          contentRef,
+          reasoningRef,
+          options,
+          clearStreamingState,
         );
         return;
       }
-
-      // Save final message to state
-      const finalMessage: ChatMessage = {
-        id: initialMessage.id,
-        role: "assistant",
-        content: result.data.text || contentRef.current,
-        reasoning_content:
-          result.data.reasoning || reasoningRef.current || undefined,
-        timings: result.data.timings,
-        modelId: options.modelId,
-        createdAt: initialMessage.createdAt,
-        updatedAt: new Date().toISOString(),
-      };
-
-      clearStreamingState();
-      aiInfo("INFERENCE:ui:complete", `messageId=${initialMessage.id}`, {
-        messageId: initialMessage.id,
-        timings: result.data.timings,
-      });
-      options.onComplete?.(
-        finalMessage.content,
-        finalMessage.reasoning_content,
-        finalMessage.id,
-        finalMessage.timings,
+      onCompleted(
+        result.data,
+        messageId,
+        contentRef,
+        reasoningRef,
+        options,
+        clearStreamingState,
       );
     },
     [clearStreamingState],
@@ -151,86 +119,154 @@ export function useStreamingGeneration() {
   }, [clearStreamingState]);
 
   return useMemo(
-    () => ({
-      streaming,
-      isGenerating,
-      generate,
-      cancel,
-      clearStreamingState,
-    }),
+    () => ({ streaming, isGenerating, generate, cancel, clearStreamingState }),
     [streaming, isGenerating, generate, cancel, clearStreamingState],
   );
 }
 
-async function generateWithTools(
-  messages: ChatMessage[],
+// ─── Pure helpers ───
+
+function createStreamingBase(messageId: string): StreamingMessage {
+  return {
+    id: messageId,
+    role: "assistant",
+    content: "",
+    createdAt: new Date().toISOString(),
+    _isStreaming: true,
+  };
+}
+
+function toEngineMessages(messages: readonly ChatMessage[]): Message[] {
+  return messages.map((m) => ({
+    role: m.role,
+    content: m.content,
+    ...(m.tool_calls?.length
+      ? {
+          tool_calls: m.tool_calls.map((tc) => ({
+            id: tc.id ?? "",
+            function: {
+              name: tc.function.name,
+              arguments: tc.function.arguments,
+            },
+          })),
+        }
+      : {}),
+    ...(m.tool_call_id ? { tool_call_id: m.tool_call_id } : {}),
+  }));
+}
+
+function buildEngineOptions(
   options: GenerateOptions,
   abortController: AbortController,
-  streamingMessage: StreamingMessage,
-  setStreaming: (msg: StreamingMessage) => void,
+  base: StreamingMessage,
   contentRef: { current: string },
   reasoningRef: { current: string },
-): Promise<
-  | { success: false; error?: { code: string } }
-  | { success: true; data: CompletionOutput }
-> {
-  try {
-    const result = await getAIRuntime().streamCompletionWithTools(messages, {
-      enableThinking: options.enableThinking,
-      abortSignal: abortController.signal,
-      tools: options.tools,
-      maxIterations: 3,
-      onToolCall: async (name: string, params: Record<string, unknown>) => {
-        if (abortController.signal.aborted) {
-          return null;
+  setStreaming: (msg: StreamingMessage) => void,
+): EngineGenerateOptions {
+  return {
+    enableThinking: options.enableThinking,
+    abortSignal: abortController.signal,
+    tools: options.tools,
+    maxToolIterations: 3,
+    onToolCall: options.onToolCall
+      ? async (name, params) => {
+          if (abortController.signal.aborted) return null;
+          return (await options.onToolCall?.(name, params)) ?? null;
         }
-        return (await options.onToolCall?.(name, params)) ?? null;
-      },
-      onStreamChunk: (chunk) => {
-        if (abortController.signal.aborted) return;
+      : undefined,
+    onEvent: (event) => {
+      if (abortController.signal.aborted) return;
+      handleStreamEvent(
+        event,
+        base,
+        contentRef,
+        reasoningRef,
+        setStreaming,
+        options.onUpdate,
+      );
+    },
+    onToolExecutionStart: () => {
+      setStreaming({
+        ...base,
+        content: contentRef.current + "\n\n[⚙️ Executando ferramenta...]",
+        reasoning_content: reasoningRef.current || undefined,
+      });
+    },
+  };
+}
 
-        if (chunk.token) contentRef.current += chunk.token;
-        if (chunk.reasoning) reasoningRef.current += chunk.reasoning;
+function handleStreamEvent(
+  event: StreamEvent,
+  base: StreamingMessage,
+  contentRef: { current: string },
+  reasoningRef: { current: string },
+  setStreaming: (msg: StreamingMessage) => void,
+  onUpdate?: (content: string, reasoning: string) => void,
+): void {
+  if (event.type === "text") contentRef.current += event.token;
+  else if (event.type === "thinking") reasoningRef.current += event.token;
+  else return;
 
-        setStreaming({
-          ...streamingMessage,
-          content: contentRef.current,
-          reasoning_content: reasoningRef.current || undefined,
-        });
+  setStreaming({
+    ...base,
+    content: contentRef.current,
+    reasoning_content: reasoningRef.current || undefined,
+  });
+  onUpdate?.(contentRef.current, reasoningRef.current);
+}
 
-        options.onUpdate?.(contentRef.current, reasoningRef.current);
-      },
-      onToolExecutionStart: () => {
-        setStreaming({
-          ...streamingMessage,
-          content: contentRef.current + "\n\n[⚙️ Executando ferramenta...]",
-          reasoning_content: reasoningRef.current,
-        });
-      },
-      toolOverrides: {
-        web_search: { timeoutMs: 60000, maxRetries: 2 },
-        fetch_url: { timeoutMs: 30000, maxRetries: 1 },
-      },
-    });
+function onAborted(
+  messageId: string,
+  contentRef: { current: string },
+  reasoningRef: { current: string },
+  options: GenerateOptions,
+  clearStreamingState: () => void,
+): void {
+  aiInfo("INFERENCE:ui:aborted", `messageId=${messageId}`);
+  clearStreamingState();
+  options.onError?.(
+    "ABORTED",
+    contentRef.current,
+    reasoningRef.current,
+    messageId,
+  );
+}
 
-    if (!result.success) {
-      return {
-        success: false,
-        error: { code: result.error.code },
-      };
-    }
+function onFailed(
+  error: { code: string; message: string },
+  messageId: string,
+  contentRef: { current: string },
+  reasoningRef: { current: string },
+  options: GenerateOptions,
+  clearStreamingState: () => void,
+): void {
+  aiError("INFERENCE:ui:error", `messageId=${messageId} code=${error.code}`);
+  clearStreamingState();
+  options.onError?.(
+    error.code,
+    contentRef.current,
+    reasoningRef.current,
+    messageId,
+  );
+}
 
-    return {
-      success: true,
-      data: result.data,
-    };
-  } catch (error) {
-    console.error("[generateWithTools] unexpected error:", error);
-    return {
-      success: false,
-      error: {
-        code: error instanceof Error ? error.message : "Unknown error",
-      },
-    };
-  }
+function onCompleted(
+  data: CompletionOutput,
+  messageId: string,
+  contentRef: { current: string },
+  reasoningRef: { current: string },
+  options: GenerateOptions,
+  clearStreamingState: () => void,
+): void {
+  clearStreamingState();
+  aiInfo("INFERENCE:ui:complete", `messageId=${messageId}`, {
+    messageId,
+    timings: data.timings,
+  });
+  options.onComplete?.(
+    data.text || contentRef.current,
+    data.reasoning || reasoningRef.current || undefined,
+    messageId,
+    data.timings,
+  );
 }

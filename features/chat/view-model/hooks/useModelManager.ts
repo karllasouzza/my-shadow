@@ -6,7 +6,7 @@ import {
     loadModel,
     unloadModel,
 } from "@/shared/ai/model-loader";
-import { getAIRuntime } from "@/shared/ai/text-generation/runtime";
+import { getTextEngine } from "@/shared/ai/text-generation";
 import { getWhisperRuntime } from "@/shared/ai/stt/runtime";
 import type { AvailableModel } from "@/shared/ai/types/model-loader";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -95,11 +95,11 @@ export function useModelManager() {
   }, [refresh]);
 
   const autoLoad = useCallback(async () => {
-    const runtime = getAIRuntime();
+    const engine = getTextEngine();
 
     // Check if a model is already loaded
-    if (runtime.isModelLoaded()) {
-      setCurrentId(runtime.getCurrentModel()?.id ?? null);
+    if (engine.isReady()) {
+      setCurrentId(engine.getState().modelId ?? null);
       setIsReady(true);
       setError(null);
       await refresh();
@@ -111,7 +111,7 @@ export function useModelManager() {
     setIsLoading(false);
 
     if (result.success) {
-      setCurrentId(runtime.getCurrentModel()?.id ?? null);
+      setCurrentId(engine.getState().modelId ?? null);
       setIsReady(true);
       setError(null);
       await refresh();
@@ -150,12 +150,11 @@ export function useModelManager() {
   }, [refresh]);
 
   const sync = useCallback(async () => {
-    const runtime = getAIRuntime();
-    const loaded = runtime.isModelLoaded();
-    const model = runtime.getCurrentModel();
+    const engine = getTextEngine();
+    const state = engine.getState();
 
-    if (loaded && model && !(await isModelDownloaded(model.id))) {
-      await runtime.unloadModel();
+    if (state.isLoaded && state.modelId && !(await isModelDownloaded(state.modelId))) {
+      await engine.unloadModel();
       setCurrentId(null);
       setIsReady(false);
       setError("Modelo removido do dispositivo.");
@@ -163,9 +162,9 @@ export function useModelManager() {
       return;
     }
 
-    setCurrentId(model?.id ?? null);
+    setCurrentId(state.modelId ?? null);
     setCurrentWhisperId(getSelectedModelId("bin"));
-    setIsReady(loaded);
+    setIsReady(state.isLoaded);
     await refresh();
   }, [refresh]);
 

@@ -1,7 +1,12 @@
 import chatState$ from "@/database/chat";
 import { aiError, aiInfo } from "@/shared/ai/log";
-import { getAIRuntime } from "@/shared/ai/text-generation/runtime";
-import { ToolRegistry, webSearchToolDefinition } from "@/shared/ai/tools";
+import type {
+  ToolDefinitionForEngine,
+  ToolResultForEngine,
+} from "@/shared/ai/text-generation";
+import { getTextEngine } from "@/shared/ai/text-generation";
+import type { ToolDefinition } from "@/shared/ai/tools";
+import { getToolEngine, webSearchDefinition } from "@/shared/ai/tools";
 import { useValue } from "@legendapp/state/react";
 import { useCallback, useMemo } from "react";
 import { toast } from "sonner-native";
@@ -10,13 +15,23 @@ import { useConversation } from "./hooks/useConversation";
 import { useModelManager } from "./hooks/useModelManager";
 import { useStreamingGeneration } from "./hooks/useStreamingGeneration";
 
-/** Global tool registry with web search tool pre-registered. */
-export const toolRegistry = new ToolRegistry();
-toolRegistry.register(webSearchToolDefinition);
+/** Global tool engine with web search tool pre-registered. */
+const toolEngine = getToolEngine();
+toolEngine.register(webSearchDefinition);
 
 /** Simple message validation */
 function validateChatMessage(content: string) {
   return { isValid: content.trim().length > 0 };
+}
+
+function toEngineToolDefs(
+  tools: readonly ToolDefinition[],
+): ToolDefinitionForEngine[] {
+  return tools.map((t) => ({
+    name: t.name,
+    description: t.description,
+    inputSchema: t.inputSchema,
+  }));
 }
 
 export function useChat() {
@@ -26,9 +41,7 @@ export function useChat() {
   const reasoningEnabled = useValue(chatState$.isReasoningEnabled) ?? false;
 
   const resolveCurrentModelId = useCallback(() => {
-    return (
-      model.selectedId ?? getAIRuntime().getCurrentModel()?.id ?? "unknown"
-    );
+    return model.selectedId ?? getTextEngine().getState().modelId ?? "unknown";
   }, [model.selectedId]);
 
   const handleGenerationError = useCallback(
@@ -51,8 +64,8 @@ export function useChat() {
             modelId,
           );
           if (messageId) {
-            (partialMessage as any).id = messageId;
-            (partialMessage as any)._isStreaming = true;
+            partialMessage.id = messageId;
+            partialMessage._isStreaming = true;
           }
           conversation.addMessage(conversationId, partialMessage);
         }
@@ -73,8 +86,8 @@ export function useChat() {
         modelId,
       );
       if (messageId) {
-        (errorMessage as any).id = messageId;
-        (errorMessage as any)._isStreaming = true;
+        errorMessage.id = messageId;
+        errorMessage._isStreaming = true;
       }
       conversation.addMessage(conversationId, errorMessage);
       stream.clearStreamingState();
@@ -92,8 +105,19 @@ export function useChat() {
   );
 
   const handleToolCall = useCallback(
-    async (name: string, params: Record<string, unknown>) => {
-      return toolRegistry.execute(name, params);
+    async (
+      name: string,
+      params: Record<string, unknown>,
+    ): Promise<ToolResultForEngine | null> => {
+      const result = await toolEngine.execute(name, params);
+      if (result.ok) {
+        return { success: true, data: result.data };
+      }
+      return {
+        success: false,
+        error: result.error.message,
+        errorCode: result.error.code,
+      };
     },
     [],
   );
@@ -128,7 +152,7 @@ export function useChat() {
       await stream.generate(messages, {
         modelId: currentModelId,
         enableThinking: reasoningEnabled,
-        tools: toolRegistry.getAll(),
+        tools: toEngineToolDefs(toolEngine.getEnabled()),
         onToolCall: handleToolCall,
         onComplete: (text, reasoning, messageId, timings) => {
           aiInfo(
@@ -142,10 +166,10 @@ export function useChat() {
             currentModelId,
           );
           if (messageId) {
-            (assistantMessage as any).id = messageId;
+            assistantMessage.id = messageId;
           }
           if (timings) {
-            (assistantMessage as any).timings = timings;
+            assistantMessage.timings = timings;
           }
           aiInfo(
             "INFERENCE:end",
@@ -206,7 +230,7 @@ export function useChat() {
     await stream.generate(messages, {
       modelId: currentModelId,
       enableThinking: reasoningEnabled,
-      tools: toolRegistry.getAll(),
+      tools: toEngineToolDefs(toolEngine.getEnabled()),
       onToolCall: handleToolCall,
       onComplete: (text, reasoning, messageId, timings) => {
         const assistantMessage = createChatMessage(
@@ -250,7 +274,6 @@ export function useChat() {
 
   const toggleReasoning = useCallback(() => {
     chatState$.isReasoningEnabled.set((prev) => !prev);
-    console.log("Reasoning enabled:", chatState$.isReasoningEnabled.get());
   }, []);
 
   const resetChatState = useCallback(() => {
