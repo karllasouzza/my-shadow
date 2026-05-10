@@ -1,48 +1,78 @@
-import { detectDevice, type DeviceInfo } from "@/shared/device";
-import type { ContextParams } from "llama.rn";
+import { detectDevice } from "@/shared/device";
 import { aiDebug } from "../log";
+import type { ContextConfig, RamTier } from "./types";
 
-interface BuildConfigParams {
-  modelPath: string;
-  fileSizeBytes: number;
-  overrides?: Partial<ContextParams>;
+export interface ConfigParams {
+  readonly fileSizeBytes: number;
+  readonly overrideNCtx?: number;
 }
 
-export async function buildConfig({
-  modelPath,
-  fileSizeBytes,
-  overrides,
-}: BuildConfigParams): Promise<ContextParams> {
-  const device: DeviceInfo = await detectDevice();
-  const requiredGB = (fileSizeBytes * 1.5) / 1024 ** 3;
-  aiDebug("LOAD:device-check", `requiredGB=${requiredGB.toFixed(2)}`, {
+export function calculateRamTier(availableRamGB: number): RamTier {
+  if (availableRamGB < 4) return "low";
+  if (availableRamGB < 7) return "mid";
+  return "high";
+}
+
+export function calculateThreads(cpuCores: number): number {
+  return Math.max(4, cpuCores - 1);
+}
+
+export function calculateGpuLayers(hasGpu: boolean): number {
+  return hasGpu ? 99 : 0;
+}
+
+export function calculateContextParams(
+  tier: RamTier,
+): Pick<ContextConfig, "n_ctx" | "n_batch" | "n_ubatch"> {
+  switch (tier) {
+    case "low":
+      return { n_ctx: 1024, n_batch: 128, n_ubatch: 64 };
+    case "mid":
+      return { n_ctx: 2048, n_batch: 256, n_ubatch: 128 };
+    case "high":
+      return { n_ctx: 4096, n_batch: 512, n_ubatch: 256 };
+  }
+}
+
+export function calculateCacheType(tier: RamTier): {
+  cache_type_k: string;
+  cache_type_v: string;
+} {
+  const cacheType = tier === "low" ? "q4_0" : "q8_0";
+  return { cache_type_k: cacheType, cache_type_v: cacheType };
+}
+
+export async function buildContextConfig(
+  params: ConfigParams,
+): Promise<ContextConfig> {
+  const device = await detectDevice();
+  const requiredGB = (params.fileSizeBytes * 1.5) / 1024 ** 3;
+
+  aiDebug("CONFIG:device-check", `requiredGB=${requiredGB.toFixed(2)}`, {
     requiredGB,
-    device,
+    availableRAM: device.availableRAM,
   });
-
-  const ram = device.availableRAM;
-  const isLowEnd = ram < 4;
-  const isMid = ram < 7;
-
-  const enableFlashAttn = device.hasGPU;
 
   if (requiredGB > device.availableRAM * 0.75) {
     throw new Error("LOAD:insufficient-memory");
   }
 
-  return {
-    model: modelPath,
-    n_ctx: isLowEnd ? 1024 : isMid ? 2048 : 4096,
-    n_batch: isLowEnd ? 128 : isMid ? 256 : 512,
-    n_ubatch: isLowEnd ? 64 : isMid ? 128 : 256,
-    n_threads: Math.max(4, device.cpuCores - 1),
-    n_gpu_layers: device.hasGPU ? 99 : 0,
-    use_mmap: false,
-    use_mlock: true,
-    cache_type_k: isLowEnd ? "q4_0" : "q8_0",
-    cache_type_v: isLowEnd ? "q4_0" : "q8_0",
-    flash_attn: enableFlashAttn,
-    flash_attn_type: enableFlashAttn ? "on" : "auto",
-    ...overrides,
+  const tier = calculateRamTier(device.availableRAM);
+  const contextParams = calculateContextParams(tier);
+  const cacheTypes = calculateCacheType(tier);
+
+  const config: ContextConfig = {
+    n_ctx: params.overrideNCtx ?? contextParams.n_ctx,
+    n_batch: contextParams.n_batch,
+    n_ubatch: contextParams.n_ubatch,
+    use_mlock: device.platform === "iOS",
+    use_mmap: true,
+    n_threads: calculateThreads(device.cpuCores),
+    n_gpu_layers: calculateGpuLayers(device.hasGPU),
+    flash_attn: calculateGpuLayers(device.hasGPU) > 0,
+    ...cacheTypes,
   };
+
+  aiDebug("CONFIG:built", `tier=${tier}`, { tier, config });
+  return config;
 }
