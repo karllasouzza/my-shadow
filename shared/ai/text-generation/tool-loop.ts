@@ -2,28 +2,17 @@ import type { ChatMessage } from "@/database/chat/types";
 import type { ToolResult } from "@/shared/ai/tools/types";
 import { createError, err, ok, type Result } from "@/shared/utils/app-error";
 import type { ToolCall } from "llama.rn";
-import type { CompletionOutput } from "./types";
+import type {
+  CompletionOutput,
+  RunToolLoopParams,
+  ToolLoopOptions,
+} from "./types";
 
-export interface ToolLoopOptions {
-  maxIterations?: number;
-  onToolCall: (
-    name: string,
-    params: Record<string, unknown>,
-  ) => Promise<ToolResult | null>;
-  onToolExecutionStart?: (toolNames: string[]) => void;
-  toolOverrides?: Record<string, { timeoutMs?: number; maxRetries?: number }>;
-  abortSignal?: AbortSignal;
-}
-
-export type CompletionFunction = (
-  messages: ChatMessage[],
-) => Promise<Result<CompletionOutput>>;
-
-export async function runToolLoop(
-  messages: ChatMessage[],
-  options: ToolLoopOptions,
-  complete: CompletionFunction,
-): Promise<Result<CompletionOutput>> {
+export async function runToolLoop({
+  messages,
+  options,
+  onComplete,
+}: RunToolLoopParams): Promise<Result<CompletionOutput>> {
   const maxIterations = options.maxIterations ?? 3;
   const history: ChatMessage[] = [...messages];
   let finalCompletion: CompletionOutput | null = null;
@@ -33,7 +22,7 @@ export async function runToolLoop(
       return err(createError("ABORTED", "Geração cancelada."));
     }
 
-    const completionResult = await complete(history);
+    const completionResult = await onComplete(history);
 
     if (!completionResult.success) {
       if (iteration === 0) {
@@ -44,7 +33,10 @@ export async function runToolLoop(
 
     finalCompletion = completionResult.data;
 
-    if (!finalCompletion.tool_calls || finalCompletion.tool_calls.length === 0) {
+    if (
+      !finalCompletion.tool_calls ||
+      finalCompletion.tool_calls.length === 0
+    ) {
       break;
     }
 
@@ -168,8 +160,7 @@ async function executeSingleTool(
       await sleep(delay);
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);
-      const isTimeout =
-        error instanceof Error && error.name === "TimeoutError";
+      const isTimeout = error instanceof Error && error.name === "TimeoutError";
       const errorCode = isTimeout ? "TIMEOUT" : "EXECUTION_ERROR";
 
       if (!retryableCodes.has(errorCode) || attempt === maxRetries) {

@@ -1,6 +1,6 @@
 import { aiInfo } from "@/shared/ai/log";
 import { Platform } from "react-native";
-import DeviceInfo from "react-native-device-info";
+import DeviceInfoModule from "react-native-device-info";
 
 export interface DeviceInfo {
   totalRAM: number;
@@ -22,19 +22,21 @@ const GB = 1024 ** 3;
 async function detectCPUCores(): Promise<number> {
   try {
     // Try to infer from supported ABIs (64-bit devices typically have more cores)
-    const abis = await DeviceInfo.supportedAbis().catch(() => []);
+    const abis = await DeviceInfoModule.supportedAbis().catch(() => []);
     const has64Bit = abis.some(
       (abi: string) => abi.includes("arm64") || abi.includes("x86_64"),
     );
 
     // Get RAM as a strong indicator of device tier
-    const totalMemory = await DeviceInfo.getTotalMemory().catch(() => 4 * GB);
+    const totalMemory = await DeviceInfoModule.getTotalMemory().catch(
+      () => 4 * GB,
+    );
     const totalGB = totalMemory / GB;
 
     // Heuristic mapping based on device specifications
     if (Platform.OS === "ios") {
       // iOS devices: A-series chips have predictable core counts
-      const deviceId = DeviceInfo.getDeviceId(); // e.g., "iPhone15,2"
+      const deviceId = DeviceInfoModule.getDeviceId(); // e.g., "iPhone15,2"
       if (
         deviceId.includes("iPhone14") ||
         deviceId.includes("iPhone15") ||
@@ -77,9 +79,9 @@ async function detectAndroidGPU(): Promise<{
   gpuModel?: string;
 }> {
   try {
-    const device = await DeviceInfo.getModel();
-    const brand = await DeviceInfo.getBrand();
-    const systemVersion = await DeviceInfo.getSystemVersion();
+    const device = await DeviceInfoModule.getModel();
+    const brand = await DeviceInfoModule.getBrand();
+    const systemVersion = await DeviceInfoModule.getSystemVersion();
 
     aiInfo("DEVICE:gpu-detect:android", `device=${device} brand=${brand}`, {
       device,
@@ -121,8 +123,8 @@ async function detectAndroidGPU(): Promise<{
 
 export async function detectDevice(): Promise<DeviceInfo> {
   const [total, used, cpuCores] = await Promise.all([
-    DeviceInfo.getTotalMemory().catch(() => 4 * GB),
-    DeviceInfo.getUsedMemory().catch(() => 0),
+    DeviceInfoModule.getTotalMemory().catch(() => 4 * GB),
+    DeviceInfoModule.getUsedMemory().catch(() => 0),
     detectCPUCores(), // ✅ Now properly detects cores
   ]);
 

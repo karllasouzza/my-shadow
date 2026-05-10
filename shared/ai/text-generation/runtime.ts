@@ -3,8 +3,12 @@ import { aiDebug, aiError, aiInfo } from "@/shared/ai/log";
 import { toLlamaToolsFormat } from "@/shared/ai/tools/types";
 import { generateUUID } from "@/shared/random-id";
 import { createError, err, ok, Result } from "@/shared/utils/app-error";
-import { initLlama, LlamaContext, TokenData } from "llama.rn";
-import { detectDevice, type DeviceInfo } from "../../device";
+import {
+  initLlama,
+  LlamaContext,
+  loadLlamaModelInfo,
+  TokenData,
+} from "llama.rn";
 import { findModelById } from "./catalog";
 import { buildConfig } from "./config";
 import { STOP_WORDS } from "./constants";
@@ -25,8 +29,8 @@ export class AIRuntime {
   private stopFn: (() => Promise<void>) | null = null;
 
   private config: any = null;
-  private device: DeviceInfo | null = null;
-  private _toolUseSupported = false;
+  private _isToolUseSupported = false;
+  private _isThinkSupported = false;
 
   isModelLoaded(id?: string): boolean {
     if (!this.context) return false;
@@ -65,64 +69,33 @@ export class AIRuntime {
     try {
       await this.unloadModel();
 
-      this.device ??= await detectDevice();
-      const device = this.device as DeviceInfo;
-      const requiredGB = (fileSizeBytes * 1.5) / 1024 ** 3;
-      aiDebug("LOAD:device-check", `requiredGB=${requiredGB.toFixed(2)}`, {
-        requiredGB,
-        device,
+      const config = await buildConfig({
+        modelPath: path,
+        fileSizeBytes,
       });
-      if (requiredGB > device.availableRAM * 0.75) {
-        const message = `Modelo precisa de ~${requiredGB.toFixed(1)}GB. Disponível: ${device.availableRAM.toFixed(1)}GB.`;
-        aiError("LOAD:insufficient-memory", message, {
-          requiredGB,
-          availableRAM: device.availableRAM,
-        });
-        return err(createError("INSUFFICIENT_MEMORY", message));
-      }
-
-      const config = buildConfig(device, path, fileSizeBytes);
-
-      aiInfo(
-        "LOAD:initLlama:start",
-        `modelId=${modelId} gpu=${device.hasGPU}`,
-        {
-          config: { ...config, model: undefined },
-          hasGPU: device.hasGPU,
-          gpuBackend: device.gpuBackend,
-          gpuModel: device.gpuModel,
-          n_gpu_layers: config.n_gpu_layers,
-        },
-      );
 
       this.context = await initLlama({
         ...config,
       });
 
-      aiInfo("LOAD:initLlama:done", `modelId=${modelId}`, {
-        configuredGPULayers: config.n_gpu_layers,
-        gpuBackend: device.gpuBackend,
-        hasGPU: device.hasGPU,
-        batchSize: config.n_batch,
-        ubatchSize: config.n_ubatch,
-      });
-
       await this.context.parallel.enable({
-        n_parallel: 1,
+        n_parallel: 4,
       });
 
       // Detect tool calling support from model's jinja template
       try {
         const jinja = this.context.model?.chatTemplates?.jinja;
-        console.log("LOAD:tool-support", `modelId=${modelId}`, jinja);
-        this._toolUseSupported = jinja?.defaultCaps.tools === true;
+        this._isToolUseSupported = jinja?.defaultCaps.tools === true;
         aiInfo(
           "LOAD:tool-support",
-          `modelId=${modelId} toolUse=${this._toolUseSupported}`,
-          { toolUseSupported: this._toolUseSupported },
+          `modelId=${modelId} toolUse=${this._isToolUseSupported}`,
+          { toolUseSupported: this._isToolUseSupported },
         );
+
+        const modelInfo = await loadLlamaModelInfo(config.model);
+        console.log(modelInfo);
       } catch {
-        this._toolUseSupported = false;
+        this._isToolUseSupported = false;
         aiDebug("LOAD:tool-support:error", "could not detect tool support");
       }
 
@@ -138,9 +111,6 @@ export class AIRuntime {
         modelId,
         duration,
         config,
-        device,
-        gpuBackend: device.gpuBackend,
-        gpuEnabled: device.hasGPU,
       });
 
       return ok({ id: modelId });
@@ -214,7 +184,11 @@ export class AIRuntime {
       penalty_last_n: 64,
     };
 
-    if (options?.tools && options.tools.length > 0 && this._toolUseSupported) {
+    if (
+      options?.tools &&
+      options.tools.length > 0 &&
+      this._isToolUseSupported
+    ) {
       const enabledTools = options.tools.filter((t) => t.enabled);
       if (enabledTools.length > 0) {
         config.tools = toLlamaToolsFormat(enabledTools);
@@ -227,7 +201,7 @@ export class AIRuntime {
           },
         );
       }
-    } else if (options?.tools?.length && !this._toolUseSupported) {
+    } else if (options?.tools?.length && !this._isToolUseSupported) {
       aiDebug(
         "TOOL:build-config:unsupported",
         `model=${this.modelId} does not support tool use`,
@@ -495,17 +469,11 @@ export class AIRuntime {
       },
     );
 
-    const result = await runToolLoop(
+    const result = await runToolLoop({
       messages,
-      {
-        maxIterations: options.maxIterations,
-        onToolCall: options.onToolCall,
-        onToolExecutionStart: options.onToolExecutionStart,
-        toolOverrides: options.toolOverrides,
-        abortSignal: options.abortSignal,
-      },
-      (history) => this.streamCompletion(history, options),
-    );
+      options,
+      onComplete: (history) => this.streamCompletion(history, options),
+    });
 
     if (result.success) {
       aiInfo("TOOL:loop:end", `modelId=${this.modelId}`);
