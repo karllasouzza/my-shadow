@@ -188,7 +188,7 @@ export class TextEngine {
       console.log(this.toLlamaParams(path, config));
       const context = await initLlama(this.toLlamaParams(path, config));
 
-      await context.parallel.enable({ n_parallel: 4 });
+      await context.parallel.enable({ n_parallel: 1 });
       this.state.context = context;
       this.state.modelId = modelId as ModelId;
       this.state.config = config;
@@ -253,6 +253,7 @@ export class TextEngine {
         () => {},
       );
       await promise;
+      await this.state.context?.clearCache?.();
       aiDebug("LOAD:warmup:done", `duration_ms=${Date.now() - start}`);
     } catch (error) {
       aiDebug("LOAD:warmup:skip", `error=${(error as Error)?.message}`);
@@ -272,6 +273,7 @@ export class TextEngine {
       use_mmap: config.use_mmap,
       use_mlock: config.use_mlock,
       n_parallel: 4,
+      no_extra_bufts: true,
     };
   }
 

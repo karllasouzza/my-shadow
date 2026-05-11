@@ -4,17 +4,17 @@ import { STOP_WORDS } from "./constants";
 import { createThinkingState, processThinkingToken } from "./thinking";
 import { detectToolCalls } from "./tool-execution";
 import {
-    CompletionOutput,
-    CompletionTimings,
-    ContextConfig,
-    GenerateOptions,
-    Message,
-    StreamAccumulator,
-    StreamEvent,
-    ThinkingState,
-    fail,
-    ok,
-    type Result,
+  CompletionOutput,
+  CompletionTimings,
+  ContextConfig,
+  GenerateOptions,
+  Message,
+  StreamAccumulator,
+  StreamEvent,
+  ThinkingState,
+  fail,
+  ok,
+  type Result,
 } from "./types";
 
 export function createAccumulator(): StreamAccumulator {
@@ -49,15 +49,17 @@ export function createStreamConfig(
     n_predict: options.maxTokens ?? 2048,
     temperature: options.temperature ?? 0.7,
     stop: STOP_WORDS,
-    top_k: 40,
-    top_p: 0.9,
+    top_p: 0.95,
+    top_k: 64,
     penalty_freq: 0.5,
     penalty_last_n: 64,
+    flash_attn: _config.flash_attn,
   };
 
   if (toolDefinitions && toolDefinitions.length > 0) {
     streamConfig.tools = toolDefinitions;
     streamConfig.tool_choice = "auto";
+    streamConfig.flash_attn = false;
   }
 
   return streamConfig;
