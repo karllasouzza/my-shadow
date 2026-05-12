@@ -1,4 +1,4 @@
-import { initLlama, type ContextParams, type LlamaContext } from "llama.rn";
+import { initLlama, type LlamaContext } from "llama.rn";
 import { aiDebug, aiError, aiInfo, aiWarn } from "../log";
 import { findModelById } from "./catalog";
 import { buildContextConfig } from "./config";
@@ -6,14 +6,14 @@ import { canRetry, degradeConfig, isOOMError } from "./oom-recovery";
 import { runStream } from "./stream";
 import { runToolPipeline } from "./tool-execution";
 import type {
-    CompletionOutput,
-    ContextConfig,
-    EngineState,
-    GenerateOptions,
-    LoadedModel,
-    Message,
-    ModelId,
-    Result,
+  CompletionOutput,
+  ContextConfig,
+  EngineState,
+  GenerateOptions,
+  LoadedModel,
+  Message,
+  ModelId,
+  Result,
 } from "./types";
 import { fail, ok } from "./types";
 
@@ -135,11 +135,11 @@ export class TextEngine {
       const config = await buildContextConfig({ fileSizeBytes });
       this.state.config = config;
 
-      console.log(this.toLlamaParams(path, config));
-      const context = await initLlama(this.toLlamaParams(path, config));
+      console.log({ model: path, ...config });
+      const context = await initLlama({ model: path, ...config });
       console.log(context);
 
-      await context.parallel.enable({ n_parallel: 4 });
+      await context.parallel.enable({ n_parallel: 1 });
       this.state.context = context;
       this.state.modelId = modelId as ModelId;
 
@@ -185,8 +185,8 @@ export class TextEngine {
     try {
       await this.unloadModel();
 
-      console.log(this.toLlamaParams(path, config));
-      const context = await initLlama(this.toLlamaParams(path, config));
+      console.log({ model: path, ...config });
+      const context = await initLlama({ model: path, ...config });
 
       await context.parallel.enable({ n_parallel: 1 });
       this.state.context = context;
@@ -244,7 +244,7 @@ export class TextEngine {
     aiDebug("LOAD:warmup:start", "warming up model");
     const start = Date.now();
     try {
-      const { promise } = await this.state.context.parallel.completion(
+      await this.state.context.completion(
         {
           messages: [{ role: "user", content: "." }],
           n_predict: 1,
@@ -252,29 +252,11 @@ export class TextEngine {
         },
         () => {},
       );
-      await promise;
       await this.state.context?.clearCache?.();
       aiDebug("LOAD:warmup:done", `duration_ms=${Date.now() - start}`);
     } catch (error) {
       aiDebug("LOAD:warmup:skip", `error=${(error as Error)?.message}`);
     }
-  }
-
-  private toLlamaParams(path: string, config: ContextConfig): ContextParams {
-    return {
-      model: path,
-      n_ctx: config.n_ctx,
-      n_batch: config.n_batch,
-      n_ubatch: config.n_ubatch,
-      n_threads: config.n_threads,
-      n_gpu_layers: config.n_gpu_layers,
-      cache_type_k: config.cache_type_k as ContextParams["cache_type_k"],
-      cache_type_v: config.cache_type_v as ContextParams["cache_type_v"],
-      use_mmap: config.use_mmap,
-      use_mlock: config.use_mlock,
-      n_parallel: 4,
-      no_extra_bufts: true,
-    };
   }
 
   // ─── Generation Method ───

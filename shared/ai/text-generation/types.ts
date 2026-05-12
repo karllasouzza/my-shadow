@@ -1,3 +1,5 @@
+import type { ContextParams } from "llama.rn";
+
 // ─── Branded Types ───
 export type ModelId = string & { readonly __brand: "ModelId" };
 
@@ -135,19 +137,7 @@ export interface Message {
 // ─── Config Types ───
 export type RamTier = "low" | "mid" | "high";
 
-export interface ContextConfig {
-  readonly n_ctx: number;
-  readonly n_batch: number;
-  readonly n_ubatch: number;
-  readonly n_threads: number;
-  readonly n_gpu_layers: number;
-  readonly cache_type_k: string;
-  readonly cache_type_v: string;
-  readonly use_mlock: boolean;
-  readonly use_mmap: boolean;
-  readonly flash_attn: boolean;
-}
-
+export type ContextConfig = Omit<ContextParams, "model">;
 export interface LoadedModel {
   readonly id: ModelId;
   readonly config: ContextConfig;

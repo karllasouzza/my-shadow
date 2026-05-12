@@ -1,4 +1,5 @@
 import { detectDevice } from "@/shared/device";
+import type { ContextParams } from "llama.rn";
 import { aiDebug } from "../log";
 import type { ContextConfig, RamTier } from "./types";
 
@@ -23,7 +24,7 @@ export function calculateGpuLayers(hasGpu: boolean): number {
 
 export function calculateContextParams(
   tier: RamTier,
-): Pick<ContextConfig, "n_ctx" | "n_batch" | "n_ubatch"> {
+): Pick<ContextParams, "n_ctx" | "n_batch" | "n_ubatch"> {
   switch (tier) {
     case "low":
       return { n_ctx: 1024, n_batch: 128, n_ubatch: 64 };
@@ -35,8 +36,8 @@ export function calculateContextParams(
 }
 
 export function calculateCacheType(tier: RamTier): {
-  cache_type_k: string;
-  cache_type_v: string;
+  cache_type_k: ContextConfig["cache_type_k"];
+  cache_type_v: ContextConfig["cache_type_v"];
 } {
   const cacheType = tier === "low" ? "q4_0" : "q8_0";
   return { cache_type_k: cacheType, cache_type_v: cacheType };
@@ -70,6 +71,9 @@ export async function buildContextConfig(
     n_threads: calculateThreads(device.cpuCores),
     n_gpu_layers: calculateGpuLayers(device.hasGPU),
     flash_attn: calculateGpuLayers(device.hasGPU) > 0,
+    flash_attn_type: "auto",
+    n_parallel: 1,
+    no_extra_bufts: true,
     ...cacheTypes,
   };
 
