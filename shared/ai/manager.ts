@@ -3,8 +3,12 @@ import { Result, createError, err, ok } from "@/shared/utils/app-error";
 import * as FileSystem from "expo-file-system/legacy";
 import { getAIRuntime } from "./text-generation/runtime";
 import { OnDownloadProgress } from "./types/manager";
-
-const MODELS_DIR = `${FileSystem.documentDirectory}models/`;
+import {
+  ensureModelsDirectory,
+  getModelPath,
+  getModelsDirectory,
+  modelExists,
+} from "./model-paths";
 
 // In-memory cache for downloaded models to avoid frequent disk reads.
 // Cache is short-lived and updated on download/remove.
@@ -17,17 +21,6 @@ export function invalidateDownloadedModelsCache() {
   aiDebug("STORAGE:cache:invalidate", "cache invalidated");
 }
 
-function getModelUri(modelId: string): string {
-  return `${MODELS_DIR}${modelId}.gguf`;
-}
-
-async function ensureModelsDir(): Promise<void> {
-  const info = await FileSystem.getInfoAsync(MODELS_DIR);
-  if (!info.exists) {
-    await FileSystem.makeDirectoryAsync(MODELS_DIR, { intermediates: true });
-  }
-}
-
 /**
  * Downloads a model using createDownloadResumable.
  */
@@ -37,9 +30,9 @@ export async function downloadModelById(
   onProgress?: OnDownloadProgress,
 ): Promise<Result<string>> {
   try {
-    await ensureModelsDir();
+    await ensureModelsDirectory();
     const start = Date.now();
-    const destUri = getModelUri(modelId);
+    const destUri = getModelPath(modelId);
     const fileInfo = await FileSystem.getInfoAsync(destUri);
 
     if (fileInfo.exists) {
@@ -89,16 +82,16 @@ export async function downloadModelById(
       `modelId=${modelId} destUri=${result.uri} duration_ms=${duration}`,
       { modelId, destUri: result.uri, duration_ms: duration },
     );
-    // update cache
+    // Use actual URI from download (may differ from planned path due to redirects)
     downloadedModelsCache = downloadedModelsCache ?? {
       ts: Date.now(),
       map: {},
     };
-    downloadedModelsCache.map[modelId] = destUri;
+    downloadedModelsCache.map[modelId] = result.uri;
     downloadedModelsCache.ts = Date.now();
 
     onProgress?.({ modelId, progress: 100 });
-    return ok(destUri);
+    return ok(result.uri);
   } catch (error) {
     aiError(
       "DOWNLOAD:error",
@@ -133,17 +126,18 @@ export async function getDownloadedModels(): Promise<Result<Record<string, strin
       return ok(downloadedModelsCache.map);
     }
 
-    const info = await FileSystem.getInfoAsync(MODELS_DIR);
+    const modelsDir = getModelsDirectory();
+    const info = await FileSystem.getInfoAsync(modelsDir);
     if (!info.exists) {
       downloadedModelsCache = { ts: Date.now(), map: {} };
       return ok({});
     }
 
-    const files = await FileSystem.readDirectoryAsync(MODELS_DIR);
+    const files = await FileSystem.readDirectoryAsync(modelsDir);
     const map = files.reduce(
       (map, name) => {
         if (name.endsWith(".gguf")) {
-          map[name.replace(/\.gguf$/, "")] = MODELS_DIR + name;
+          map[name.replace(/\.gguf$/, "")] = modelsDir + name;
         }
         return map;
       },
@@ -171,8 +165,16 @@ export async function getDownloadedModels(): Promise<Result<Record<string, strin
  * Checks if a model is downloaded.
  */
 export async function isModelDownloaded(modelId: string): Promise<boolean> {
-  const info = await FileSystem.getInfoAsync(getModelUri(modelId));
-  return info.exists;
+  if (
+    downloadedModelsCache &&
+    Date.now() - downloadedModelsCache.ts < CACHE_TTL_MS
+  ) {
+    const exists = modelId in downloadedModelsCache.map;
+    aiDebug("STORAGE:cache:check", `modelId=${modelId} exists=${exists}`);
+    return exists;
+  }
+
+  return modelExists(modelId);
 }
 
 /**
@@ -196,8 +198,9 @@ export async function getModelLocalPath(
     }
   }
 
-  const info = await FileSystem.getInfoAsync(getModelUri(modelId));
-  return info.exists ? getModelUri(modelId) : null;
+  const path = getModelPath(modelId);
+  const info = await FileSystem.getInfoAsync(path);
+  return info.exists ? path : null;
 }
 
 /**
@@ -214,7 +217,7 @@ export async function removeDownloadedModel(
       await runtime.unloadModel();
     }
 
-    const uri = getModelUri(modelId);
+    const uri = getModelPath(modelId);
     const info = await FileSystem.getInfoAsync(uri);
 
     if (info.exists) {
