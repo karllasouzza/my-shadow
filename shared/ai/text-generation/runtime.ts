@@ -1,5 +1,5 @@
 import { ChatMessage } from "@/database/chat/types";
-import { aiDebug, aiError, aiInfo } from "@/shared/ai/log";
+import { aiDebug, aiError, aiInfo, aiWarn } from "@/shared/ai/log";
 import { createError, err, ok, Result } from "@/shared/utils/app-error";
 import { initLlama, LlamaContext, TokenData } from "llama.rn";
 import { detectDevice, type DeviceInfo } from "../../device";
@@ -10,13 +10,24 @@ import { CompletionOutput, StreamCompletionOptions } from "./types";
 
 let instance: AIRuntime | null = null;
 
+interface LoadRequest {
+  modelId: string;
+  path: string;
+  fileSizeBytes: number;
+  resolve: (result: Result<{ id: string }>) => void;
+}
+
 export class AIRuntime {
   private context: LlamaContext | null = null;
   private modelId: string | null = null;
   private stopFn: (() => Promise<void>) | null = null;
   private loadingPromise: Promise<any> | null = null;
   private config: any = null;
+  private originalConfig: any = null;
+  private oomDegraded = false;
   private device: DeviceInfo | null = null;
+  private loadQueue: LoadRequest[] = [];
+  private isProcessingQueue = false;
 
   isModelLoaded(id?: string): boolean {
     if (!this.context) return false;
@@ -32,13 +43,36 @@ export class AIRuntime {
     path: string,
     fileSizeBytes: number,
   ): Promise<Result<{ id: string }>> {
-    // Protection against simultaneous load (SIGSEGV)
-    if (this.loadingPromise) return this.loadingPromise;
+    if (this.modelId === modelId && this.context) {
+      return ok({ id: modelId });
+    }
 
-    this.loadingPromise = this._doLoad(modelId, path, fileSizeBytes);
-    const result = await this.loadingPromise;
-    this.loadingPromise = null;
-    return result;
+    if (this.loadingPromise && this.modelId === modelId) {
+      return err(createError("BUSY", "Modelo já está sendo carregado."));
+    }
+
+    return new Promise((resolve) => {
+      this.loadQueue.push({ modelId, path, fileSizeBytes, resolve });
+      this.processQueue();
+    });
+  }
+
+  private async processQueue(): Promise<void> {
+    if (this.isProcessingQueue || this.loadQueue.length === 0) return;
+
+    this.isProcessingQueue = true;
+
+    while (this.loadQueue.length > 0) {
+      const request = this.loadQueue.shift()!;
+      const result = await this._doLoad(
+        request.modelId,
+        request.path,
+        request.fileSizeBytes,
+      );
+      request.resolve(result);
+    }
+
+    this.isProcessingQueue = false;
   }
 
   private async _doLoad(
@@ -101,6 +135,8 @@ export class AIRuntime {
 
       this.modelId = modelId;
       this.config = config;
+      this.originalConfig = { ...config };
+      this.oomDegraded = false;
 
       // Warm up the model to reduce TTFT on first inference
       // This does a single token completion to initialize caches and JIT compilation
@@ -145,6 +181,8 @@ export class AIRuntime {
       this.context = null;
       this.modelId = null;
       this.config = null;
+      this.oomDegraded = false;
+      this.originalConfig = null;
       const duration = Date.now() - start;
       aiInfo("UNLOAD:done", `duration_ms=${duration}`);
       return ok(undefined);
@@ -329,6 +367,14 @@ export class AIRuntime {
           n_ctx: Math.floor(this.config.n_ctx / 2),
         };
         this.config = degraded;
+        this.oomDegraded = true;
+
+        aiWarn(
+          "INFERENCE:oom-degraded",
+          `n_ctx reduzido de ${this.originalConfig?.n_ctx} para ${degraded.n_ctx}`,
+          { original: this.originalConfig?.n_ctx, degraded: degraded.n_ctx },
+        );
+
         return this.streamCompletion(messages, options, _retryCount + 1);
       }
 
@@ -354,6 +400,17 @@ export class AIRuntime {
     aiInfo("INFERENCE:cancel", `modelId=${this.modelId}`);
     await this.stopFn?.();
     this.stopFn = null;
+  }
+
+  async recoverFromOOMDegradation(): Promise<void> {
+    if (this.oomDegraded && this.originalConfig) {
+      aiInfo(
+        "INFERENCE:oom-recovery",
+        `Restaurando n_ctx de ${this.config?.n_ctx} para ${this.originalConfig.n_ctx}`,
+      );
+      this.config = { ...this.originalConfig };
+      this.oomDegraded = false;
+    }
   }
 }
 

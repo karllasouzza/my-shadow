@@ -17,7 +17,8 @@ export type AppErrorCode =
   | "NOT_FOUND"
   | "STORAGE_ERROR"
   | "UNKNOWN_ERROR"
-  | "ABORTED";
+  | "ABORTED"
+  | "BUSY";
 
 export interface AppError {
   code: AppErrorCode;
