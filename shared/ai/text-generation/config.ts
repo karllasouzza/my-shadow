@@ -1,8 +1,8 @@
-import type { DeviceInfo } from "@/shared/device";
+import type { DeviceProfile } from "@/shared/device";
 import type { RuntimeConfig } from "./types";
 
 export function buildConfig(
-  device: DeviceInfo,
+  device: DeviceProfile,
   modelPath: string,
   overrides?: Partial<RuntimeConfig>,
 ): RuntimeConfig {

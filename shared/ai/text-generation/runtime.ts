@@ -2,7 +2,7 @@ import { ChatMessage } from "@/database/chat/types";
 import { aiDebug, aiError, aiInfo, aiWarn } from "@/shared/ai/log";
 import { createError, err, ok, Result } from "@/shared/utils/app-error";
 import { initLlama, LlamaContext, TokenData } from "llama.rn";
-import { detectDevice, type DeviceInfo } from "../../device";
+import { detectDevice, type DeviceProfile } from "../../device";
 import { buildConfig } from "./config";
 import { STOP_WORDS } from "./constants";
 import { isLikelyOOMError } from "./oom-detection";
@@ -25,7 +25,7 @@ export class AIRuntime {
   private config: any = null;
   private originalConfig: any = null;
   private oomDegraded = false;
-  private device: DeviceInfo | null = null;
+  private device: DeviceProfile | null = null;
   private loadQueue: LoadRequest[] = [];
   private isProcessingQueue = false;
 
@@ -98,7 +98,7 @@ export class AIRuntime {
 
       // Check memory: file * 1.5 for KV cache + activations
       this.device ??= await detectDevice();
-      const device = this.device as DeviceInfo;
+      const device = this.device as DeviceProfile;
       const requiredGB = (fileSizeBytes * 1.5) / 1024 ** 3;
       aiDebug("LOAD:device-check", `requiredGB=${requiredGB.toFixed(2)}`, {
         requiredGB,
