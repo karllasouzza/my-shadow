@@ -3,10 +3,10 @@ import { aiDebug, aiError, aiInfo, aiWarn } from "@/shared/ai/log";
 import { createError, err, ok, Result } from "@/shared/utils/app-error";
 import { initLlama, LlamaContext, TokenData } from "llama.rn";
 import { detectDevice, type DeviceProfile } from "../../device";
-import { buildConfig } from "./config";
+import { buildConfig, validateRuntimeConfig } from "./config";
 import { STOP_WORDS } from "./constants";
 import { isLikelyOOMError } from "./oom-detection";
-import { CompletionOutput, StreamCompletionOptions } from "./types";
+import { CompletionOutput, RuntimeConfig, StreamCompletionOptions } from "./types";
 
 let instance: AIRuntime | null = null;
 
@@ -22,8 +22,8 @@ export class AIRuntime {
   private modelId: string | null = null;
   private stopFn: (() => Promise<void>) | null = null;
   private loadingPromise: Promise<any> | null = null;
-  private config: any = null;
-  private originalConfig: any = null;
+  private config: RuntimeConfig | null = null;
+  private originalConfig: RuntimeConfig | null = null;
   private oomDegraded = false;
   private device: DeviceProfile | null = null;
   private loadQueue: LoadRequest[] = [];
@@ -114,6 +114,15 @@ export class AIRuntime {
       }
 
       const config = buildConfig(device, path);
+
+      if (!validateRuntimeConfig(config)) {
+        return err(
+          createError("VALIDATION_ERROR", "Configuração do runtime inválida", {
+            config,
+          }),
+        );
+      }
+
       const hasGPU = device.hasGPU;
 
       // Flash attention overhead may exceed benefits for small models (< 500MB)
@@ -237,7 +246,7 @@ export class AIRuntime {
     // Disable thinking mode for very small models (< 800MB) as overhead may exceed benefits
     const actualEnableThinking =
       enableThinking &&
-      this.config &&
+      !!this.config &&
       (this.config.model?.includes?.("7b") ||
         this.config.model?.includes?.("13b") ||
         this.config.model?.includes?.("70b"));

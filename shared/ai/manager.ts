@@ -119,7 +119,7 @@ export async function downloadModelById(
 /**
  * Lists downloaded models.
  */
-export async function getDownloadedModels(): Promise<Record<string, string>> {
+export async function getDownloadedModels(): Promise<Result<Record<string, string>>> {
   try {
     // Return cache when fresh
     if (
@@ -130,13 +130,13 @@ export async function getDownloadedModels(): Promise<Record<string, string>> {
         "STORAGE:cache:hit",
         `found=${Object.keys(downloadedModelsCache.map).length}`,
       );
-      return downloadedModelsCache.map;
+      return ok(downloadedModelsCache.map);
     }
 
     const info = await FileSystem.getInfoAsync(MODELS_DIR);
     if (!info.exists) {
       downloadedModelsCache = { ts: Date.now(), map: {} };
-      return {};
+      return ok({});
     }
 
     const files = await FileSystem.readDirectoryAsync(MODELS_DIR);
@@ -151,9 +151,19 @@ export async function getDownloadedModels(): Promise<Record<string, string>> {
     );
     downloadedModelsCache = { ts: Date.now(), map };
     aiDebug("STORAGE:list", `found=${Object.keys(map).length}`);
-    return map;
-  } catch {
-    return {};
+    return ok(map);
+  } catch (error) {
+    aiError("STORAGE:list:error", "Failed to list downloaded models", {
+      error: (error as Error)?.message,
+    });
+    return err(
+      createError(
+        "STORAGE_ERROR",
+        "Falha ao listar modelos baixados",
+        {},
+        error as Error,
+      ),
+    );
   }
 }
 

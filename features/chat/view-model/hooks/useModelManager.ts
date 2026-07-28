@@ -18,9 +18,13 @@ export function useModelManager() {
   const [available, setAvailable] = useState<AvailableModel[]>([]);
 
   const refresh = useCallback(async () => {
-    const models = await getAvailableModels();
-    setAvailable(models);
-    return models;
+    const result = await getAvailableModels();
+    if (result.success) {
+      setAvailable(result.data);
+      return result.data;
+    }
+    setAvailable([]);
+    return [];
   }, []);
 
   useEffect(() => {

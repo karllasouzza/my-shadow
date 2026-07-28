@@ -1,5 +1,6 @@
 import chatState$ from "@/database/chat";
 import { aiError, aiInfo } from "@/shared/ai/log";
+import { err, ok, Result } from "@/shared/utils/app-error";
 import { getDownloadedModels, getModelLocalPath } from "./manager";
 import { findModelById, getAllModels } from "./text-generation/catalog";
 import { getAIRuntime } from "./text-generation/runtime";
@@ -19,12 +20,12 @@ export async function loadModel(modelId: string): Promise<ModelLoadResult> {
   const result = await runtime.loadModel(modelId, path, model.fileSizeBytes);
 
   if (!result.success) {
-    aiError(
-      "MODEL:load:error",
-      `modelId=${modelId} msg=${result.error.message}`,
-      { error: result.error },
-    );
-    return { success: false, error: result.error.message };
+    const errorMessage =
+      result.error?.message ?? "Erro desconhecido ao carregar modelo";
+    aiError("MODEL:load:error", `modelId=${modelId} msg=${errorMessage}`, {
+      error: result.error,
+    });
+    return { success: false, error: errorMessage, code: result.error?.code };
   }
 
   const duration = Date.now() - start;
@@ -70,12 +71,18 @@ export async function autoLoadLastModel(): Promise<ModelLoadResult> {
   return loadModel(lastModelId);
 }
 
-export async function getAvailableModels(): Promise<AvailableModel[]> {
+export async function getAvailableModels(): Promise<Result<AvailableModel[]>> {
   const catalog = getAllModels();
-  const downloaded = await getDownloadedModels();
+  const downloadedResult = await getDownloadedModels();
+
+  if (!downloadedResult.success) {
+    return err(downloadedResult.error);
+  }
+
+  const downloaded = downloadedResult.data;
   const loadedId = getAIRuntime().getCurrentModel()?.id;
 
-  return Object.keys(downloaded)
+  const models = Object.keys(downloaded)
     .map((id) => {
       const meta = catalog.find((m) => m.id === id);
       return {
@@ -87,4 +94,6 @@ export async function getAvailableModels(): Promise<AvailableModel[]> {
       };
     })
     .sort((a, b) => a.displayName.localeCompare(b.displayName));
+
+  return ok(models);
 }
