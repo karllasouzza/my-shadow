@@ -6,6 +6,7 @@ import { detectDevice, type DeviceProfile } from "../../device";
 import { buildConfig, validateRuntimeConfig } from "./config";
 import { STOP_WORDS } from "./constants";
 import { isLikelyOOMError } from "./oom-detection";
+import { ThinkTagParser } from "./think-tag-parser";
 import { CompletionOutput, RuntimeConfig, StreamCompletionOptions } from "./types";
 
 let instance: AIRuntime | null = null;
@@ -259,7 +260,7 @@ export class AIRuntime {
 
     let text = "";
     let reasoning = "";
-    let inThinkTag = false;
+    const thinkParser = new ThinkTagParser();
     const abortController = new AbortController();
 
     if (signal) {
@@ -294,7 +295,6 @@ export class AIRuntime {
 
           let token = data.token ?? "";
           const reasoningChunk = data.reasoning_content ?? "";
-          let reasoningToSend = "";
 
           // capture first token time-to-first-token
           if (!firstTokenAt && (token || reasoningChunk)) {
@@ -307,31 +307,26 @@ export class AIRuntime {
             );
           }
 
+          // Use parser for think tags
           if (enableThinking && !reasoningChunk) {
-            if (token.includes("<think>")) {
-              inThinkTag = true;
-              token = token.split("<think>")[1] ?? "";
-            }
-            if (inThinkTag && token.includes("</think>")) {
-              const parts = token.split("</think>");
-              reasoningToSend = parts[0];
-              reasoning += reasoningToSend;
-              token = parts[1] ?? "";
-              inThinkTag = false;
-            } else if (inThinkTag) {
-              reasoningToSend = token;
-              reasoning += token;
-              token = "";
+            const parsed = thinkParser.parse(token);
+            token = parsed.token;
+            if (parsed.reasoning) {
+              reasoning += parsed.reasoning;
+              options?.onStreamChunk?.({
+                token: "",
+                reasoning: parsed.reasoning,
+              });
             }
           }
 
           if (token) text += token;
           if (reasoningChunk) reasoning += reasoningChunk;
 
-          if (token || reasoningChunk || reasoningToSend) {
+          if (token || reasoningChunk) {
             options?.onStreamChunk?.({
               token,
-              reasoning: reasoningChunk || reasoningToSend || undefined,
+              reasoning: reasoningChunk || undefined,
             });
           }
         },
